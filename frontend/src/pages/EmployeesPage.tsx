@@ -542,28 +542,36 @@ export const EmployeesPage: React.FC = () => {
                   </div>
 
                   {/* Card Body: Relevant Metadata */}
-                  <div className="mt-4 pt-3.5 border-t border-slate-100 space-y-2 text-xs">
+                  <div className="mt-4 pt-3.5 border-t border-slate-100 space-y-2.5 text-xs">
                     {/* Branch */}
                     <div className="flex items-start gap-2 text-slate-700">
                       <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                      <span className="font-medium break-words leading-tight">{emp.branchName}</span>
+                      <span className="font-medium break-words leading-tight flex-1">{emp.branchName}</span>
                     </div>
 
-                    {/* Department & Position */}
+                    {/* Department & Position (Salto de línea entre puesto y departamento para legibilidad completa) */}
                     {(emp.departmentName || emp.positionName) && (
-                      <div className="flex items-start gap-2 text-slate-500">
+                      <div className="flex items-start gap-2 text-slate-600">
                         <Briefcase className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                        <span className="truncate leading-tight">
-                          {emp.positionName || (isZh ? '综合职能' : 'Puesto General')}
-                          {emp.departmentName ? ` · ${emp.departmentName}` : ''}
-                        </span>
+                        <div className="min-w-0 flex-1 leading-snug break-words">
+                          {emp.positionName && (
+                            <div className="font-semibold text-slate-800 break-words">
+                              {emp.positionName}
+                            </div>
+                          )}
+                          {emp.departmentName && (
+                            <div className="text-slate-500 text-[11px] break-words mt-0.5">
+                              {emp.departmentName}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
-                    {/* Assigned Schedule */}
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span className="font-semibold text-emerald-800 bg-emerald-50/70 border border-emerald-200/60 px-2 py-0.5 rounded-md text-[11px] truncate">
+                    {/* Assigned Schedule (Envolvente y sin truncate para mostrar el horario completo) */}
+                    <div className="flex items-start gap-2">
+                      <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                      <span className="font-semibold text-emerald-800 bg-emerald-50/70 border border-emerald-200/60 px-2 py-1 rounded-md text-[11px] break-words leading-tight flex-1">
                         {emp.currentScheduleName || (isZh ? '标准排班' : 'Turno Estándar')}
                       </span>
                     </div>
@@ -571,7 +579,7 @@ export const EmployeesPage: React.FC = () => {
                     {/* FA200 Biometric Device ID */}
                     <div className="flex items-center gap-2 text-slate-600 pt-0.5">
                       <Fingerprint className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      <span className="text-[11px]">
+                      <span className="text-[11px] break-words">
                         {isZh ? '考勤机工号: ' : 'ID FA200: '}
                         <strong className="font-mono text-amber-800 font-bold">
                           {emp.biometricExternalId || emp.employeeCode}
@@ -688,19 +696,23 @@ export const EmployeesPage: React.FC = () => {
 
                       {/* Branch & Position (Visible on sm+) */}
                       <td className="py-3 px-3 align-middle border-r border-slate-200 hidden sm:table-cell">
-                        <div className="font-medium text-slate-800 truncate">{emp.branchName}</div>
-                        <div className="text-slate-400 text-[11px] truncate">
-                          {emp.positionName || (isZh ? '综合职能' : 'General')}
-                          {emp.departmentName ? ` · ${emp.departmentName}` : ''}
+                        <div className="font-semibold text-slate-800 break-words leading-tight">{emp.branchName}</div>
+                        <div className="text-[11px] break-words mt-0.5 space-y-0.5">
+                          {emp.positionName && (
+                            <div className="font-medium text-slate-700 break-words">{emp.positionName}</div>
+                          )}
+                          {emp.departmentName && (
+                            <div className="text-slate-500 break-words">{emp.departmentName}</div>
+                          )}
                         </div>
                       </td>
 
                       {/* Schedule & FA200 (Visible on md+) */}
                       <td className="py-3 px-3 align-middle border-r border-slate-200 hidden md:table-cell">
-                        <div className="font-semibold text-emerald-800 text-[11px] truncate">
+                        <div className="font-semibold text-emerald-800 text-[11px] break-words leading-tight">
                           {emp.currentScheduleName || (isZh ? '标准班次' : 'Turno Estándar')}
                         </div>
-                        <div className="text-[11px] text-slate-500 font-mono">
+                        <div className="text-[11px] text-slate-500 font-mono mt-0.5">
                           ID FA200: <strong className="text-amber-800">{emp.biometricExternalId || emp.employeeCode}</strong>
                         </div>
                       </td>
