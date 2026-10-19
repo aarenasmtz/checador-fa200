@@ -525,83 +525,84 @@ export const AttendancePage: React.FC = () => {
               <>
                 {/* 1. DESKTOP VIEW (Visible on lg+ screens: 1024px, 1366px, 1920px) */}
                 <div className="hidden lg:block overflow-x-hidden">
-                  <table className="w-full text-left text-sm table-fixed">
-                    <thead className="bg-slate-50/90 text-slate-700 border-b border-slate-200 font-semibold text-xs">
+                  <table className="w-full text-left text-sm table-fixed border-collapse border border-slate-200">
+                    <thead className="bg-slate-100/90 text-slate-700 border-b-2 border-slate-200 font-semibold text-xs">
                       <tr>
-                        <th className="py-3.5 px-4 w-[24%]">{isZh ? '员工姓名 / 门店' : 'Empleado y Sucursal'}</th>
-                        <th className="py-3.5 px-3 w-[10%]">{isZh ? '日期' : 'Fecha'}</th>
-                        <th className="py-3.5 px-3 w-[14%]">
+                        <th className="py-3 px-3.5 w-[24%] border-r border-slate-200">{isZh ? '员工姓名 / 门店' : 'Empleado y Sucursal'}</th>
+                        <th className="py-3 px-3 w-[10%] border-r border-slate-200 text-center">{isZh ? '日期' : 'Fecha'}</th>
+                        <th className="py-3 px-3.5 w-[14%] border-r border-slate-200 bg-emerald-50/60">
                           <span className="block text-emerald-800 font-bold">{isZh ? '1. 上班进' : '1. Entrada'}</span>
-                          <span className="text-xs text-slate-400 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
+                          <span className="text-[11px] text-slate-500 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
                         </th>
-                        <th className="py-3.5 px-3 w-[14%]">
+                        <th className="py-3 px-3.5 w-[14%] border-r border-slate-200 bg-amber-50/60">
                           <span className="block text-amber-800 font-bold">{isZh ? '2. 就餐出' : '2. Salida Comida'}</span>
-                          <span className="text-xs text-slate-400 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
+                          <span className="text-[11px] text-slate-500 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
                         </th>
-                        <th className="py-3.5 px-3 w-[14%]">
+                        <th className="py-3 px-3.5 w-[14%] border-r border-slate-200 bg-indigo-50/60">
                           <span className="block text-indigo-800 font-bold">{isZh ? '3. 就餐归' : '3. Regreso Comida'}</span>
-                          <span className="text-xs text-slate-400 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
+                          <span className="text-[11px] text-slate-500 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
                         </th>
-                        <th className="py-3.5 px-3 w-[14%]">
+                        <th className="py-3 px-3.5 w-[14%] border-r border-slate-200 bg-slate-100/80">
                           <span className="block text-slate-900 font-bold">{isZh ? '4. 下班退' : '4. Salida Turno'}</span>
-                          <span className="text-xs text-slate-400 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
+                          <span className="text-[11px] text-slate-500 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
                         </th>
-                        <th className="py-3.5 px-4 w-[10%] text-right">{isZh ? '状态与操作' : 'Estado / Acción'}</th>
+                        <th className="py-3 px-3.5 w-[10%] text-center">{isZh ? '状态与操作' : 'Estado / Acción'}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-200">
                       {items.length > 0 ? (
-                        items.map((row) => {
+                        items.map((row, idx) => {
                           const isExpanded = expandedRowIds.has(row.id);
+                          const isEven = idx % 2 === 0;
                           return (
                             <React.Fragment key={row.id}>
-                              <tr className={`transition hover:bg-slate-50/80 ${isExpanded ? 'bg-indigo-50/30' : ''}`}>
+                              <tr className={`border-b border-slate-200 transition ${isExpanded ? 'bg-indigo-50/40' : isEven ? 'bg-white' : 'bg-slate-50/60'} hover:bg-indigo-50/50`}>
                                 {/* Empleado */}
-                                <td className="py-3.5 px-4 align-top">
+                                <td className="py-3 px-3.5 align-middle border-r border-slate-200">
                                   <div className="font-bold text-slate-900 text-sm leading-snug">
                                     {row.employeeName}
                                   </div>
                                   <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5 mt-0.5">
-                                    <span className="font-mono text-indigo-700 bg-indigo-50 px-1 rounded">#{row.employeeCode}</span>
+                                    <span className="font-mono text-indigo-700 bg-indigo-50 px-1 py-0.5 rounded border border-indigo-100">#{row.employeeCode}</span>
                                     <span>·</span>
                                     <span className="truncate">{row.branchName}</span>
                                   </div>
                                 </td>
 
                                 {/* Fecha */}
-                                <td className="py-3.5 px-3 align-top font-mono text-xs text-slate-700 font-semibold pt-4">
+                                <td className="py-3 px-3 align-middle text-center font-mono text-xs text-slate-700 font-semibold border-r border-slate-200">
                                   {row.date}
                                 </td>
 
                                 {/* 1. Entrada */}
-                                <td className="py-3.5 px-3 align-top">
+                                <td className="py-3 px-3.5 align-middle border-r border-slate-200 bg-emerald-50/20">
                                   {renderPunchCell(row.firstEntry, row.expectedEntry, 'text-emerald-700')}
                                 </td>
 
                                 {/* 2. Salida Comida */}
-                                <td className="py-3.5 px-3 align-top">
+                                <td className="py-3 px-3.5 align-middle border-r border-slate-200 bg-amber-50/20">
                                   {renderPunchCell(row.mealExit, row.expectedMealStart, 'text-amber-800')}
                                 </td>
 
                                 {/* 3. Regreso Comida */}
-                                <td className="py-3.5 px-3 align-top">
+                                <td className="py-3 px-3.5 align-middle border-r border-slate-200 bg-indigo-50/20">
                                   {renderPunchCell(row.mealReturn, row.expectedMealEnd, 'text-indigo-800')}
                                 </td>
 
                                 {/* 4. Salida Turno */}
-                                <td className="py-3.5 px-3 align-top">
+                                <td className="py-3 px-3.5 align-middle border-r border-slate-200 bg-slate-100/30">
                                   {renderPunchCell(row.lastExit, row.expectedExit, 'text-slate-900')}
                                 </td>
 
                                 {/* Estado y Acciones */}
-                                <td className="py-3.5 px-4 align-top text-right space-y-1.5">
-                                  <div>{getStatusBadge(row.status, true)}</div>
+                                <td className="py-3 px-3.5 align-middle text-center space-y-1.5">
+                                  <div className="flex justify-center">{getStatusBadge(row.status, true)}</div>
 
-                                  <div className="flex items-center justify-end gap-1.5 pt-0.5">
+                                  <div className="flex items-center justify-center gap-1.5 pt-0.5">
                                     <button
                                       type="button"
                                       onClick={() => toggleRowExpansion(row.id)}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition cursor-pointer min-h-[32px]"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition cursor-pointer min-h-[32px] border border-slate-200"
                                       title={isZh ? '查看考勤完整明细' : 'Ver detalle ampliado'}
                                     >
                                       <span>{isExpanded ? (isZh ? '收起' : 'Ocultar') : (isZh ? 'Detalle' : 'Detalle')}</span>
@@ -611,7 +612,7 @@ export const AttendancePage: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => openAuditModal(row)}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white transition cursor-pointer min-h-[32px]"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white transition cursor-pointer min-h-[32px] border border-indigo-200"
                                       title={isZh ? '人工审核修正' : 'Auditar o corregir marcación'}
                                     >
                                       <Edit3 className="w-3.5 h-3.5" />
@@ -911,38 +912,38 @@ export const AttendancePage: React.FC = () => {
             ) : (
               /* Raw Events Table */
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs whitespace-nowrap">
-                  <thead className="bg-slate-50/80 text-slate-700 border-b border-slate-200 font-semibold">
+                <table className="w-full text-left text-xs whitespace-nowrap border-collapse border border-slate-200">
+                  <thead className="bg-slate-100/90 text-slate-700 border-b-2 border-slate-200 font-semibold">
                     <tr>
-                      <th className="py-3 px-4">{t('common.time')}</th>
-                      <th className="py-3 px-4">{isZh ? '考勤机设备' : 'Dispositivo'}</th>
-                      <th className="py-3 px-4">{isZh ? '打卡员工' : 'Empleado'}</th>
-                      <th className="py-3 px-4">{t('common.method')}</th>
-                      <th className="py-3 px-4">{t('common.type')}</th>
-                      <th className="py-3 px-4">{isZh ? 'FA200 硬件代码' : 'Código FA200'}</th>
+                      <th className="py-3 px-4 border-r border-slate-200">{t('common.time')}</th>
+                      <th className="py-3 px-4 border-r border-slate-200">{isZh ? '考勤机设备' : 'Dispositivo'}</th>
+                      <th className="py-3 px-4 border-r border-slate-200">{isZh ? '打卡员工' : 'Empleado'}</th>
+                      <th className="py-3 px-4 border-r border-slate-200">{t('common.method')}</th>
+                      <th className="py-3 px-4 border-r border-slate-200">{t('common.type')}</th>
+                      <th className="py-3 px-4 border-r border-slate-200">{isZh ? 'FA200 硬件代码' : 'Código FA200'}</th>
                       <th className="py-3 px-4">{isZh ? 'SHA-256 防篡改存证签名' : 'Hash SHA-256 Inmutable'}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-200">
                     {rawEvents.length > 0 ? (
-                      rawEvents.map((raw) => (
-                        <tr key={raw.id} className="hover:bg-slate-50/70 transition">
-                          <td className="py-3 px-4 font-mono text-indigo-700 font-semibold">{raw.timestamp}</td>
-                          <td className="py-3 px-4 text-slate-800 font-medium">{raw.deviceName}</td>
-                          <td className="py-3 px-4 text-slate-800">
+                      rawEvents.map((raw, idx) => (
+                        <tr key={raw.id} className={`border-b border-slate-200 hover:bg-slate-50/80 transition ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
+                          <td className="py-2.5 px-4 font-mono text-indigo-700 font-semibold border-r border-slate-200">{raw.timestamp}</td>
+                          <td className="py-2.5 px-4 text-slate-800 font-medium border-r border-slate-200">{raw.deviceName}</td>
+                          <td className="py-2.5 px-4 text-slate-800 border-r border-slate-200">
                             <span className="font-bold">{raw.employeeName}</span>
                             <span className="font-mono text-slate-400 ml-1">#{raw.employeeCode}</span>
                           </td>
-                          <td className="py-3 px-4">
+                          <td className="py-2.5 px-4 border-r border-slate-200">
                             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
                               {raw.method}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-slate-800 font-medium">{raw.eventType}</td>
-                          <td className="py-3 px-4 font-mono text-xs text-slate-600">
+                          <td className="py-2.5 px-4 text-slate-800 font-medium border-r border-slate-200">{raw.eventType}</td>
+                          <td className="py-2.5 px-4 font-mono text-xs text-slate-600 border-r border-slate-200">
                             {raw.nativePunchCode !== undefined ? `Punch #${raw.nativePunchCode}` : 'Auto (255)'}
                           </td>
-                          <td className="py-3 px-4 font-mono text-[11px] text-slate-500 truncate max-w-xs" title={raw.eventHash}>
+                          <td className="py-2.5 px-4 font-mono text-[11px] text-slate-500 truncate max-w-xs" title={raw.eventHash}>
                             {raw.eventHash}
                           </td>
                         </tr>
