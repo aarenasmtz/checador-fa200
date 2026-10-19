@@ -91,8 +91,8 @@ public class AttendanceDaily
     public int OvertimeMinutes { get; set; } = 0;
 
     public AttendanceStatus Status { get; set; } = AttendanceStatus.Absent;
-    public string Origin { get; set; } = "BIOMETRICO"; // "BIOMETRICO", "MANUAL", "SISTEMA"
-    public string ClassificationOrigin { get; set; } = "INFERRED"; // "DEVICE_CODE", "INFERRED_WINDOW", "MANUAL_OVERRIDE"
+    public string? Origin { get; set; } = "BIOMETRICO"; // "BIOMETRICO", "MANUAL", "SISTEMA"
+    public string? ClassificationOrigin { get; set; } = "INFERRED"; // "DEVICE_CODE", "INFERRED_WINDOW", "MANUAL_OVERRIDE"
     public bool RequiresReview { get; set; } = false;
     public string? ReviewNotes { get; set; }
 
