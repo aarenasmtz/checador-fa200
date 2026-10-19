@@ -195,7 +195,15 @@ public class EmployeesController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
-        return CreatedAtAction(nameof(GetEmployee), new { id = emp.Id }, emp);
+        return CreatedAtAction(nameof(GetEmployee), new { id = emp.Id }, new
+        {
+            id = emp.Id,
+            employeeCode = emp.EmployeeCode,
+            firstName = emp.FirstName,
+            lastName = emp.LastName,
+            biometricExternalId = emp.BiometricExternalId,
+            message = "Empleado registrado con éxito"
+        });
     }
 
     [HttpPut("{id}")]
@@ -238,7 +246,15 @@ public class EmployeesController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
-        return Ok(emp);
+        return Ok(new
+        {
+            id = emp.Id,
+            employeeCode = emp.EmployeeCode,
+            firstName = emp.FirstName,
+            lastName = emp.LastName,
+            biometricExternalId = emp.BiometricExternalId,
+            message = "Empleado actualizado con éxito"
+        });
     }
 
     [HttpPut("{id}/status")]
