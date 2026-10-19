@@ -39,11 +39,19 @@ export const AttendancePage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  // Filters
+  const getTodayDateString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Filters (Default to today's date)
   const [selectedBranch, setSelectedBranch] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>(() => getTodayDateString());
+  const [endDate, setEndDate] = useState<string>(() => getTodayDateString());
   const [showMobileFilters, setShowMobileFilters] = useState<boolean>(false);
 
   // Accordion expanded row state (Set of item IDs)
@@ -67,7 +75,13 @@ export const AttendancePage: React.FC = () => {
   const [auditError, setAuditError] = useState<string | null>(null);
   const [auditSuccess, setAuditSuccess] = useState<string | null>(null);
 
-  const activeFiltersCount = [selectedBranch, selectedStatus, startDate, endDate].filter(Boolean).length;
+  const todayStr = getTodayDateString();
+  const activeFiltersCount = [
+    selectedBranch,
+    selectedStatus,
+    startDate && startDate !== todayStr ? startDate : null,
+    endDate && endDate !== todayStr ? endDate : null
+  ].filter(Boolean).length;
 
   const toggleRowExpansion = (id: number) => {
     setExpandedRowIds(prev => {
@@ -81,8 +95,9 @@ export const AttendancePage: React.FC = () => {
   const clearFilters = () => {
     setSelectedBranch('');
     setSelectedStatus('');
-    setStartDate('');
-    setEndDate('');
+    const today = getTodayDateString();
+    setStartDate(today);
+    setEndDate(today);
     setPage(1);
   };
 
@@ -453,9 +468,19 @@ export const AttendancePage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 mb-1 font-semibold text-xs">
-                    {isZh ? '开始日期' : 'Fecha Inicio'}
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-700 font-semibold text-xs">
+                      {isZh ? '开始日期' : 'Fecha Inicio'}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { const today = getTodayDateString(); setStartDate(today); setPage(1); }}
+                      className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer"
+                      title={isZh ? '设为今天' : 'Fijar en hoy'}
+                    >
+                      {isZh ? '今天' : 'Hoy'}
+                    </button>
+                  </div>
                   <input
                     type="date"
                     value={startDate}
@@ -465,9 +490,19 @@ export const AttendancePage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 mb-1 font-semibold text-xs">
-                    {isZh ? '结束日期' : 'Fecha Fin'}
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-700 font-semibold text-xs">
+                      {isZh ? '结束日期' : 'Fecha Fin'}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { const today = getTodayDateString(); setEndDate(today); setPage(1); }}
+                      className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold cursor-pointer"
+                      title={isZh ? '设为今天' : 'Fijar en hoy'}
+                    >
+                      {isZh ? '今天' : 'Hoy'}
+                    </button>
+                  </div>
                   <input
                     type="date"
                     value={endDate}
