@@ -1,0 +1,72 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: attendance_sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Password123!
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Password123!' -Q 'SELECT 1' -C || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - attendance_net
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Attendance.Api/Dockerfile
+    container_name: attendance_api
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=AttendanceDb;User Id=sa;Password=Password123!;TrustServerCertificate=True;MultipleActiveResultSets=true;
+      - Jwt__Secret=HualongSuperSecretEnterpriseSecurityKey2026!AttendanceTokenSystemMin256Bits
+      - Jwt__Issuer=AttendanceApi
+      - Jwt__Audience=AttendanceWeb
+      - BiometricProviders__FA200__Enabled=false
+    ports:
+      - "5081:8080"
+    networks:
+      - attendance_net
+
+  worker:
+    build:
+      context: .
+      dockerfile: src/Attendance.Worker/Dockerfile
+    container_name: attendance_worker
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      - DOTNET_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=AttendanceDb;User Id=sa;Password=Password123!;TrustServerCertificate=True;MultipleActiveResultSets=true;
+      - BiometricProviders__FA200__Enabled=false
+    networks:
+      - attendance_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: attendance_frontend
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+    networks:
+      - attendance_net
+
+volumes:
+  sqlserver_data:
+
+networks:
+  attendance_net:
+    driver: bridge

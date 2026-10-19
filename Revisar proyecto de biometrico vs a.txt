@@ -1,0 +1,10 @@
+Revisar proyecto de biometrico vs aplicación 
+Registro de asistencia dashboard
+Registro de detalle histórico por sucursal y general
+
+Modelos :  DS-K1T341AMF-S 4 equipos
+Implementación : Portal web y acceso desde Celular con app nativa
+Tiempo Desarrollo : 15 Dias ()
+Costo : 19000
+No requiere CPU 
+Cara y Huella 

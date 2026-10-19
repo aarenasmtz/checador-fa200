@@ -1,0 +1,27 @@
+# .NET
+bin/
+obj/
+publish/
+dist_vps/
+*.tar.gz
+*.user
+*.suo
+logs/
+*.log
+
+# Node / Vite
+node_modules/
+frontend/dist/
+frontend/node_modules/
+.vite/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+
+# Environment files with secrets
+.env
+*.bak

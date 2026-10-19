@@ -1,0 +1,1541 @@
+QUIERO QUE ACTÚES COMO ARQUITECTO DE SOFTWARE SENIOR Y DESARROLLADOR FULL STACK
+ESPECIALIZADO EN .NET, REACT, SQL SERVER, SISTEMAS DE ASISTENCIA Y DISPOSITIVOS
+BIOMÉTRICOS.
+
+Necesito diseñar e implementar un SISTEMA COMPLETO DE CONTROL DE ASISTENCIA
+BIOMÉTRICA para una empresa con múltiples sucursales.
+
+IMPORTANTE:
+Actualmente NO tengo físicamente el dispositivo biométrico.
+
+El dispositivo seleccionado para la prueba final es:
+
+FA200
+- Reconocimiento facial
+- Huella digital
+- TCP/IP
+- USB
+- Linux según variante
+- Posible SDK / PUSH / ADMS dependiendo del firmware
+
+Por lo tanto:
+
+NO BLOQUEAR EL DESARROLLO POR NO TENER EL DISPOSITIVO.
+
+Todo el sistema debe desarrollarse primero utilizando una arquitectura desacoplada
+del hardware y un SIMULADOR DE DISPOSITIVO BIOMÉTRICO.
+
+Cuando llegue el FA200 se realizará como ÚLTIMA FASE la integración real.
+
+============================================================
+1. OBJETIVO DEL SISTEMA
+============================================================
+
+Crear una plataforma centralizada para administrar:
+
+- Empresas
+- Sucursales
+- Empleados
+- Departamentos
+- Puestos
+- Horarios
+- Turnos
+- Días laborales
+- Días festivos
+- Vacaciones
+- Permisos
+- Incidencias
+- Dispositivos biométricos
+- Registros de entrada/salida
+- Retardos
+- Faltas
+- Horas trabajadas
+- Horas extra
+- Reportes
+- Exportación Excel
+- Exportación PDF
+- Usuarios
+- Roles
+- Permisos
+- Auditoría
+
+La plataforma deberá recibir en el futuro registros provenientes de uno o múltiples
+FA200 instalados en diferentes sucursales.
+
+Arquitectura objetivo:
+
+FA200 Sucursal 1 ──┐
+FA200 Sucursal 2 ──┤
+FA200 Sucursal 3 ──┤
+FA200 Sucursal N ──┘
+          │
+       Internet
+          │
+          ▼
+        VPS
+          │
+   Biometric Integration
+          │
+       .NET API
+          │
+     SQL Server
+          │
+        React
+          │
+ Dashboard / Reportes / Excel / PDF
+
+============================================================
+2. STACK TECNOLÓGICO
+============================================================
+
+BACKEND
+
+- ASP.NET Core .NET 9
+- C#
+- Web API REST
+- Entity Framework Core
+- SQL Server
+- Swagger / OpenAPI
+- JWT
+- Refresh Tokens
+- Dependency Injection
+- BackgroundService / Worker Service
+- Serilog
+- FluentValidation
+- AutoMapper si realmente aporta valor
+- Health Checks
+
+FRONTEND
+
+- React
+- TypeScript
+- Vite
+- React Router
+- TanStack Query
+- Axios
+- React Hook Form
+- Zod
+- Componentes reutilizables
+- Responsive Design
+- Desktop / Tablet / Mobile
+
+BASE DE DATOS
+
+SQL Server.
+
+INFRAESTRUCTURA OBJETIVO
+
+- VPS
+- HTTPS
+- Reverse Proxy
+- API independiente
+- SQL Server
+- Frontend desplegable independientemente
+- Backups
+- Logs
+- Variables de entorno
+- Configuración Development / QA / Production
+
+============================================================
+3. ARQUITECTURA
+============================================================
+
+NO construir una aplicación monolítica acoplada al FA200.
+
+Utilizar una arquitectura mantenible y pragmática:
+
+src/
+
+Attendance.Api
+Attendance.Application
+Attendance.Domain
+Attendance.Infrastructure
+Attendance.Biometrics
+Attendance.Worker
+
+tests/
+
+Attendance.UnitTests
+Attendance.IntegrationTests
+
+Separar claramente:
+
+Domain
+Application
+Infrastructure
+API
+Integración biométrica
+
+Evitar sobreingeniería innecesaria.
+
+Aplicar:
+
+SOLID
+Clean Code
+Repository solamente cuando aporte valor
+Dependency Injection
+DTOs
+Result Pattern
+Global Exception Handler
+Validaciones
+Logging estructurado
+Auditoría
+
+============================================================
+4. ABSTRACCIÓN BIOMÉTRICA
+============================================================
+
+ESTA PARTE ES CRÍTICA.
+
+El sistema NO debe depender directamente de FA200.
+
+Crear una abstracción:
+
+IBiometricProvider
+
+Por ejemplo:
+
+public interface IBiometricProvider
+{
+    Task<bool> TestConnectionAsync(
+        BiometricDevice device,
+        CancellationToken cancellationToken);
+
+    Task<IEnumerable<BiometricEvent>> GetEventsAsync(
+        BiometricDevice device,
+        DateTime? from,
+        CancellationToken cancellationToken);
+
+    Task SyncEmployeeAsync(
+        BiometricDevice device,
+        Employee employee,
+        CancellationToken cancellationToken);
+
+    Task DeleteEmployeeAsync(
+        BiometricDevice device,
+        string employeeCode,
+        CancellationToken cancellationToken);
+}
+
+Implementar inicialmente:
+
+MockBiometricProvider
+
+Posteriormente:
+
+Fa200BiometricProvider
+
+La aplicación nunca debe saber directamente cómo se comunica FA200.
+
+Debe consumir IBiometricProvider.
+
+Esto permitirá agregar en el futuro:
+
+ZKTecoProvider
+HikvisionProvider
+OtroProvider
+
+sin modificar la lógica de asistencia.
+
+============================================================
+5. SIMULADOR FA200
+============================================================
+
+Como actualmente NO existe el dispositivo físico, crear un simulador.
+
+Debe permitir generar eventos como:
+
+Empleado: EMP0001
+FechaHora: 2026-09-24 07:58:32
+Método: FACE
+Dispositivo: FA200-CENTRO-01
+
+Ejemplos:
+
+07:58 FACE
+13:05 FINGERPRINT
+14:02 FACE
+18:04 FINGERPRINT
+
+Permitir simular:
+
+- Entrada normal
+- Retardo
+- Salida
+- Entrada después de comida
+- Salida a comida
+- Falta
+- Registro duplicado
+- Registro fuera de horario
+- Múltiples checadas consecutivas
+- Evento recibido con retraso
+- Dispositivo sin conexión
+- Reconexión
+- Diferencia de reloj
+- Eventos de días anteriores
+
+Crear endpoint exclusivo Development:
+
+POST /api/devices/simulator/events
+
+Ejemplo:
+
+{
+  "deviceCode": "FA200-CENTRO-01",
+  "employeeCode": "EMP0001",
+  "timestamp": "2026-09-24T07:58:32",
+  "method": "FACE"
+}
+
+Debe pasar EXACTAMENTE por el mismo pipeline que posteriormente utilizarán
+los eventos reales del FA200.
+
+NO crear lógica diferente para eventos simulados.
+
+============================================================
+6. IDEMPOTENCIA
+============================================================
+
+MUY IMPORTANTE.
+
+Un mismo evento biométrico puede recibirse varias veces.
+
+Nunca duplicar una checada.
+
+Implementar una estrategia de idempotencia.
+
+Guardar:
+
+ExternalEventId
+DeviceId
+EmployeeId
+Timestamp
+EventHash
+
+Crear índice único apropiado.
+
+Si llega nuevamente el mismo evento:
+
+NO insertar duplicado.
+Registrar en log que fue ignorado.
+
+============================================================
+7. FECHA Y HORA
+============================================================
+
+Guardar internamente timestamps de forma consistente.
+
+Considerar zona horaria configurable.
+
+Zona inicial:
+
+America/Mexico_City
+
+Guardar:
+
+DeviceTimestamp
+ReceivedAtUtc
+ProcessedAtUtc
+
+NO confiar exclusivamente en la hora del dispositivo.
+
+Detectar diferencias significativas entre:
+
+hora FA200
+hora servidor
+
+y generar advertencia.
+
+============================================================
+8. MODELO DE BASE DE DATOS
+============================================================
+
+Diseñar correctamente relaciones, PK, FK, índices y restricciones.
+
+TABLAS PRINCIPALES:
+
+Company
+
+Id
+Name
+TaxId
+Status
+CreatedAt
+UpdatedAt
+
+Branch
+
+Id
+CompanyId
+Code
+Name
+Address
+TimeZone
+Status
+
+Department
+
+Id
+CompanyId
+Name
+Status
+
+Position
+
+Id
+CompanyId
+Name
+Status
+
+Employee
+
+Id
+CompanyId
+BranchId
+DepartmentId
+PositionId
+
+EmployeeCode
+FirstName
+LastName
+Email
+Phone
+
+HireDate
+TerminationDate
+
+Status
+
+BiometricExternalId
+
+CreatedAt
+UpdatedAt
+
+Schedule
+
+Id
+CompanyId
+Name
+
+StartTime
+EndTime
+
+ToleranceMinutes
+MealStartTime
+MealEndTime
+
+ExpectedHours
+
+Status
+
+EmployeeSchedule
+
+Id
+EmployeeId
+ScheduleId
+
+ValidFrom
+ValidTo
+
+WorkDay
+
+Id
+ScheduleId
+DayOfWeek
+IsWorkingDay
+
+Holiday
+
+Id
+CompanyId
+Date
+Name
+
+BiometricDevice
+
+Id
+BranchId
+
+Code
+Name
+
+Provider
+Model
+SerialNumber
+
+IpAddress
+Port
+
+ConnectionMode
+
+Status
+LastConnectionAt
+LastEventAt
+
+FirmwareVersion
+
+BiometricEvent
+
+Id
+DeviceId
+EmployeeId
+
+ExternalEventId
+
+DeviceTimestamp
+ReceivedAtUtc
+
+Method
+EventType
+
+EventHash
+
+RawPayload
+
+ProcessingStatus
+ProcessedAtUtc
+
+AttendanceDaily
+
+Id
+EmployeeId
+Date
+
+FirstEntry
+MealExit
+MealReturn
+LastExit
+
+ExpectedEntry
+ExpectedExit
+
+MinutesLate
+MinutesWorked
+OvertimeMinutes
+
+Status
+
+AttendanceIncident
+
+Id
+EmployeeId
+AttendanceDate
+
+Type
+Minutes
+Description
+
+Status
+
+ApprovedBy
+ApprovedAt
+
+LeaveRequest
+
+Id
+EmployeeId
+
+Type
+
+StartDate
+EndDate
+
+Reason
+
+Status
+
+ApprovedBy
+ApprovedAt
+
+User
+
+Role
+
+Permission
+
+UserRole
+
+RolePermission
+
+AuditLog
+
+============================================================
+9. NO ELIMINAR EVENTOS BIOMÉTRICOS CRUDOS
+============================================================
+
+BiometricEvent representa evidencia original.
+
+Una vez registrado un evento:
+
+NO modificar timestamp original.
+NO eliminar físicamente.
+NO reemplazarlo.
+
+Las correcciones administrativas deben registrarse independientemente.
+
+Ejemplo:
+
+Checada original:
+07:58
+
+Corrección:
+08:00
+
+Conservar ambas cosas y auditoría de:
+
+Quién realizó cambio
+Fecha
+Motivo
+Valor anterior
+Valor nuevo
+
+============================================================
+10. MOTOR DE ASISTENCIA
+============================================================
+
+Crear AttendanceProcessingService.
+
+Debe transformar:
+
+BiometricEvent
+
+en:
+
+AttendanceDaily
+
+Ejemplo:
+
+Horario:
+08:00 - 18:00
+Tolerancia:
+10 minutos
+
+Checada:
+07:56
+
+Resultado:
+A TIEMPO
+
+Checada:
+08:08
+
+Resultado:
+A TIEMPO
+
+Checada:
+08:17
+
+Resultado:
+RETARDO
+
+Sin registro:
+AUSENTE
+
+Calcular:
+
+Primera entrada
+Última salida
+Salida comida
+Regreso comida
+Minutos trabajados
+Minutos retardo
+Horas extra
+Faltas
+Registros incompletos
+
+No asumir simplemente:
+
+primer evento = entrada
+segundo evento = salida.
+
+Diseñar reglas configurables.
+
+============================================================
+11. REPROCESAMIENTO
+============================================================
+
+Permitir recalcular asistencia.
+
+Ejemplo:
+
+POST
+/api/attendance/reprocess
+
+{
+   "employeeId": 25,
+   "date": "2026-09-20"
+}
+
+También:
+
+reprocesar sucursal
+reprocesar rango de fechas
+
+Esto será necesario cuando:
+
+se modifique horario
+se corrija incidencia
+lleguen eventos atrasados
+se sincronice nuevamente un FA200
+
+============================================================
+12. API
+============================================================
+
+Implementar REST API versionada.
+
+Ejemplos:
+
+/api/v1/auth
+
+/api/v1/dashboard
+
+/api/v1/employees
+
+/api/v1/departments
+
+/api/v1/positions
+
+/api/v1/branches
+
+/api/v1/schedules
+
+/api/v1/holidays
+
+/api/v1/devices
+
+/api/v1/biometric-events
+
+/api/v1/attendance
+
+/api/v1/incidents
+
+/api/v1/leaves
+
+/api/v1/reports
+
+/api/v1/users
+
+/api/v1/roles
+
+/api/v1/audit
+
+============================================================
+13. DASHBOARD
+============================================================
+
+Dashboard principal.
+
+Mostrar:
+
+Presentes
+Retardos
+Ausentes
+En descanso
+
+Gráfica:
+
+Asistencia por día
+
+Distribución por sucursal
+
+Estado dispositivos:
+
+Online
+Offline
+Última conexión
+Última sincronización
+
+Actividad en tiempo real:
+
+Empleado
+Sucursal
+Hora
+Método
+
+Ejemplo:
+
+张伟
+Sucursal Centro
+07:58
+Rostro
+
+============================================================
+14. ADMINISTRACIÓN DE EMPLEADOS
+============================================================
+
+ABC completo.
+
+Crear
+Editar
+Consultar
+Desactivar
+
+NO eliminar físicamente empleados con historial.
+
+Datos:
+
+Código
+Nombre
+Sucursal
+Departamento
+Puesto
+Horario
+Fecha ingreso
+Estado
+
+Mostrar historial de asistencia.
+
+============================================================
+15. SUCURSALES
+============================================================
+
+Permitir N sucursales.
+
+Ejemplo:
+
+Centro
+Norte
+Sur
+Plaza
+
+Cada sucursal puede tener:
+
+1 o múltiples FA200.
+
+============================================================
+16. DISPOSITIVOS
+============================================================
+
+Pantalla:
+
+Dispositivos biométricos
+
+Mostrar:
+
+Nombre
+Sucursal
+Modelo
+IP
+Estado
+Última conexión
+Último evento
+Firmware
+
+Acciones:
+
+Probar conexión
+Sincronizar
+Consultar eventos
+Ver logs
+
+Mientras no exista FA200:
+
+utilizar MockBiometricProvider.
+
+Mostrar claramente:
+
+SIMULADOR
+
+para evitar confundirlo con dispositivo real.
+
+============================================================
+17. REPORTES
+============================================================
+
+Crear:
+
+Reporte diario
+Reporte semanal
+Reporte quincenal
+Reporte mensual
+Reporte individual
+Reporte por sucursal
+Reporte por departamento
+Retardos
+Ausencias
+Horas extra
+Incidencias
+
+Filtros:
+
+Fecha inicio
+Fecha fin
+Empleado
+Sucursal
+Departamento
+Estado
+
+============================================================
+18. EXCEL
+============================================================
+
+Exportación XLSX real.
+
+Ejemplo:
+
+REPORTE MENSUAL
+
+Empleado
+Sucursal
+Fecha
+Horario
+Entrada
+Salida
+Retardo
+Horas trabajadas
+Horas extra
+Estado
+
+Aplicar:
+
+Header
+Filtros
+Formato fecha
+Formato hora
+Auto width
+Freeze panes
+
+No generar CSV cuando usuario solicite Excel.
+
+============================================================
+19. PDF
+============================================================
+
+Generar reportes PDF.
+
+Incluir:
+
+Empresa
+Periodo
+Sucursal
+Fecha generación
+Tabla
+Totales
+
+============================================================
+20. AUTENTICACIÓN
+============================================================
+
+JWT + Refresh Token.
+
+Implementar RBAC.
+
+Roles iniciales:
+
+SUPERADMIN
+ADMIN
+RH
+SUPERVISOR
+CONSULTA
+
+Ejemplo:
+
+SUPERADMIN
+todo
+
+ADMIN
+administración general
+
+RH
+empleados
+horarios
+asistencia
+incidencias
+reportes
+
+SUPERVISOR
+consulta sucursal asignada
+
+CONSULTA
+solo lectura
+
+============================================================
+21. AUDITORÍA
+============================================================
+
+Registrar:
+
+Usuario
+Fecha/hora
+IP
+Módulo
+Acción
+Entidad
+ID
+Valor anterior
+Valor nuevo
+
+Ejemplo:
+
+2026-09-24 10:32
+
+Usuario:
+admin
+
+Acción:
+MODIFICAR HORARIO
+
+Empleado:
+EMP0015
+
+Anterior:
+08:00
+
+Nuevo:
+09:00
+
+============================================================
+22. INTERNACIONALIZACIÓN
+============================================================
+
+REQUISITO IMPORTANTE.
+
+El cliente es chino.
+
+Frontend preparado desde el inicio para:
+
+简体中文
+Español
+
+Idioma principal inicial:
+
+简体中文
+
+Selector:
+
+中文 | Español
+
+NO escribir textos directamente dentro de componentes.
+
+Utilizar archivos:
+
+zh-CN.json
+es-MX.json
+
+Ejemplo:
+
+{
+   "dashboard.present": "出勤",
+   "dashboard.late": "迟到",
+   "dashboard.absent": "缺勤"
+}
+
+La base de datos debe soportar Unicode correctamente.
+
+============================================================
+23. DISEÑO FRONTEND
+============================================================
+
+Crear diseño empresarial moderno.
+
+Desktop primero pero completamente responsive.
+
+Sidebar:
+
+首页
+考勤记录
+员工管理
+分店管理
+设备管理
+排班管理
+异常管理
+报表中心
+用户管理
+系统设置
+
+En español:
+
+Inicio
+Asistencia
+Empleados
+Sucursales
+Dispositivos
+Horarios
+Incidencias
+Reportes
+Usuarios
+Configuración
+
+Utilizar el diseño previamente definido para el proyecto:
+
+- Profesional
+- Limpio
+- Corporativo
+- Sidebar
+- Cards
+- Tablas
+- Gráficas
+- Responsive
+
+NO copiar visualmente software de ZKTeco.
+
+============================================================
+24. PAGINACIÓN
+============================================================
+
+Toda consulta potencialmente grande debe utilizar paginación desde backend.
+
+Ejemplo:
+
+GET /api/v1/attendance?page=1&pageSize=25
+
+Respuesta:
+
+{
+   "items": [],
+   "page": 1,
+   "pageSize": 25,
+   "totalRecords": 8500,
+   "totalPages": 340
+}
+
+NO cargar miles de registros para paginar únicamente en React.
+
+Agregar:
+
+Sorting
+Filtering
+Searching
+
+desde backend.
+
+============================================================
+25. SEGURIDAD
+============================================================
+
+Implementar:
+
+HTTPS
+CORS restrictivo
+Rate limiting
+JWT
+Refresh Tokens
+RBAC
+Validación inputs
+Parameterized queries / EF
+Secretos fuera del repositorio
+Variables de entorno
+
+NO almacenar:
+
+contraseñas en texto plano.
+
+MUY IMPORTANTE:
+
+NO almacenar imágenes faciales ni templates de huella en SQL Server
+salvo que la integración real del FA200 lo requiera explícitamente.
+
+Inicialmente almacenar solamente:
+
+EmployeeId
+ExternalBiometricId
+Method
+
+El dispositivo será responsable del reconocimiento biométrico.
+
+============================================================
+26. LOGGING
+============================================================
+
+Serilog.
+
+Registrar:
+
+Errores API
+Sincronizaciones
+Conexiones dispositivos
+Eventos recibidos
+Eventos duplicados
+Procesamientos
+Reprocesamientos
+
+NO registrar:
+
+Passwords
+JWT
+Templates biométricos
+Información sensible innecesaria
+
+============================================================
+27. WORKER
+============================================================
+
+Crear:
+
+Attendance.Worker
+
+Responsabilidades:
+
+procesar eventos pendientes
+reintentar errores
+actualizar AttendanceDaily
+detectar eventos atrasados
+actualizar estado dispositivos
+
+Debe soportar cancelación y apagado limpio.
+
+============================================================
+28. PRUEBAS AUTOMATIZADAS
+============================================================
+
+Unit Tests:
+
+Retardo
+Entrada normal
+Ausencia
+Horas extra
+Evento duplicado
+Múltiples eventos
+Horario nocturno
+Cambio horario
+Evento atrasado
+
+Integration Tests:
+
+API
+SQL
+Authentication
+RBAC
+BiometricEvent
+Attendance processing
+
+============================================================
+29. DATOS DEMO
+============================================================
+
+Crear SEED solamente para Development.
+
+Empresa:
+
+华龙商业集团
+
+Sucursales:
+
+中心店
+北区店
+南区店
+广场店
+
+Crear aproximadamente:
+
+50 empleados
+
+4 sucursales
+
+4 dispositivos simulados:
+
+FA200-CENTRO-01
+FA200-NORTE-01
+FA200-SUR-01
+FA200-PLAZA-01
+
+Generar datos de asistencia suficientes para probar:
+
+Dashboard
+Reportes
+Excel
+Retardos
+Faltas
+Horas extra
+
+============================================================
+30. DOCKER
+============================================================
+
+Preparar Dockerfile para:
+
+API
+Worker
+Frontend
+
+Y docker-compose para desarrollo cuando sea conveniente.
+
+No obligar SQL Server a ejecutarse necesariamente dentro de Docker en producción.
+
+============================================================
+31. DOCUMENTACIÓN
+============================================================
+
+Crear:
+
+README.md
+
+docs/
+
+ARCHITECTURE.md
+DATABASE.md
+API.md
+BIOMETRIC-INTEGRATION.md
+DEPLOYMENT.md
+FA200-POC.md
+
+README debe explicar cómo levantar:
+
+SQL Server
+API
+Worker
+React
+
+============================================================
+32. PREPARAR INTEGRACIÓN FA200 SIN IMPLEMENTARLA A CIEGAS
+============================================================
+
+MUY IMPORTANTE.
+
+NO inventar endpoints, protocolos, SDKs, comandos TCP o payloads del FA200.
+
+Mientras no tengamos:
+
+dispositivo físico
+modelo exacto
+firmware
+manual
+SDK/protocolo
+
+Fa200BiometricProvider debe quedar preparado pero NO implementar protocolos
+inventados.
+
+Ejemplo:
+
+Fa200BiometricProvider
+    TestConnection
+    GetEvents
+    SyncEmployee
+    DeleteEmployee
+
+Inicialmente puede lanzar:
+
+NotSupportedException
+
+o estar deshabilitado mediante Feature Flag.
+
+Ejemplo:
+
+BiometricProviders:
+  Mock:
+    Enabled: true
+
+  FA200:
+    Enabled: false
+
+============================================================
+33. FASE FINAL: CUANDO LLEGUE EL FA200
+============================================================
+
+Esta fase NO se ejecutará todavía.
+
+Crear documentación/checklist para posteriormente realizar:
+
+FASE FA200 POC
+
+1. Identificar fabricante exacto.
+2. Modelo exacto.
+3. Número de serie.
+4. Firmware.
+5. IP.
+6. Puerto.
+7. TCP/IP.
+8. Menú comunicación.
+9. Revisar ADMS.
+10. Revisar PUSH.
+11. Revisar Cloud Server.
+12. Obtener SDK.
+13. Obtener protocolo.
+14. Probar comunicación LAN.
+15. Obtener lista empleados.
+16. Obtener registros.
+17. Crear empleado.
+18. Registrar rostro.
+19. Registrar huella.
+20. Generar checada.
+21. Recibir checada en .NET.
+22. Persistir en BiometricEvent.
+23. Procesar AttendanceDaily.
+24. Mostrar inmediatamente en React.
+25. Probar desconexión Internet.
+26. Generar eventos offline.
+27. Reconectar.
+28. Recuperar eventos pendientes.
+29. Verificar que no existan duplicados.
+30. Probar VPS.
+
+Determinar entonces cuál arquitectura real soporta:
+
+OPCIÓN A
+FA200 PUSH/ADMS -> VPS
+
+OPCIÓN B
+VPS -> VPN -> FA200
+
+OPCIÓN C
+FA200 -> Agent local -> VPS
+
+Preferencia:
+
+A > B > C
+
+siempre que el hardware/firmware lo permita oficialmente.
+
+============================================================
+34. CRITERIO DE ÉXITO DEL POC
+============================================================
+
+La integración final será considerada exitosa cuando:
+
+Empleado registra rostro o huella en FA200
+
+↓
+
+FA200 genera evento
+
+↓
+
+evento llega al sistema central
+
+↓
+
+BiometricEvent se registra una sola vez
+
+↓
+
+Worker procesa asistencia
+
+↓
+
+AttendanceDaily se actualiza
+
+↓
+
+React muestra la checada
+
+↓
+
+Reporte mensual refleja el movimiento
+
+↓
+
+Excel contiene información correcta
+
+Todo sin intervención manual.
+
+============================================================
+35. ORDEN OBLIGATORIO DE IMPLEMENTACIÓN
+============================================================
+
+NO intentar desarrollar todo simultáneamente.
+
+FASE 1
+Arquitectura y solución
+
+FASE 2
+Base de datos y migraciones
+
+FASE 3
+Autenticación / usuarios / roles
+
+FASE 4
+Sucursales / departamentos / puestos
+
+FASE 5
+Empleados
+
+FASE 6
+Horarios
+
+FASE 7
+Abstracción biométrica
+
+FASE 8
+Simulador FA200
+
+FASE 9
+Pipeline BiometricEvent
+
+FASE 10
+Motor AttendanceDaily
+
+FASE 11
+Dashboard
+
+FASE 12
+Asistencia
+
+FASE 13
+Incidencias
+
+FASE 14
+Reportes
+
+FASE 15
+Excel/PDF
+
+FASE 16
+Auditoría
+
+FASE 17
+Internacionalización chino/español
+
+FASE 18
+Responsive/mobile
+
+FASE 19
+Testing
+
+FASE 20
+Docker/Deployment VPS
+
+FASE 21
+Hardening y QA
+
+FASE 22
+FA200 POC REAL
+ÚNICAMENTE cuando esté disponible físicamente.
+
+============================================================
+36. FORMA DE TRABAJO
+============================================================
+
+Antes de comenzar:
+
+1. Analiza el repositorio existente si existe.
+2. No reemplaces código funcional innecesariamente.
+3. Genera estructura propuesta.
+4. Genera modelo ER.
+5. Genera plan de implementación.
+6. Genera checklist.
+7. Después comienza FASE 1.
+
+Al terminar cada fase:
+
+- Compilar backend.
+- Compilar frontend.
+- Ejecutar tests.
+- Corregir errores.
+- Verificar migraciones.
+- Documentar cambios.
+- Actualizar CHANGELOG.md.
+- Indicar archivos creados/modificados.
+- Indicar pruebas realizadas.
+- Marcar fase como completada.
+
+NO avanzar dejando errores de compilación.
+
+NO utilizar datos hardcodeados excepto seeds Development.
+
+NO simular funcionalidades en producción.
+
+NO inventar capacidades del FA200.
+
+NO acoplar el dominio al dispositivo.
+
+El sistema debe quedar completamente funcional ANTES de que llegue el FA200.
+
+La única funcionalidad pendiente deberá ser:
+
+INTEGRACIÓN FÍSICA FA200.
+
+Comienza realizando el análisis técnico, arquitectura, estructura de solución,
+modelo de datos y plan de fases.
+
+NO escribas todavía integración FA200 real.
