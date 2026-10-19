@@ -27,7 +27,6 @@ export const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ is
   const menuItems = [
     { to: '/', label: t('menu.home'), icon: LayoutDashboard },
     { to: '/attendance', label: t('menu.attendance'), icon: CalendarCheck },
-    { to: '/simulator', label: t('menu.simulator'), icon: Radio, highlight: true },
     { to: '/devices', label: t('menu.devices'), icon: Cpu },
     { to: '/employees', label: t('menu.employees'), icon: Users },
     { to: '/branches', label: t('menu.branches'), icon: Building2 },
@@ -78,17 +77,12 @@ export const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ is
                   `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     isActive
                       ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-2xs'
-                      : item.highlight
-                      ? 'text-amber-800 bg-amber-50 hover:bg-amber-100/80 border border-amber-200/60'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
                   }`
                 }
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 <span className="truncate">{item.label}</span>
-                {item.highlight && (
-                  <span className="ml-auto w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                )}
               </NavLink>
             );
           })}

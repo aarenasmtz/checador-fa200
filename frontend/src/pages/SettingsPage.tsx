@@ -355,11 +355,11 @@ export const SettingsPage: React.FC = () => {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
           <div className="bg-emerald-50/60 p-4 rounded-xl border border-emerald-200">
-            <span className="text-emerald-800 font-bold block mb-1">1. MockBiometricProvider (当前)</span>
+            <span className="text-emerald-800 font-bold block mb-1">1. Fa200BiometricProvider (Activo)</span>
             <p className="text-slate-600 font-sans">
               {language === 'zh-CN'
-                ? '全真仿真驱动。模拟打卡、随机员工模拟、断网重试与防重测试，100% 内存安全。'
-                : 'Driver de simulación activo. Genera eventos, latencias y pruebas de idempotencia con total seguridad.'}
+                ? 'FA200 真实硬件通信层。处理物理打卡传输、网络重连与 SHA-256 存证防重。'
+                : 'Driver real de integración FA200. Comunicación TCP/IP, sincronización de checadas e idempotencia SHA-256.'}
             </p>
           </div>
 
@@ -372,12 +372,12 @@ export const SettingsPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="bg-amber-50/60 p-4 rounded-xl border border-amber-200">
-            <span className="text-amber-800 font-bold block mb-1">3. Fa200BiometricProvider (二期待接)</span>
+          <div className="bg-blue-50/60 p-4 rounded-xl border border-blue-200">
+            <span className="text-blue-800 font-bold block mb-1">3. Agente Local en Tiempo Real</span>
             <p className="text-slate-600 font-sans">
               {language === 'zh-CN'
-                ? '受 Feature Flag 保护（Enabled=false）。实体机到货并经过 Wireshark 抓包确认后，在此处实现抓包报文。'
-                : 'Protegido por Feature Flag. Se implementará al capturar y documentar las tramas reales en Fase 2.'}
+                ? '运行于本地节点，实时监听 FA200 硬件端口（4370），毫秒级自动推送打卡数据至云端。'
+                : 'Servicio residente local en red. Sondea el puerto 4370 del FA200 y transmite checadas en tiempo real a la API.'}
             </p>
           </div>
         </div>

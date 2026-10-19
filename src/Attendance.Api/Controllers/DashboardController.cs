@@ -26,7 +26,7 @@ public class DashboardController : ControllerBase
         var totalEmployees = await _context.Employees.CountAsync(e => e.Status == CommonStatus.Active);
         var totalBranches = await _context.Branches.CountAsync(b => b.Status == CommonStatus.Active);
         var totalDevices = await _context.BiometricDevices.CountAsync();
-        var simulatedDevices = await _context.BiometricDevices.CountAsync(d => d.Status == DeviceStatus.Simulated || d.Provider == "Mock");
+        var onlineDevices = await _context.BiometricDevices.CountAsync(d => d.Status == DeviceStatus.Online);
 
         // Today's attendance numbers
         var todayAttendances = await _context.AttendanceDailies
@@ -54,13 +54,12 @@ public class DashboardController : ControllerBase
             .ToListAsync();
 
         var trendMap = rawTrend.ToDictionary(r => r.Date.Date, r => r);
-        var rand = new Random(1007);
         var trendRecords = new List<object>();
 
         for (int i = 6; i >= 0; i--)
         {
             var targetDate = today.AddDays(-i);
-            if (trendMap.TryGetValue(targetDate.Date, out var rec) && (rec.OnTime + rec.Late + rec.Absent) > 0)
+            if (trendMap.TryGetValue(targetDate.Date, out var rec))
             {
                 trendRecords.Add(new
                 {
@@ -72,17 +71,12 @@ public class DashboardController : ControllerBase
             }
             else
             {
-                // Realistic simulated attendance distribution for 60 active employees
-                var simOnTime = rand.Next(48, 54);
-                var simLate = rand.Next(4, 8);
-                var simAbsent = rand.Next(1, 4);
-
                 trendRecords.Add(new
                 {
                     Date = targetDate.ToString("MM-dd"),
-                    OnTime = simOnTime,
-                    Late = simLate,
-                    Absent = simAbsent
+                    OnTime = 0,
+                    Late = 0,
+                    Absent = 0
                 });
             }
         }
@@ -126,7 +120,8 @@ public class DashboardController : ControllerBase
                 totalEmployees,
                 totalBranches,
                 totalDevices,
-                simulatedDevices,
+                onlineDevices,
+                simulatedDevices = 0,
                 presentToday,
                 lateToday,
                 absentToday,
@@ -201,87 +196,18 @@ public class DashboardController : ControllerBase
             });
         }
 
-        // If not in database, generate realistic simulated breakdown from active employees
-        var employees = await _context.Employees
-            .Include(e => e.Branch)
-            .Include(e => e.Department)
-            .Where(e => e.Status == CommonStatus.Active)
-            .ToListAsync();
-
-        if (employees.Count == 0)
-        {
-            return Ok(new { date = targetDate.ToString("yyyy-MM-dd"), records = Array.Empty<object>() });
-        }
-
-        var rand = new Random(targetDate.DayOfYear * 17 + 42);
-        var simulatedList = new List<object>();
-
-        foreach (var emp in employees)
-        {
-            var roll = rand.Next(100);
-            string status;
-            string entry;
-            string exit;
-            int minutesLate = 0;
-            string method;
-
-            if (roll < 82)
-            {
-                status = "OnTime";
-                var m = rand.Next(-12, 5);
-                var entryTime = new TimeSpan(8, 0, 0).Add(TimeSpan.FromMinutes(m));
-                entry = entryTime.ToString(@"hh\:mm");
-                exit = new TimeSpan(18, rand.Next(0, 15), 0).ToString(@"hh\:mm");
-                method = rand.Next(2) == 0 ? "FACE" : "FINGERPRINT";
-            }
-            else if (roll < 95)
-            {
-                status = "Late";
-                minutesLate = rand.Next(12, 36);
-                var entryTime = new TimeSpan(8, minutesLate, 0);
-                entry = entryTime.ToString(@"hh\:mm");
-                exit = new TimeSpan(18, rand.Next(0, 10), 0).ToString(@"hh\:mm");
-                method = "FINGERPRINT";
-            }
-            else
-            {
-                status = "Absent";
-                entry = "-";
-                exit = "-";
-                method = "-";
-            }
-
-            simulatedList.Add(new
-            {
-                id = emp.Id,
-                employeeCode = emp.EmployeeCode,
-                employeeName = $"{emp.FirstName} {emp.LastName}",
-                branchName = emp.Branch?.Name ?? "Sucursal Centro",
-                departmentName = emp.Department?.Name ?? "Operaciones",
-                firstEntry = entry,
-                lastExit = exit,
-                minutesLate = minutesLate,
-                status = status,
-                method = method
-            });
-        }
-
-        var onTimeCount = simulatedList.Count(s => (string)((dynamic)s).status == "OnTime");
-        var lateCount = simulatedList.Count(s => (string)((dynamic)s).status == "Late");
-        var absentCount = simulatedList.Count(s => (string)((dynamic)s).status == "Absent");
-
         return Ok(new
         {
             date = targetDate.ToString("yyyy-MM-dd"),
             dateShort = targetDate.ToString("MM-dd"),
             summary = new
             {
-                total = simulatedList.Count,
-                onTime = onTimeCount,
-                late = lateCount,
-                absent = absentCount
+                total = 0,
+                onTime = 0,
+                late = 0,
+                absent = 0
             },
-            records = simulatedList
+            records = Array.Empty<object>()
         });
     }
 }

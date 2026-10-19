@@ -54,20 +54,7 @@ public class Worker : BackgroundService
                         }
                     }
 
-                    await context.SaveChangesAsync(stoppingToken);
                 }
-
-                // 2. Health check: Update simulated devices heartbeat
-                var simulatedDevices = await context.BiometricDevices
-                    .Where(d => d.Status == DeviceStatus.Simulated || d.Provider == "Mock")
-                    .ToListAsync(stoppingToken);
-
-                foreach (var dev in simulatedDevices)
-                {
-                    dev.LastConnectionAt = DateTime.UtcNow;
-                }
-
-                await context.SaveChangesAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

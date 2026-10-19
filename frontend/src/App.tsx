@@ -7,7 +7,6 @@ import { Layout } from './components/Layout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AttendancePage } from './pages/AttendancePage';
-import { SimulatorPage } from './pages/SimulatorPage';
 import { EmployeesPage } from './pages/EmployeesPage';
 import { BranchesPage } from './pages/BranchesPage';
 import { DevicesPage } from './pages/DevicesPage';
@@ -56,7 +55,6 @@ function App() {
               >
                 <Route index element={<DashboardPage />} />
                 <Route path="attendance" element={<AttendancePage />} />
-                <Route path="simulator" element={<SimulatorPage />} />
                 <Route path="devices" element={<DevicesPage />} />
                 <Route path="employees" element={<EmployeesPage />} />
                 <Route path="branches" element={<BranchesPage />} />

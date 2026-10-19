@@ -111,4 +111,30 @@ public class BranchesController : ControllerBase
         await _context.SaveChangesAsync();
         return Ok(branch);
     }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteBranch(int id)
+    {
+        var branch = await _context.Branches
+            .Include(b => b.Employees)
+            .Include(b => b.Devices)
+            .FirstOrDefaultAsync(b => b.Id == id);
+
+        if (branch == null) return NotFound(new { message = "Sucursal no encontrada" });
+
+        if (branch.Employees != null && branch.Employees.Any(e => e.Status == CommonStatus.Active))
+        {
+            return BadRequest(new { message = "No se puede eliminar la sucursal porque tiene empleados activos vinculados. Reasigne los empleados antes de eliminarla." });
+        }
+
+        if (branch.Devices != null && branch.Devices.Any())
+        {
+            return BadRequest(new { message = "No se puede eliminar la sucursal porque tiene dispositivos reloj checador asociados. Reasigne o elimine los checadores primero." });
+        }
+
+        _context.Branches.Remove(branch);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Sucursal eliminada exitosamente" });
+    }
 }

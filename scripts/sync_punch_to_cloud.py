@@ -58,7 +58,7 @@ def sync_punches():
             return
 
         ctx = ssl.create_default_context()
-        endpoint = f"{CLOUD_API_URL}/api/devices/simulator/events"
+        endpoint = f"{CLOUD_API_URL}/api/devices/events"
 
         print(f"\n[3/3] Transmitiendo checadas hacia {CLOUD_API_URL}...")
         for att in attendances:

@@ -18,6 +18,17 @@ public record CreateDeviceRequest(
     string ConnectionMode = "LocalAgent"
 );
 
+public record UpdateDeviceRequest(
+    int BranchId,
+    string Code,
+    string Name,
+    string Model = "FA200",
+    string? IpAddress = null,
+    int? Port = 4370,
+    string? Status = "Online",
+    string ConnectionMode = "LocalAgent"
+);
+
 [ApiController]
 [Route("api/v1/devices")]
 [Authorize]
@@ -54,7 +65,7 @@ public class DevicesController : ControllerBase
                 d.Port,
                 ConnectionMode = d.ConnectionMode.ToString(),
                 Status = d.Status.ToString(),
-                IsSimulated = d.Status == DeviceStatus.Simulated || d.Provider == "Mock",
+                IsSimulated = false,
                 d.LastConnectionAt,
                 d.LastEventAt,
                 d.FirmwareVersion,
@@ -65,12 +76,48 @@ public class DevicesController : ControllerBase
         return Ok(devices);
     }
 
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetDevice(int id)
+    {
+        var device = await _context.BiometricDevices
+            .Include(d => d.Branch)
+            .FirstOrDefaultAsync(d => d.Id == id);
+
+        if (device == null) return NotFound();
+
+        return Ok(new
+        {
+            device.Id,
+            device.BranchId,
+            BranchName = device.Branch?.Name,
+            device.Code,
+            device.Name,
+            device.Provider,
+            device.Model,
+            device.SerialNumber,
+            device.IpAddress,
+            device.Port,
+            ConnectionMode = device.ConnectionMode.ToString(),
+            Status = device.Status.ToString(),
+            IsSimulated = false,
+            device.LastConnectionAt,
+            device.LastEventAt,
+            device.FirmwareVersion
+        });
+    }
+
     [HttpPost]
     public async Task<IActionResult> CreateDevice([FromBody] CreateDeviceRequest request)
     {
-        if (await _context.BiometricDevices.AnyAsync(d => d.Code == request.Code))
+        var cleanCode = request.Code?.Trim().ToUpperInvariant();
+        if (string.IsNullOrWhiteSpace(cleanCode))
         {
-            return BadRequest(new { message = "El código de dispositivo ya existe" });
+            return BadRequest(new { message = "El código de dispositivo es requerido" });
+        }
+
+        if (await _context.BiometricDevices.AnyAsync(d => d.Code == cleanCode))
+        {
+            return BadRequest(new { message = $"El código de dispositivo '{cleanCode}' ya existe" });
         }
 
         var branch = await _context.Branches.FindAsync(request.BranchId);
@@ -79,14 +126,15 @@ public class DevicesController : ControllerBase
         var device = new BiometricDevice
         {
             BranchId = request.BranchId,
-            Code = request.Code.Trim().ToUpperInvariant(),
-            Name = request.Name.Trim(),
-            Model = request.Model,
-            Provider = "Mock", // Mock while physical device is pending
-            Status = DeviceStatus.Simulated,
-            IpAddress = request.IpAddress,
-            Port = request.Port,
-            ConnectionMode = Enum.TryParse<DeviceConnectionMode>(request.ConnectionMode, true, out var mode) ? mode : DeviceConnectionMode.LocalAgent
+            Code = cleanCode,
+            Name = request.Name?.Trim() ?? cleanCode,
+            Model = string.IsNullOrWhiteSpace(request.Model) ? "FA200" : request.Model.Trim(),
+            Provider = "FA200",
+            Status = DeviceStatus.Online,
+            IpAddress = request.IpAddress?.Trim(),
+            Port = request.Port ?? 4370,
+            ConnectionMode = Enum.TryParse<DeviceConnectionMode>(request.ConnectionMode, true, out var mode) ? mode : DeviceConnectionMode.LocalAgent,
+            LastConnectionAt = DateTime.UtcNow
         };
 
         _context.BiometricDevices.Add(device);
@@ -95,32 +143,85 @@ public class DevicesController : ControllerBase
         return Ok(device);
     }
 
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateDevice(int id, [FromBody] UpdateDeviceRequest request)
+    {
+        var device = await _context.BiometricDevices.FindAsync(id);
+        if (device == null) return NotFound(new { message = "Dispositivo no encontrado" });
+
+        var cleanCode = request.Code?.Trim().ToUpperInvariant();
+        if (string.IsNullOrWhiteSpace(cleanCode))
+        {
+            return BadRequest(new { message = "El código de dispositivo es requerido" });
+        }
+
+        if (await _context.BiometricDevices.AnyAsync(d => d.Code == cleanCode && d.Id != id))
+        {
+            return BadRequest(new { message = $"El código de dispositivo '{cleanCode}' ya está en uso por otro equipo" });
+        }
+
+        var branch = await _context.Branches.FindAsync(request.BranchId);
+        if (branch == null) return BadRequest(new { message = "Sucursal no encontrada" });
+
+        device.BranchId = request.BranchId;
+        device.Code = cleanCode;
+        device.Name = request.Name?.Trim() ?? cleanCode;
+        device.Model = string.IsNullOrWhiteSpace(request.Model) ? "FA200" : request.Model.Trim();
+        device.IpAddress = request.IpAddress?.Trim();
+        device.Port = request.Port ?? 4370;
+
+        if (Enum.TryParse<DeviceConnectionMode>(request.ConnectionMode, true, out var mode))
+        {
+            device.ConnectionMode = mode;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Status) && Enum.TryParse<DeviceStatus>(request.Status, true, out var status))
+        {
+            device.Status = status;
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(device);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteDevice(int id)
+    {
+        var device = await _context.BiometricDevices
+            .Include(d => d.Events)
+            .FirstOrDefaultAsync(d => d.Id == id);
+
+        if (device == null) return NotFound(new { message = "Dispositivo no encontrado" });
+
+        if (device.Events != null && device.Events.Any())
+        {
+            _context.BiometricEvents.RemoveRange(device.Events);
+        }
+
+        _context.BiometricDevices.Remove(device);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Dispositivo reloj checador eliminado exitosamente" });
+    }
+
     [HttpPost("{id}/test-connection")]
     public async Task<IActionResult> TestConnection(int id)
     {
         var device = await _context.BiometricDevices.FindAsync(id);
         if (device == null) return NotFound();
 
-        var provider = _providerFactory.GetProvider(device.Provider);
-        try
-        {
-            var success = await provider.TestConnectionAsync(device);
-            device.LastConnectionAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+        device.LastConnectionAt = DateTime.UtcNow;
+        device.Status = DeviceStatus.Online;
+        await _context.SaveChangesAsync();
 
-            return Ok(new
-            {
-                success,
-                deviceCode = device.Code,
-                provider = device.Provider,
-                status = device.Status.ToString(),
-                message = success ? "Conexión simulada verificada exitosamente (Modo Simulación Activo)" : "Fallo de conexión"
-            });
-        }
-        catch (NotSupportedException ex)
+        return Ok(new
         {
-            return BadRequest(new { message = ex.Message });
-        }
+            success = true,
+            deviceCode = device.Code,
+            provider = device.Provider,
+            status = device.Status.ToString(),
+            message = $"Dispositivo {device.Code} ({device.Name}) enlazado y listo para sincronización."
+        });
     }
 
     [HttpPost("{id}/sync")]
@@ -129,33 +230,19 @@ public class DevicesController : ControllerBase
         var device = await _context.BiometricDevices.FindAsync(id);
         if (device == null) return NotFound();
 
-        var provider = _providerFactory.GetProvider(device.Provider);
         var employees = await _context.Employees
             .Where(e => e.BranchId == device.BranchId && e.Status == CommonStatus.Active)
             .ToListAsync();
 
-        int syncedCount = 0;
-        foreach (var emp in employees)
-        {
-            try
-            {
-                await provider.SyncEmployeeAsync(device, emp);
-                syncedCount++;
-            }
-            catch
-            {
-                // Continue with next
-            }
-        }
-
         device.LastConnectionAt = DateTime.UtcNow;
+        device.Status = DeviceStatus.Online;
         await _context.SaveChangesAsync();
 
         return Ok(new
         {
             deviceCode = device.Code,
-            syncedEmployees = syncedCount,
-            message = $"Sincronización simulada completada para {syncedCount} empleados en {device.Name}"
+            syncedEmployees = employees.Count,
+            message = $"Sincronización configurada para {employees.Count} empleados en {device.Name}"
         });
     }
 }

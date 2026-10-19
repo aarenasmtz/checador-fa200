@@ -42,7 +42,7 @@ from zk import ZK
 
 def send_to_cloud(user_id, timestamp, method="FACE"):
     ctx = ssl.create_default_context()
-    endpoint = f"{CLOUD_API_URL}/api/devices/simulator/events"
+    endpoint = f"{CLOUD_API_URL}/api/devices/events"
     timestamp_str = timestamp.strftime("%Y-%m-%dT%H:%M:%S")
 
     payload = {

@@ -33,6 +33,18 @@ public record CreateScheduleRequest(
     List<int> WorkingDays // e.g. [1, 2, 3, 4, 5, 6]
 );
 
+public record UpdateScheduleRequest(
+    string Name,
+    string StartTime,
+    string EndTime,
+    int ToleranceMinutes,
+    string? MealStartTime,
+    string? MealEndTime,
+    decimal ExpectedHours,
+    List<int> WorkingDays,
+    string? Status = "Active"
+);
+
 public record HolidayDto(
     int Id,
     int CompanyId,

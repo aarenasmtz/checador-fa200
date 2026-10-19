@@ -92,31 +92,6 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner: Simulation Mode notification */}
-      <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-50 via-violet-50/50 to-slate-50 border border-indigo-100/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-indigo-600/10 flex items-center justify-center text-indigo-600 shrink-0">
-            <Radio className="w-5 h-5 animate-pulse" />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-slate-800">
-              {language === 'zh-CN' ? 'FA200 考勤仿真运行中心' : 'Centro de Simulación FA200'}
-            </h2>
-            <p className="text-xs text-slate-500">
-              {language === 'zh-CN'
-                ? '硬件到货前，全系统采用 MockBiometricProvider 进行全功能端到端测试'
-                : 'Operando con MockBiometricProvider para validar el flujo completo previo a la llegada del equipo físico'}
-            </p>
-          </div>
-        </div>
-        <a
-          href="/simulator"
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition self-start sm:self-auto"
-        >
-          <Radio className="w-3.5 h-3.5" />
-          <span>{language === 'zh-CN' ? '打开打卡模拟器' : 'Ir al Simulador'}</span>
-        </a>
-      </div>
 
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -335,7 +310,7 @@ export const DashboardPage: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500 bg-slate-50/60">
-                <th className="py-2.5 px-3">{t('common.time')}</th>
+                <th className="py-2.5 px-3">{language === 'zh-CN' ? '打卡时间 (日期与时间)' : 'Fecha y Hora'}</th>
                 <th className="py-2.5 px-3">{t('common.name')}</th>
                 <th className="py-2.5 px-3">{t('common.code')}</th>
                 <th className="py-2.5 px-3">{t('common.branch')}</th>
@@ -347,7 +322,12 @@ export const DashboardPage: React.FC = () => {
               {recentActivity && recentActivity.length > 0 ? (
                 recentActivity.map((punch: any) => (
                   <tr key={punch.id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-2.5 px-3 font-mono text-indigo-600 font-medium whitespace-nowrap">{punch.time}</td>
+                    <td className="py-2.5 px-3 font-mono text-indigo-600 font-medium whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-800">{punch.time}</span>
+                        <span className="text-[11px] text-slate-400 font-sans font-normal">{punch.date || new Date().toISOString().slice(0, 10)}</span>
+                      </div>
+                    </td>
                     <td className="py-2.5 px-3 font-semibold text-slate-800 whitespace-nowrap">{punch.employeeName}</td>
                     <td className="py-2.5 px-3 font-mono text-slate-500 whitespace-nowrap">{punch.employeeCode}</td>
                     <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">{punch.branchName}</td>
