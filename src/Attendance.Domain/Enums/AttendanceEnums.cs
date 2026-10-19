@@ -47,7 +47,8 @@ public enum EventProcessingStatus
     Pending = 0,
     Processed = 1,
     Error = 2,
-    Ignored = 3
+    Ignored = 3,
+    PendingLink = 4
 }
 
 public enum AttendanceStatus

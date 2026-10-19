@@ -24,6 +24,9 @@ public class BiometricDevice
 
     public DateTime? LastConnectionAt { get; set; }
     public DateTime? LastEventAt { get; set; }
+    public DateTime? LastSyncAt { get; set; }
+    public int PendingQueueCount { get; set; } = 0;
+    public string? LastErrorMessage { get; set; }
     public string? FirmwareVersion { get; set; }
 
     public Branch Branch { get; set; } = null!;
@@ -34,7 +37,8 @@ public class BiometricEvent
 {
     public long Id { get; set; }
     public int DeviceId { get; set; }
-    public int EmployeeId { get; set; }
+    public int? EmployeeId { get; set; }
+    public string? UserClockId { get; set; }
 
     public string? ExternalEventId { get; set; }
 
@@ -51,11 +55,11 @@ public class BiometricEvent
     public DateTime? ProcessedAtUtc { get; set; }
 
     public BiometricDevice Device { get; set; } = null!;
-    public Employee Employee { get; set; } = null!;
+    public Employee? Employee { get; set; }
 
-    public static string ComputeHash(string deviceCode, string employeeCode, DateTime timestamp, BiometricMethod method)
+    public static string ComputeHash(string deviceCode, string userClockId, DateTime timestamp, BiometricMethod method)
     {
-        var raw = $"{deviceCode}:{employeeCode}:{timestamp:yyyy-MM-ddTHH:mm:ss}:{method}";
+        var raw = $"{deviceCode}:{userClockId}:{timestamp:yyyy-MM-ddTHH:mm:ss}:{method}";
         using var sha = SHA256.Create();
         var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(raw));
         return Convert.ToHexString(bytes).ToLowerInvariant();

@@ -8,7 +8,7 @@ namespace Attendance.Application.Services;
 
 public record IngestionRequest(
     string DeviceCode,
-    string EmployeeCode,
+    string EmployeeCode, // can be employee code or userClockId
     DateTime Timestamp,
     string Method,
     string? EventType = "Auto",
@@ -24,9 +24,47 @@ public record IngestionResult(
     string EventHash
 );
 
+public record IngestionBatchItem(
+    string UserClockId,
+    DateTime Timestamp,
+    string Method,
+    string? EventType = "Punch",
+    string? ExternalEventId = null,
+    string? RawPayload = null
+);
+
+public record IngestionBatchRequest(
+    string DeviceCode,
+    int? BranchId,
+    List<IngestionBatchItem> Events
+);
+
+public record IngestionItemResult(
+    string UserClockId,
+    DateTime Timestamp,
+    string Status, // "Persisted", "Duplicate", "Failed"
+    string Message,
+    long? EventId,
+    string EventHash,
+    string? LinkedEmployeeName,
+    string? LinkedEmployeeCode
+);
+
+public record BatchIngestionResult(
+    bool Success,
+    string DeviceCode,
+    int PersistedCount,
+    int DuplicateCount,
+    int FailedCount,
+    List<IngestionItemResult> Results,
+    string Message
+);
+
 public interface IBiometricIngestionService
 {
     Task<IngestionResult> IngestEventAsync(IngestionRequest request, CancellationToken cancellationToken = default);
+    Task<BatchIngestionResult> IngestBatchAsync(IngestionBatchRequest request, CancellationToken cancellationToken = default);
+    Task<int> ReprocessUnlinkedEventsAsync(CancellationToken cancellationToken = default);
 }
 
 public class BiometricIngestionService : IBiometricIngestionService
@@ -47,89 +85,260 @@ public class BiometricIngestionService : IBiometricIngestionService
 
     public async Task<IngestionResult> IngestEventAsync(IngestionRequest request, CancellationToken cancellationToken = default)
     {
-        // 1. Resolve Device
+        var batchResult = await IngestBatchAsync(new IngestionBatchRequest(
+            request.DeviceCode,
+            null,
+            new List<IngestionBatchItem>
+            {
+                new IngestionBatchItem(
+                    request.EmployeeCode,
+                    request.Timestamp,
+                    request.Method,
+                    request.EventType ?? "Auto",
+                    request.ExternalEventId,
+                    request.RawPayload
+                )
+            }
+        ), cancellationToken);
+
+        var first = batchResult.Results.FirstOrDefault();
+        if (first == null || !batchResult.Success)
+        {
+            return new IngestionResult(false, false, batchResult.Message, null, "");
+        }
+
+        bool isDup = first.Status == "Duplicate";
+        return new IngestionResult(true, isDup, first.Message, first.EventId, first.EventHash);
+    }
+
+    public async Task<BatchIngestionResult> IngestBatchAsync(IngestionBatchRequest request, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.DeviceCode))
+        {
+            return new BatchIngestionResult(false, "", 0, 0, 0, new(), "El código del dispositivo es requerido.");
+        }
+
         var device = await _context.BiometricDevices
-            .FirstOrDefaultAsync(d => d.Code == request.DeviceCode, cancellationToken);
+            .Include(d => d.Branch)
+            .FirstOrDefaultAsync(d => d.Code == request.DeviceCode.Trim().ToUpperInvariant(), cancellationToken);
 
         if (device == null)
         {
             _logger.LogWarning("[BiometricIngestion] Dispositivo desconocido: {DeviceCode}", request.DeviceCode);
-            return new IngestionResult(false, false, $"Dispositivo con código '{request.DeviceCode}' no encontrado.", null, "");
+            return new BatchIngestionResult(false, request.DeviceCode, 0, 0, 0, new(), $"Dispositivo con código '{request.DeviceCode}' no registrado en el sistema.");
         }
 
-        // 2. Resolve Employee
-        var employee = await _context.Employees
-            .FirstOrDefaultAsync(e => e.EmployeeCode == request.EmployeeCode || e.BiometricExternalId == request.EmployeeCode, cancellationToken);
-
-        if (employee == null)
+        if (request.BranchId.HasValue && device.BranchId != request.BranchId.Value)
         {
-            _logger.LogWarning("[BiometricIngestion] Empleado desconocido: {EmployeeCode}", request.EmployeeCode);
-            return new IngestionResult(false, false, $"Empleado con código '{request.EmployeeCode}' no encontrado.", null, "");
+            _logger.LogWarning("[BiometricIngestion] Dispositivo {DeviceCode} no pertenece a la sucursal {BranchId}", request.DeviceCode, request.BranchId);
+            return new BatchIngestionResult(false, request.DeviceCode, 0, 0, 0, new(), $"El dispositivo '{request.DeviceCode}' no pertenece a la sucursal asignada.");
         }
 
-        // 3. Parse Method & EventType
-        if (!Enum.TryParse<BiometricMethod>(request.Method, true, out var method))
+        var results = new List<IngestionItemResult>();
+        int persistedCount = 0;
+        int duplicateCount = 0;
+        int failedCount = 0;
+
+        var employeesToRecalculate = new HashSet<(int EmployeeId, DateTime Date)>();
+
+        foreach (var item in request.Events)
         {
-            method = BiometricMethod.Face;
+            try
+            {
+                var userClockId = item.UserClockId?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(userClockId))
+                {
+                    results.Add(new IngestionItemResult(
+                        userClockId, item.Timestamp, "Failed", "UserClockId es requerido.", null, "", null, null));
+                    failedCount++;
+                    continue;
+                }
+
+                if (!Enum.TryParse<BiometricMethod>(item.Method, true, out var method))
+                {
+                    method = BiometricMethod.Face;
+                }
+
+                if (!Enum.TryParse<BiometricEventType>(item.EventType ?? "Punch", true, out var eventType))
+                {
+                    eventType = BiometricEventType.Punch;
+                }
+
+                // Compute idempotency hash (SHA-256)
+                var eventHash = BiometricEvent.ComputeHash(device.Code, userClockId, item.Timestamp, method);
+
+                // Check if already persisted
+                var existingEvent = await _context.BiometricEvents
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.EventHash == eventHash, cancellationToken);
+
+                if (existingEvent != null)
+                {
+                    duplicateCount++;
+                    results.Add(new IngestionItemResult(
+                        userClockId,
+                        item.Timestamp,
+                        "Duplicate",
+                        "Checada ya persistida previamente (idempotente).",
+                        existingEvent.Id,
+                        eventHash,
+                        null,
+                        null
+                    ));
+                    continue;
+                }
+
+                // Match employee: prioritize BiometricExternalId then EmployeeCode
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(e =>
+                        (e.BiometricExternalId == userClockId || e.EmployeeCode == userClockId) &&
+                        e.Status == CommonStatus.Active,
+                        cancellationToken);
+
+                var biometricEvent = new BiometricEvent
+                {
+                    DeviceId = device.Id,
+                    UserClockId = userClockId,
+                    EmployeeId = employee?.Id,
+                    ExternalEventId = item.ExternalEventId,
+                    DeviceTimestamp = item.Timestamp,
+                    ReceivedAtUtc = DateTime.UtcNow,
+                    Method = method,
+                    EventType = eventType,
+                    EventHash = eventHash,
+                    RawPayload = item.RawPayload ?? $"{{\"userClockId\":\"{userClockId}\",\"method\":\"{method}\"}}",
+                    ProcessingStatus = employee != null ? EventProcessingStatus.Processed : EventProcessingStatus.PendingLink,
+                    ProcessedAtUtc = employee != null ? DateTime.UtcNow : null
+                };
+
+                _context.BiometricEvents.Add(biometricEvent);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                persistedCount++;
+
+                string? empName = employee != null ? $"{employee.FirstName} {employee.LastName}".Trim() : null;
+                string? empCode = employee?.EmployeeCode;
+
+                if (employee != null)
+                {
+                    employeesToRecalculate.Add((employee.Id, item.Timestamp.Date));
+                }
+
+                results.Add(new IngestionItemResult(
+                    userClockId,
+                    item.Timestamp,
+                    "Persisted",
+                    employee != null ? "Guardado y vinculado exitosamente." : "Guardado como pendiente de vinculación (empleado no registrado aún).",
+                    biometricEvent.Id,
+                    eventHash,
+                    empName,
+                    empCode
+                ));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error persistiendo evento individual {UserClockId} {Timestamp}", item.UserClockId, item.Timestamp);
+                failedCount++;
+                results.Add(new IngestionItemResult(
+                    item.UserClockId ?? "",
+                    item.Timestamp,
+                    "Failed",
+                    $"Error al guardar: {ex.Message}",
+                    null,
+                    "",
+                    null,
+                    null
+                ));
+            }
         }
 
-        if (!Enum.TryParse<BiometricEventType>(request.EventType ?? "Auto", true, out var eventType))
-        {
-            eventType = BiometricEventType.Auto;
-        }
-
-        // 4. Compute Idempotency Hash (SHA-256)
-        var eventHash = BiometricEvent.ComputeHash(device.Code, employee.EmployeeCode, request.Timestamp, method);
-
-        // 5. Check Idempotency: Has this exact event already been recorded?
-        var existingEvent = await _context.BiometricEvents
-            .AsNoTracking()
-            .FirstOrDefaultAsync(e => e.EventHash == eventHash, cancellationToken);
-
-        if (existingEvent != null)
-        {
-            _logger.LogWarning("[BiometricIngestion] Idempotencia activada: Evento duplicado ignorado. Hash: {Hash}, Dispositivo: {Device}, Empleado: {Employee}, Timestamp: {Timestamp:yyyy-MM-dd HH:mm:ss}",
-                eventHash, device.Code, employee.EmployeeCode, request.Timestamp);
-
-            return new IngestionResult(true, true, "Evento biométrico duplicado. Ignorado por idempotencia.", existingEvent.Id, eventHash);
-        }
-
-        // 6. Create immutable BiometricEvent
-        var biometricEvent = new BiometricEvent
-        {
-            DeviceId = device.Id,
-            EmployeeId = employee.Id,
-            ExternalEventId = request.ExternalEventId,
-            DeviceTimestamp = request.Timestamp,
-            ReceivedAtUtc = DateTime.UtcNow,
-            Method = method,
-            EventType = eventType,
-            EventHash = eventHash,
-            RawPayload = request.RawPayload,
-            ProcessingStatus = EventProcessingStatus.Processed,
-            ProcessedAtUtc = DateTime.UtcNow
-        };
-
-        _context.BiometricEvents.Add(biometricEvent);
-
-        // Update Device last connection and event timestamps
+        // Update Device heartbeat and status
         device.LastConnectionAt = DateTime.UtcNow;
-        device.LastEventAt = DateTime.UtcNow;
-
+        device.Status = DeviceStatus.Online;
+        if (persistedCount > 0)
+        {
+            device.LastEventAt = DateTime.UtcNow;
+        }
         await _context.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("[BiometricIngestion] Evento biométrico registrado exitosamente. Id: {EventId}, Hash: {Hash}", biometricEvent.Id, eventHash);
-
-        // 7. Trigger immediate Attendance calculation
-        try
+        // Recalculate daily attendance for affected employees
+        foreach (var (empId, date) in employeesToRecalculate)
         {
-            await _attendanceProcessingService.ProcessDailyAttendanceAsync(employee.Id, request.Timestamp.Date, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al calcular asistencia inmediata para empleado {EmployeeId} en fecha {Date:yyyy-MM-dd}", employee.Id, request.Timestamp.Date);
+            try
+            {
+                await _attendanceProcessingService.ProcessDailyAttendanceAsync(empId, date, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al calcular asistencia para empleado {EmployeeId} en fecha {Date:yyyy-MM-dd}", empId, date);
+            }
         }
 
-        return new IngestionResult(true, false, "Evento biométrico registrado y procesado exitosamente.", biometricEvent.Id, eventHash);
+        string summaryMsg = $"Lote procesado para {device.Code}: {persistedCount} guardados, {duplicateCount} duplicados, {failedCount} con error.";
+        _logger.LogInformation("[BiometricIngestion] {Summary}", summaryMsg);
+
+        return new BatchIngestionResult(
+            true,
+            device.Code,
+            persistedCount,
+            duplicateCount,
+            failedCount,
+            results,
+            summaryMsg
+        );
+    }
+
+    public async Task<int> ReprocessUnlinkedEventsAsync(CancellationToken cancellationToken = default)
+    {
+        var unlinkedEvents = await _context.BiometricEvents
+            .Where(e => e.ProcessingStatus == EventProcessingStatus.PendingLink && e.EmployeeId == null && !string.IsNullOrEmpty(e.UserClockId))
+            .ToListAsync(cancellationToken);
+
+        if (!unlinkedEvents.Any())
+        {
+            return 0;
+        }
+
+        int reprocessed = 0;
+        var recalculate = new HashSet<(int EmployeeId, DateTime Date)>();
+
+        foreach (var evt in unlinkedEvents)
+        {
+            var emp = await _context.Employees
+                .FirstOrDefaultAsync(e =>
+                    (e.BiometricExternalId == evt.UserClockId || e.EmployeeCode == evt.UserClockId) &&
+                    e.Status == CommonStatus.Active,
+                    cancellationToken);
+
+            if (emp != null)
+            {
+                evt.EmployeeId = emp.Id;
+                evt.ProcessingStatus = EventProcessingStatus.Processed;
+                evt.ProcessedAtUtc = DateTime.UtcNow;
+                reprocessed++;
+
+                recalculate.Add((emp.Id, evt.DeviceTimestamp.Date));
+            }
+        }
+
+        if (reprocessed > 0)
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+
+            foreach (var (empId, date) in recalculate)
+            {
+                try
+                {
+                    await _attendanceProcessingService.ProcessDailyAttendanceAsync(empId, date, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error al reprocesar asistencia para empleado {EmployeeId} en fecha {Date:yyyy-MM-dd}", empId, date);
+                }
+            }
+        }
+
+        _logger.LogInformation("[BiometricIngestion] {Count} eventos no vinculados fueron reprocesados exitosamente.", reprocessed);
+        return reprocessed;
     }
 }

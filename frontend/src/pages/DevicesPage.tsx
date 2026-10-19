@@ -36,6 +36,10 @@ interface Device {
   provider: string;
   lastConnectionAt?: string;
   lastEventAt?: string;
+  lastSyncAt?: string;
+  pendingQueueCount?: number;
+  lastErrorMessage?: string;
+  firmwareVersion?: string;
   punchesToday?: number;
 }
 
@@ -284,9 +288,15 @@ export const DevicesPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <Activity className="w-3 h-3 text-emerald-600 animate-pulse" />
-                    <span>{language === 'zh-CN' ? '正常在网' : 'En Línea / Listo'}</span>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                    d.status === 'Online'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : d.status === 'Offline'
+                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                      : 'bg-blue-50 text-blue-700 border border-blue-200'
+                  }`}>
+                    <Activity className={`w-3 h-3 ${d.status === 'Online' ? 'text-emerald-600 animate-pulse' : 'text-slate-400'}`} />
+                    <span>{d.status === 'Online' ? (language === 'zh-CN' ? '正常在网' : 'En Línea / Listo') : (language === 'zh-CN' ? '离线' : 'Desconectado')}</span>
                   </span>
 
                   <button
@@ -318,22 +328,45 @@ export const DevicesPage: React.FC = () => {
                   <span className="text-slate-800 font-semibold">{d.port || 4370}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-sans">{t('devices.model')}:</span>{' '}
-                  <span className="text-slate-800 font-semibold">{d.model || 'FA200'}</span>
+                  <span className="text-slate-500 font-sans">N° Serie:</span>{' '}
+                  <span className="text-slate-800 font-semibold">{d.serialNumber || 'PHZ6092608717'}</span>
                 </div>
                 <div>
                   <span className="text-slate-500 font-sans">{language === 'zh-CN' ? '今日打卡' : 'Checadas Hoy'}:</span>{' '}
                   <span className="text-emerald-700 font-bold">{d.punchesToday || 0}</span>
                 </div>
+                <div>
+                  <span className="text-slate-500 font-sans">Cola Local:</span>{' '}
+                  <span className={`font-semibold ${d.pendingQueueCount && d.pendingQueueCount > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
+                    {d.pendingQueueCount || 0} pendientes
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-sans">Firmware:</span>{' '}
+                  <span className="text-slate-700">{d.firmwareVersion || 'Ver 6.60'}</span>
+                </div>
               </div>
+
+              {/* Error Alert if any */}
+              {d.lastErrorMessage && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
+                  <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                  <span className="truncate">{d.lastErrorMessage}</span>
+                </div>
+              )}
 
               {/* Status and Action Buttons */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
                 <div className="text-xs text-slate-500">
-                  <span>{t('devices.lastSync')}: </span>
+                  <span>Último contacto: </span>
                   <span className="text-slate-800 font-medium">
-                    {d.lastConnectionAt ? new Date(d.lastConnectionAt).toLocaleString() : (language === 'zh-CN' ? '待首次连接' : 'Listo')}
+                    {d.lastConnectionAt ? new Date(d.lastConnectionAt).toLocaleTimeString() : 'Listo'}
                   </span>
+                  {d.lastSyncAt && (
+                    <span className="ml-2 text-indigo-600 font-medium">
+                      (Sinc: {new Date(d.lastSyncAt).toLocaleTimeString()})
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">

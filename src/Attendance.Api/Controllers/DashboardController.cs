@@ -103,8 +103,8 @@ public class DashboardController : ControllerBase
             .Select(e => new
             {
                 e.Id,
-                EmployeeName = $"{e.Employee.FirstName} {e.Employee.LastName}",
-                EmployeeCode = e.Employee.EmployeeCode,
+                EmployeeName = e.Employee != null ? $"{e.Employee.FirstName} {e.Employee.LastName}" : $"Sin vincular (ID Reloj: {e.UserClockId})",
+                EmployeeCode = e.Employee != null ? e.Employee.EmployeeCode : (e.UserClockId ?? "PENDIENTE"),
                 BranchName = e.Device.Branch.Name,
                 Time = e.DeviceTimestamp.ToString("HH:mm:ss"),
                 Date = e.DeviceTimestamp.ToString("yyyy-MM-dd"),

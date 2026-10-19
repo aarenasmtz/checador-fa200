@@ -1,0 +1,14 @@
+{
+  "DeviceCode": "FA200-CENTRO-01",
+  "BranchId": 1,
+  "ClockIp": "192.168.100.21",
+  "ClockPort": 4370,
+  "CommKey": 0,
+  "ApiUrl": "https://api-checador.wpcbajio.com",
+  "AgentApiKey": "fa200-sync-agent-secret-key-2026",
+  "PollIntervalSeconds": 5,
+  "BatchSize": 50,
+  "HeartbeatIntervalSeconds": 30,
+  "DbPath": "data/sync_queue.db",
+  "LogPath": "logs/sync_agent.log"
+}

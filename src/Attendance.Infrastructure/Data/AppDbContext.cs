@@ -123,7 +123,8 @@ public class AppDbContext : DbContext, IAppDbContext
             .HasOne(e => e.Employee)
             .WithMany(emp => emp.BiometricEvents)
             .HasForeignKey(e => e.EmployeeId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<AttendanceDaily>()
             .HasOne(a => a.Employee)

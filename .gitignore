@@ -25,3 +25,6 @@ env/
 # Environment files with secrets
 .env
 *.bak
+publish_api/
+data/*.db
+*.tar.gz

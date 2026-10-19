@@ -68,6 +68,9 @@ public class DevicesController : ControllerBase
                 IsSimulated = false,
                 d.LastConnectionAt,
                 d.LastEventAt,
+                d.LastSyncAt,
+                d.PendingQueueCount,
+                d.LastErrorMessage,
                 d.FirmwareVersion,
                 PunchesToday = d.Events.Count(e => e.DeviceTimestamp >= today)
             })
@@ -102,6 +105,9 @@ public class DevicesController : ControllerBase
             IsSimulated = false,
             device.LastConnectionAt,
             device.LastEventAt,
+            device.LastSyncAt,
+            device.PendingQueueCount,
+            device.LastErrorMessage,
             device.FirmwareVersion
         });
     }
