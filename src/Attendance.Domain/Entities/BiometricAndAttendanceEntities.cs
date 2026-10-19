@@ -47,6 +47,8 @@ public class BiometricEvent
 
     public BiometricMethod Method { get; set; } = BiometricMethod.Face;
     public BiometricEventType EventType { get; set; } = BiometricEventType.Auto;
+    public int NativePunchCode { get; set; } = 255;
+    public string? ClassifiedAs { get; set; } // "ENTRY", "MEAL_EXIT", "MEAL_RETURN", "EXIT", "ADDITIONAL", "IGNORED"
 
     public string EventHash { get; set; } = string.Empty;
     public string? RawPayload { get; set; }
@@ -79,13 +81,21 @@ public class AttendanceDaily
 
     public TimeSpan? ExpectedEntry { get; set; }
     public TimeSpan? ExpectedExit { get; set; }
+    public TimeSpan? ExpectedMealStart { get; set; }
+    public TimeSpan? ExpectedMealEnd { get; set; }
 
     public int MinutesLate { get; set; } = 0;
+    public int? MealDurationMinutes { get; set; }
+    public int MealMinutesLate { get; set; } = 0;
     public int MinutesWorked { get; set; } = 0;
     public int OvertimeMinutes { get; set; } = 0;
 
     public AttendanceStatus Status { get; set; } = AttendanceStatus.Absent;
     public string Origin { get; set; } = "BIOMETRICO"; // "BIOMETRICO", "MANUAL", "SISTEMA"
+    public string ClassificationOrigin { get; set; } = "INFERRED"; // "DEVICE_CODE", "INFERRED_WINDOW", "MANUAL_OVERRIDE"
+    public bool RequiresReview { get; set; } = false;
+    public string? ReviewNotes { get; set; }
+
     public bool IsManualOverride { get; set; } = false;
     public AttendanceStatus? OriginalStatus { get; set; }
     public string? ModifiedBy { get; set; }

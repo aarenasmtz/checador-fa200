@@ -116,6 +116,7 @@ class DatabaseManager:
                     punch_time TEXT NOT NULL,
                     method TEXT NOT NULL,
                     punch_type TEXT NOT NULL,
+                    punch_code INTEGER DEFAULT 255,
                     event_hash TEXT UNIQUE NOT NULL,
                     status TEXT NOT NULL DEFAULT 'pending',
                     retry_count INTEGER NOT NULL DEFAULT 0,
@@ -126,6 +127,12 @@ class DatabaseManager:
             """)
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_punches_status ON punches (status);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_punches_hash ON punches (event_hash);")
+
+            # Migration: add punch_code column if missing in existing db
+            try:
+                cursor.execute("ALTER TABLE punches ADD COLUMN punch_code INTEGER DEFAULT 255;")
+            except Exception:
+                pass
 
             # Tabla de estado del agente
             cursor.execute("""
@@ -146,9 +153,9 @@ class DatabaseManager:
             for p in punches:
                 try:
                     cursor.execute("""
-                        INSERT OR IGNORE INTO punches (user_id, punch_time, method, punch_type, event_hash, status, created_at)
-                        VALUES (?, ?, ?, ?, ?, 'pending', ?);
-                    """, (p["user_id"], p["punch_time"], p["method"], p["punch_type"], p["event_hash"], now_str))
+                        INSERT OR IGNORE INTO punches (user_id, punch_time, method, punch_type, punch_code, event_hash, status, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?);
+                    """, (p["user_id"], p["punch_time"], p["method"], p["punch_type"], p.get("punch_code", 255), p["event_hash"], now_str))
                     if cursor.rowcount > 0:
                         inserted += 1
                 except Exception as e:
@@ -160,7 +167,7 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT id, user_id, punch_time, method, punch_type, event_hash, retry_count
+                SELECT id, user_id, punch_time, method, punch_type, punch_code, event_hash, retry_count
                 FROM punches
                 WHERE status = 'pending'
                 ORDER BY id ASC
@@ -274,6 +281,7 @@ class FA200SyncAgent:
                 # Método: 15 y 16 corresponden a reconocimiento facial en plataforma ZLM60
                 method = "Face" if getattr(att, "status", 0) in (15, 16) else "Fingerprint"
                 punch_type = "Punch"
+                punch_code = getattr(att, "punch", 255)
 
                 event_hash = self.compute_event_hash(user_id, punch_time_str, method)
 
@@ -282,6 +290,7 @@ class FA200SyncAgent:
                     "punch_time": punch_time_str,
                     "method": method,
                     "punch_type": punch_type,
+                    "punch_code": punch_code,
                     "event_hash": event_hash
                 })
 
@@ -320,7 +329,8 @@ class FA200SyncAgent:
                 "userClockId": p["user_id"],
                 "timestamp": p["punch_time"],
                 "method": p["method"],
-                "eventType": p["punch_type"]
+                "eventType": p["punch_type"],
+                "nativePunchCode": p.get("punch_code", 255)
             }
             for p in pending
         ]

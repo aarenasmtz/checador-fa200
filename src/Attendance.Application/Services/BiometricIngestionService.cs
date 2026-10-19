@@ -30,7 +30,8 @@ public record IngestionBatchItem(
     string Method,
     string? EventType = "Punch",
     string? ExternalEventId = null,
-    string? RawPayload = null
+    string? RawPayload = null,
+    int NativePunchCode = 255
 );
 
 public record IngestionBatchRequest(
@@ -205,8 +206,9 @@ public class BiometricIngestionService : IBiometricIngestionService
                     ReceivedAtUtc = DateTime.UtcNow,
                     Method = method,
                     EventType = eventType,
+                    NativePunchCode = item.NativePunchCode,
                     EventHash = eventHash,
-                    RawPayload = item.RawPayload ?? $"{{\"userClockId\":\"{userClockId}\",\"method\":\"{method}\"}}",
+                    RawPayload = item.RawPayload ?? $"{{\"userClockId\":\"{userClockId}\",\"method\":\"{method}\",\"nativePunchCode\":{item.NativePunchCode}}}",
                     ProcessingStatus = employee != null ? EventProcessingStatus.Processed : EventProcessingStatus.PendingLink,
                     ProcessedAtUtc = employee != null ? DateTime.UtcNow : null
                 };

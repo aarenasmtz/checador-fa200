@@ -9,7 +9,12 @@ import {
   X,
   AlertCircle,
   RefreshCw,
-  CheckCircle2
+  CheckCircle2,
+  Moon,
+  Sun,
+  Sliders,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import api from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
@@ -28,8 +33,21 @@ interface Schedule {
   startTime: string;
   endTime: string;
   toleranceMinutes: number;
+  hasMealBreak: boolean;
+  mealBreakMode: 'Fixed' | 'Flexible' | string;
   mealStartTime?: string | null;
   mealEndTime?: string | null;
+  mealDurationMinutes: number;
+  mealToleranceMinutes: number;
+  isOvernight: boolean;
+  entryWindowStart?: string | null;
+  entryWindowEnd?: string | null;
+  mealExitWindowStart?: string | null;
+  mealExitWindowEnd?: string | null;
+  mealReturnWindowStart?: string | null;
+  mealReturnWindowEnd?: string | null;
+  exitWindowStart?: string | null;
+  exitWindowEnd?: string | null;
   expectedHours: number;
   status: string;
   workDays: WorkDay[];
@@ -45,13 +63,28 @@ export const SchedulesPage: React.FC = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
+  const [showAdvancedWindows, setShowAdvancedWindows] = useState(false);
+
   const [formData, setFormData] = useState({
     name: '',
     startTime: '08:00',
     endTime: '18:00',
     toleranceMinutes: 10,
+    hasMealBreak: true,
+    mealBreakMode: 'Fixed',
     mealStartTime: '13:00',
     mealEndTime: '14:00',
+    mealDurationMinutes: 60,
+    mealToleranceMinutes: 5,
+    isOvernight: false,
+    entryWindowStart: '',
+    entryWindowEnd: '',
+    mealExitWindowStart: '',
+    mealExitWindowEnd: '',
+    mealReturnWindowStart: '',
+    mealReturnWindowEnd: '',
+    exitWindowStart: '',
+    exitWindowEnd: '',
     expectedHours: 9.0,
     workingDays: [1, 2, 3, 4, 5, 6], // Mon - Sat
     status: 'Active'
@@ -96,13 +129,27 @@ export const SchedulesPage: React.FC = () => {
 
   const handleOpenAddModal = () => {
     setEditingSchedule(null);
+    setShowAdvancedWindows(false);
     setFormData({
       name: '',
       startTime: '08:00',
       endTime: '18:00',
       toleranceMinutes: 10,
+      hasMealBreak: true,
+      mealBreakMode: 'Fixed',
       mealStartTime: '13:00',
       mealEndTime: '14:00',
+      mealDurationMinutes: 60,
+      mealToleranceMinutes: 5,
+      isOvernight: false,
+      entryWindowStart: '',
+      entryWindowEnd: '',
+      mealExitWindowStart: '',
+      mealExitWindowEnd: '',
+      mealReturnWindowStart: '',
+      mealReturnWindowEnd: '',
+      exitWindowStart: '',
+      exitWindowEnd: '',
       expectedHours: 9.0,
       workingDays: [1, 2, 3, 4, 5, 6],
       status: 'Active'
@@ -113,6 +160,9 @@ export const SchedulesPage: React.FC = () => {
 
   const handleOpenEditModal = (s: Schedule) => {
     setEditingSchedule(s);
+    setShowAdvancedWindows(
+      Boolean(s.entryWindowStart || s.entryWindowEnd || s.exitWindowStart || s.exitWindowEnd)
+    );
     const activeDays = (s.workDays || [])
       .filter((w) => w.isWorkingDay)
       .map((w) => w.dayOfWeek);
@@ -121,9 +171,22 @@ export const SchedulesPage: React.FC = () => {
       name: s.name,
       startTime: s.startTime?.substring(0, 5) || '08:00',
       endTime: s.endTime?.substring(0, 5) || '18:00',
-      toleranceMinutes: s.toleranceMinutes || 10,
-      mealStartTime: s.mealStartTime ? s.mealStartTime.substring(0, 5) : '',
-      mealEndTime: s.mealEndTime ? s.mealEndTime.substring(0, 5) : '',
+      toleranceMinutes: s.toleranceMinutes ?? 10,
+      hasMealBreak: s.hasMealBreak ?? true,
+      mealBreakMode: s.mealBreakMode === 'Flexible' ? 'Flexible' : 'Fixed',
+      mealStartTime: s.mealStartTime ? s.mealStartTime.substring(0, 5) : '13:00',
+      mealEndTime: s.mealEndTime ? s.mealEndTime.substring(0, 5) : '14:00',
+      mealDurationMinutes: s.mealDurationMinutes ?? 60,
+      mealToleranceMinutes: s.mealToleranceMinutes ?? 5,
+      isOvernight: s.isOvernight ?? false,
+      entryWindowStart: s.entryWindowStart ? s.entryWindowStart.substring(0, 5) : '',
+      entryWindowEnd: s.entryWindowEnd ? s.entryWindowEnd.substring(0, 5) : '',
+      mealExitWindowStart: s.mealExitWindowStart ? s.mealExitWindowStart.substring(0, 5) : '',
+      mealExitWindowEnd: s.mealExitWindowEnd ? s.mealExitWindowEnd.substring(0, 5) : '',
+      mealReturnWindowStart: s.mealReturnWindowStart ? s.mealReturnWindowStart.substring(0, 5) : '',
+      mealReturnWindowEnd: s.mealReturnWindowEnd ? s.mealReturnWindowEnd.substring(0, 5) : '',
+      exitWindowStart: s.exitWindowStart ? s.exitWindowStart.substring(0, 5) : '',
+      exitWindowEnd: s.exitWindowEnd ? s.exitWindowEnd.substring(0, 5) : '',
       expectedHours: Number(s.expectedHours) || 9.0,
       workingDays: activeDays.length > 0 ? activeDays : [1, 2, 3, 4, 5, 6],
       status: s.status === 'Active' ? 'Active' : 'Inactive'
@@ -156,13 +219,28 @@ export const SchedulesPage: React.FC = () => {
     setSaving(true);
     setFormError(null);
     try {
+      const formatTimeOrNull = (val?: string) => (val && val.trim() ? `${val.trim()}:00` : null);
+
       const payload = {
         name: formData.name.trim(),
         startTime: `${formData.startTime}:00`,
         endTime: `${formData.endTime}:00`,
         toleranceMinutes: Number(formData.toleranceMinutes),
-        mealStartTime: formData.mealStartTime ? `${formData.mealStartTime}:00` : null,
-        mealEndTime: formData.mealEndTime ? `${formData.mealEndTime}:00` : null,
+        hasMealBreak: Boolean(formData.hasMealBreak),
+        mealBreakMode: formData.mealBreakMode,
+        mealStartTime: formData.hasMealBreak && formData.mealBreakMode === 'Fixed' ? formatTimeOrNull(formData.mealStartTime) : null,
+        mealEndTime: formData.hasMealBreak && formData.mealBreakMode === 'Fixed' ? formatTimeOrNull(formData.mealEndTime) : null,
+        mealDurationMinutes: formData.hasMealBreak ? Number(formData.mealDurationMinutes) : 0,
+        mealToleranceMinutes: formData.hasMealBreak ? Number(formData.mealToleranceMinutes) : 0,
+        isOvernight: Boolean(formData.isOvernight),
+        entryWindowStart: formatTimeOrNull(formData.entryWindowStart),
+        entryWindowEnd: formatTimeOrNull(formData.entryWindowEnd),
+        mealExitWindowStart: formatTimeOrNull(formData.mealExitWindowStart),
+        mealExitWindowEnd: formatTimeOrNull(formData.mealExitWindowEnd),
+        mealReturnWindowStart: formatTimeOrNull(formData.mealReturnWindowStart),
+        mealReturnWindowEnd: formatTimeOrNull(formData.mealReturnWindowEnd),
+        exitWindowStart: formatTimeOrNull(formData.exitWindowStart),
+        exitWindowEnd: formatTimeOrNull(formData.exitWindowEnd),
         expectedHours: Number(formData.expectedHours),
         workingDays: formData.workingDays,
         status: formData.status
@@ -210,8 +288,8 @@ export const SchedulesPage: React.FC = () => {
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             {language === 'zh-CN'
-              ? 'ABC 班次日程：添加、修改及配置上班、下班时间、迟到容差与就餐时间'
-              : 'ABC de Horarios: Alta, Baja y Cambio de turnos, tolerancias de retardo y tiempos de comida'}
+              ? 'ABC 班次日程：配置4次打卡逻辑、固定/灵活就餐、跨午夜夜班及容差窗口'
+              : 'Configuración de Turnos y 4 Marcaciones: Entrada, Comida (Fija o Flexible), Tolerancias, Jornadas Nocturnas y Ventanas'}
           </p>
         </div>
 
@@ -269,7 +347,7 @@ export const SchedulesPage: React.FC = () => {
             <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
               {language === 'zh-CN'
                 ? '点击上方“添加新班次”创建你的第一个工作作息时间表。'
-                : 'Haga clic en "+ Nuevo Horario" para crear turnos con horarios de entrada, salida y tolerancia de retardo.'}
+                : 'Haga clic en "+ Nuevo Horario" para crear turnos con horarios de entrada, salida, comida y tolerancias.'}
             </p>
           </div>
           <button
@@ -295,7 +373,15 @@ export const SchedulesPage: React.FC = () => {
               >
                 <div className="flex items-start justify-between">
                   <div className="pr-2">
-                    <h3 className="font-bold text-slate-900 text-base">{s.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-slate-900 text-base">{s.name}</h3>
+                      {s.isOvernight && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-900 text-indigo-100" title="Cruza medianoche">
+                          <Moon className="w-3 h-3 text-indigo-300" />
+                          Nocturno
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-slate-400 font-mono">
                       {s.assignedEmployeesCount || 0} {language === 'zh-CN' ? '名员工使用' : 'empleados vinculados'}
                     </span>
@@ -323,21 +409,25 @@ export const SchedulesPage: React.FC = () => {
                 {/* Time Block */}
                 <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200 flex items-center justify-between">
                   <div className="text-center flex-1">
-                    <span className="text-[11px] text-slate-500 uppercase block font-semibold">{t('common.entry')}</span>
+                    <span className="text-[11px] text-slate-500 uppercase block font-semibold flex items-center justify-center gap-1">
+                      <Sun className="w-3 h-3 text-amber-500" /> {t('common.entry')}
+                    </span>
                     <span className="text-lg font-bold text-indigo-600 font-mono">
                       {s.startTime ? s.startTime.substring(0, 5) : '08:00'}
                     </span>
                   </div>
                   <div className="h-8 w-[1px] bg-slate-200" />
                   <div className="text-center flex-1">
-                    <span className="text-[11px] text-slate-500 uppercase block font-semibold">{t('common.exit')}</span>
+                    <span className="text-[11px] text-slate-500 uppercase block font-semibold flex items-center justify-center gap-1">
+                      {s.isOvernight ? <Moon className="w-3 h-3 text-indigo-400" /> : <Sun className="w-3 h-3 text-amber-500" />} {t('common.exit')}
+                    </span>
                     <span className="text-lg font-bold text-slate-800 font-mono">
                       {s.endTime ? s.endTime.substring(0, 5) : '18:00'}
                     </span>
                   </div>
                 </div>
 
-                {/* Rules */}
+                {/* Rules & Food Breakdown */}
                 <div className="space-y-2 text-xs text-slate-600">
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5 font-medium">
@@ -349,17 +439,38 @@ export const SchedulesPage: React.FC = () => {
                     </span>
                   </div>
 
-                  {s.mealStartTime && (
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 font-medium">
-                        <UtensilsCrossed className="w-3.5 h-3.5 text-indigo-500" />
-                        {language === 'zh-CN' ? '就餐时间' : 'Horario de Comida'}
+                  {s.hasMealBreak ? (
+                    <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 font-semibold text-slate-700">
+                          <UtensilsCrossed className="w-3.5 h-3.5 text-indigo-500" />
+                          {s.mealBreakMode === 'Flexible' ? 'Comida Flexible' : 'Comida Programada'}
+                        </span>
+                        <span className="font-bold text-indigo-700 font-mono">
+                          {s.mealBreakMode === 'Flexible'
+                            ? `${s.mealDurationMinutes || 60} min máx`
+                            : `${s.mealStartTime ? s.mealStartTime.substring(0, 5) : '13:00'} - ${s.mealEndTime ? s.mealEndTime.substring(0, 5) : '14:00'}`}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 flex justify-between">
+                        <span>Tolerancia regreso:</span>
+                        <span className="font-mono font-medium text-slate-700">+{s.mealToleranceMinutes ?? 5} min</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between text-slate-500 italic bg-slate-50 px-2 py-1 rounded">
+                      <span className="flex items-center gap-1 text-[11px]">
+                        <UtensilsCrossed className="w-3 h-3 text-slate-400" />
+                        Jornada Continua (Sin Salida a Comer)
                       </span>
-                      <span className="font-semibold text-slate-800 font-mono">
-                        {s.mealStartTime.substring(0, 5)} - {s.mealEndTime ? s.mealEndTime.substring(0, 5) : ''}
-                      </span>
+                      <span className="text-[10px] font-mono font-semibold text-slate-600">2 Checadas</span>
                     </div>
                   )}
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-slate-500 font-medium">Jornada esperada:</span>
+                    <span className="font-mono font-bold text-slate-700">{s.expectedHours} hrs</span>
+                  </div>
                 </div>
 
                 {/* Work days badge list */}
@@ -391,15 +502,15 @@ export const SchedulesPage: React.FC = () => {
 
       {/* Add / Edit Schedule Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 relative border border-slate-200 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-xl p-6 relative border border-slate-200 shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 sticky top-0 bg-white z-10">
               <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
                 <CalendarClock className="w-5 h-5 text-indigo-600" />
                 <span>
                   {editingSchedule
-                    ? (language === 'zh-CN' ? '修改班次时间 (Cambios)' : 'Editar Horario')
-                    : (language === 'zh-CN' ? '创建新班次 (Altas)' : 'Nuevo Horario')}
+                    ? (language === 'zh-CN' ? '修改班次设置' : 'Editar Turno / Horario')
+                    : (language === 'zh-CN' ? '创建新班次' : 'Nuevo Turno / Horario')}
                 </span>
               </h3>
               <button
@@ -420,103 +531,307 @@ export const SchedulesPage: React.FC = () => {
             <form onSubmit={handleSaveSchedule} className="mt-4 space-y-4 text-xs">
               <div>
                 <label className="block text-slate-700 font-semibold mb-1">
-                  {language === 'zh-CN' ? '班次名称 *' : 'Nombre del Turno / Horario *'}
+                  {language === 'zh-CN' ? '班次名称 *' : 'Nombre del Turno *'}
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Turno Matutino Estándar (08:00 - 18:00)"
+                  placeholder="Ej. Matutino con Comida (08:00 - 18:00)"
                   required
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">
-                    {language === 'zh-CN' ? '上班时间 (Entry) *' : 'Hora de Entrada *'}
+              {/* Entry & Exit + Overnight */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-800">Horario de Jornada</span>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.isOvernight}
+                      onChange={(e) => setFormData({ ...formData, isOvernight: e.target.checked })}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 border-slate-300"
+                    />
+                    <span className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                      <Moon className="w-3.5 h-3.5 text-indigo-600" />
+                      ¿Turno Nocturno? (Cruza medianoche)
+                    </span>
                   </label>
-                  <input
-                    type="time"
-                    value={formData.startTime}
-                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-mono focus:bg-white focus:border-indigo-500 focus:outline-none"
-                  />
                 </div>
 
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">
-                    {language === 'zh-CN' ? '下班时间 (Exit) *' : 'Hora de Salida *'}
-                  </label>
-                  <input
-                    type="time"
-                    value={formData.endTime}
-                    onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-mono focus:bg-white focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-              </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-700 font-medium mb-1">
+                      Hora de Entrada *
+                    </label>
+                    <input
+                      type="time"
+                      value={formData.startTime}
+                      onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                      required
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 font-mono focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">
-                    {language === 'zh-CN' ? '迟到容差 (分钟)' : 'Tolerancia Retardo (min)'}
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={60}
-                    value={formData.toleranceMinutes}
-                    onChange={(e) => setFormData({ ...formData, toleranceMinutes: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-mono focus:bg-white focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">
-                    {language === 'zh-CN' ? '预计工时 (小时)' : 'Horas Esperadas'}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min={1}
-                    max={24}
-                    value={formData.expectedHours}
-                    onChange={(e) => setFormData({ ...formData, expectedHours: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-mono focus:bg-white focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">
-                    {language === 'zh-CN' ? '就餐开始' : 'Inicio de Comida'}
-                  </label>
-                  <input
-                    type="time"
-                    value={formData.mealStartTime}
-                    onChange={(e) => setFormData({ ...formData, mealStartTime: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-mono focus:bg-white focus:border-indigo-500 focus:outline-none"
-                  />
+                  <div>
+                    <label className="block text-slate-700 font-medium mb-1">
+                      Hora de Salida *
+                    </label>
+                    <input
+                      type="time"
+                      value={formData.endTime}
+                      onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                      required
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 font-mono focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">
-                    {language === 'zh-CN' ? '就餐结束' : 'Fin de Comida'}
-                  </label>
-                  <input
-                    type="time"
-                    value={formData.mealEndTime}
-                    onChange={(e) => setFormData({ ...formData, mealEndTime: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-mono focus:bg-white focus:border-indigo-500 focus:outline-none"
-                  />
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-slate-700 font-medium mb-1">
+                      Tolerancia Retardo Entrada (min)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={60}
+                      value={formData.toleranceMinutes}
+                      onChange={(e) => setFormData({ ...formData, toleranceMinutes: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 font-mono focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 font-medium mb-1">
+                      Horas Netas Esperadas
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min={1}
+                      max={24}
+                      value={formData.expectedHours}
+                      onChange={(e) => setFormData({ ...formData, expectedHours: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 font-mono focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
+              {/* Meal configuration */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-800 flex items-center gap-1.5">
+                    <UtensilsCrossed className="w-4 h-4 text-indigo-600" />
+                    Configuración de Comida / Almuerzo
+                  </span>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.hasMealBreak}
+                      onChange={(e) => setFormData({ ...formData, hasMealBreak: e.target.checked })}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 border-slate-300"
+                    />
+                    <span className="text-xs font-semibold text-slate-700">
+                      Incluye salida a comer (4 marcaciones)
+                    </span>
+                  </label>
+                </div>
+
+                {formData.hasMealBreak ? (
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="block text-slate-700 font-medium mb-1">Modalidad de Comida</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, mealBreakMode: 'Fixed' })}
+                          className={`py-2 px-3 rounded-lg border text-xs font-semibold text-center transition ${
+                            formData.mealBreakMode === 'Fixed'
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          Horario Fijo Programado
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, mealBreakMode: 'Flexible' })}
+                          className={`py-2 px-3 rounded-lg border text-xs font-semibold text-center transition ${
+                            formData.mealBreakMode === 'Flexible'
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          Flexible por Duración
+                        </button>
+                      </div>
+                    </div>
+
+                    {formData.mealBreakMode === 'Fixed' ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-slate-700 font-medium mb-1">Inicio de Comida *</label>
+                          <input
+                            type="time"
+                            value={formData.mealStartTime}
+                            onChange={(e) => setFormData({ ...formData, mealStartTime: e.target.value })}
+                            required={formData.hasMealBreak && formData.mealBreakMode === 'Fixed'}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 font-mono focus:border-indigo-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-700 font-medium mb-1">Fin de Comida *</label>
+                          <input
+                            type="time"
+                            value={formData.mealEndTime}
+                            onChange={(e) => setFormData({ ...formData, mealEndTime: e.target.value })}
+                            required={formData.hasMealBreak && formData.mealBreakMode === 'Fixed'}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 font-mono focus:border-indigo-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-slate-700 font-medium mb-1">
+                          Duración Máxima Permitida de Comida (minutos)
+                        </label>
+                        <input
+                          type="number"
+                          min={15}
+                          max={180}
+                          value={formData.mealDurationMinutes}
+                          onChange={(e) => setFormData({ ...formData, mealDurationMinutes: Number(e.target.value) })}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 font-mono focus:border-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-slate-700 font-medium mb-1">
+                        Tolerancia Regreso de Comida (minutos de gracia)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={30}
+                        value={formData.mealToleranceMinutes}
+                        onChange={(e) => setFormData({ ...formData, mealToleranceMinutes: Number(e.target.value) })}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 font-mono focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-slate-500 text-[11px] italic">
+                    Este turno no contempla pausa de comida. El sistema evaluará 2 marcaciones (Entrada y Salida).
+                  </p>
+                )}
+              </div>
+
+              {/* Advanced Windows Collapsible */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedWindows(!showAdvancedWindows)}
+                  className="w-full p-3 bg-slate-50 hover:bg-slate-100 flex items-center justify-between text-slate-700 font-semibold"
+                >
+                  <span className="flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-indigo-600" />
+                    Ventanas Horarias para Clasificación de Marcaciones (Opcional)
+                  </span>
+                  {showAdvancedWindows ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+
+                {showAdvancedWindows && (
+                  <div className="p-3 bg-white space-y-3 border-t border-slate-200">
+                    <p className="text-[11px] text-slate-500">
+                      Si las dejas vacías, el motor de asistencia calcula automáticamente los márgenes en base al horario y tolerancias.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-slate-600 text-[11px] font-medium mb-1">Ventana Entrada (Desde / Hasta)</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="time"
+                            value={formData.entryWindowStart}
+                            onChange={(e) => setFormData({ ...formData, entryWindowStart: e.target.value })}
+                            className="w-1/2 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-800 font-mono"
+                          />
+                          <input
+                            type="time"
+                            value={formData.entryWindowEnd}
+                            onChange={(e) => setFormData({ ...formData, entryWindowEnd: e.target.value })}
+                            className="w-1/2 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-800 font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-600 text-[11px] font-medium mb-1">Ventana Salida Turno (Desde / Hasta)</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="time"
+                            value={formData.exitWindowStart}
+                            onChange={(e) => setFormData({ ...formData, exitWindowStart: e.target.value })}
+                            className="w-1/2 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-800 font-mono"
+                          />
+                          <input
+                            type="time"
+                            value={formData.exitWindowEnd}
+                            onChange={(e) => setFormData({ ...formData, exitWindowEnd: e.target.value })}
+                            className="w-1/2 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-800 font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {formData.hasMealBreak && (
+                      <div className="grid grid-cols-2 gap-3 pt-2">
+                        <div>
+                          <label className="block text-slate-600 text-[11px] font-medium mb-1">Ventana Salida a Comer</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="time"
+                              value={formData.mealExitWindowStart}
+                              onChange={(e) => setFormData({ ...formData, mealExitWindowStart: e.target.value })}
+                              className="w-1/2 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-800 font-mono"
+                            />
+                            <input
+                              type="time"
+                              value={formData.mealExitWindowEnd}
+                              onChange={(e) => setFormData({ ...formData, mealExitWindowEnd: e.target.value })}
+                              className="w-1/2 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-800 font-mono"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-slate-600 text-[11px] font-medium mb-1">Ventana Regreso de Comer</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="time"
+                              value={formData.mealReturnWindowStart}
+                              onChange={(e) => setFormData({ ...formData, mealReturnWindowStart: e.target.value })}
+                              className="w-1/2 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-800 font-mono"
+                            />
+                            <input
+                              type="time"
+                              value={formData.mealReturnWindowEnd}
+                              onChange={(e) => setFormData({ ...formData, mealReturnWindowEnd: e.target.value })}
+                              className="w-1/2 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-800 font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Working days */}
               <div>
                 <label className="block text-slate-700 font-semibold mb-2">
                   {language === 'zh-CN' ? '工作日适用设置 *' : 'Días Laborables Aplicables *'}

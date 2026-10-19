@@ -338,6 +338,20 @@ public class AttendanceCalculationTests
         {
             DeviceId = device.Id,
             EmployeeId = emp.Id,
+            DeviceTimestamp = date.Add(new TimeSpan(14, 0, 0)),
+            EventHash = "hash_ot_meal_1"
+        });
+        context.BiometricEvents.Add(new BiometricEvent
+        {
+            DeviceId = device.Id,
+            EmployeeId = emp.Id,
+            DeviceTimestamp = date.Add(new TimeSpan(15, 0, 0)),
+            EventHash = "hash_ot_meal_2"
+        });
+        context.BiometricEvents.Add(new BiometricEvent
+        {
+            DeviceId = device.Id,
+            EmployeeId = emp.Id,
             DeviceTimestamp = date.Add(new TimeSpan(19, 30, 0)),
             EventHash = "hash_ot_2"
         });

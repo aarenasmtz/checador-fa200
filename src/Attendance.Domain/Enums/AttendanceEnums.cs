@@ -24,6 +24,12 @@ public enum BiometricEventType
     Punch = 5
 }
 
+public enum MealBreakMode
+{
+    Fixed = 0,
+    Flexible = 1
+}
+
 public enum DeviceConnectionMode
 {
     Unknown = 0,

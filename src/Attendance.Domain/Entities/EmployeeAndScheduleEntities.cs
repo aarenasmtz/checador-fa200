@@ -47,8 +47,27 @@ public class Schedule
     public TimeSpan EndTime { get; set; }
 
     public int ToleranceMinutes { get; set; } = 10;
+
+    // Configuración de comida
+    public bool HasMealBreak { get; set; } = true;
+    public MealBreakMode MealBreakMode { get; set; } = MealBreakMode.Fixed;
     public TimeSpan? MealStartTime { get; set; }
     public TimeSpan? MealEndTime { get; set; }
+    public int? MealDurationMinutes { get; set; } = 60;
+    public int MealToleranceMinutes { get; set; } = 5;
+
+    // Turno nocturno (cruza medianoche)
+    public bool IsOvernight { get; set; } = false;
+
+    // Ventanas configurables para interpretar marcaciones
+    public TimeSpan? EntryWindowStart { get; set; }
+    public TimeSpan? EntryWindowEnd { get; set; }
+    public TimeSpan? MealExitWindowStart { get; set; }
+    public TimeSpan? MealExitWindowEnd { get; set; }
+    public TimeSpan? MealReturnWindowStart { get; set; }
+    public TimeSpan? MealReturnWindowEnd { get; set; }
+    public TimeSpan? ExitWindowStart { get; set; }
+    public TimeSpan? ExitWindowEnd { get; set; }
 
     public decimal ExpectedHours { get; set; } = 8.0m;
     public CommonStatus Status { get; set; } = CommonStatus.Active;

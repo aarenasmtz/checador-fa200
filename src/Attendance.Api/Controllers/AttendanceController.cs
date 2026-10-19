@@ -18,6 +18,14 @@ public record ReprocessRequest(
     DateTime? EndDate = null,
     DateTime? Date = null
 );
+public record ManualOverrideApiRequest(
+    string? FirstEntry,
+    string? MealExit,
+    string? MealReturn,
+    string? LastExit,
+    string? Status,
+    string ModificationReason
+);
 
 public class UpdateAttendanceStatusRequest
 {
@@ -103,10 +111,21 @@ public class AttendanceController : ControllerBase
                 LastExit = a.LastExit.HasValue ? a.LastExit.Value.ToString(@"hh\:mm") : null,
                 ExpectedEntry = a.ExpectedEntry.HasValue ? a.ExpectedEntry.Value.ToString(@"hh\:mm") : null,
                 ExpectedExit = a.ExpectedExit.HasValue ? a.ExpectedExit.Value.ToString(@"hh\:mm") : null,
+                ExpectedMealStart = a.ExpectedMealStart.HasValue ? a.ExpectedMealStart.Value.ToString(@"hh\:mm") : null,
+                ExpectedMealEnd = a.ExpectedMealEnd.HasValue ? a.ExpectedMealEnd.Value.ToString(@"hh\:mm") : null,
+                a.MealDurationMinutes,
+                a.MealMinutesLate,
                 a.MinutesLate,
                 a.MinutesWorked,
                 a.OvertimeMinutes,
-                Status = a.Status.ToString()
+                Status = a.Status.ToString(),
+                ClassificationOrigin = a.ClassificationOrigin ?? "INFERRED",
+                a.RequiresReview,
+                a.ReviewNotes,
+                a.IsManualOverride,
+                a.ModifiedBy,
+                ModifiedAt = a.ModifiedAt.HasValue ? a.ModifiedAt.Value.ToString("yyyy-MM-dd HH:mm") : null,
+                a.ModificationReason
             })
             .ToListAsync();
 
@@ -213,6 +232,45 @@ public class AttendanceController : ControllerBase
             startDate = startDate.ToString("yyyy-MM-dd"),
             endDate = endDate.ToString("yyyy-MM-dd")
         });
+    }
+
+    [HttpPut("{id}/manual-override")]
+    public async Task<IActionResult> ManualOverride(long id, [FromBody] ManualOverrideApiRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ModificationReason))
+        {
+            return BadRequest(new { message = "El motivo de la modificación es obligatorio para auditoría." });
+        }
+
+        var username = User?.Identity?.Name ?? "Supervisor";
+        TimeSpan? ParseT(string? s) => string.IsNullOrWhiteSpace(s) ? null : TimeSpan.Parse(s);
+
+        try
+        {
+            var updated = await _attendanceProcessingService.UpdateManualAttendanceAsync(
+                id,
+                new ManualAttendanceUpdateRequest(
+                    ParseT(request.FirstEntry),
+                    ParseT(request.MealExit),
+                    ParseT(request.MealReturn),
+                    ParseT(request.LastExit),
+                    request.Status,
+                    request.ModificationReason,
+                    username
+                )
+            );
+
+            return Ok(new
+            {
+                success = true,
+                message = "Asistencia actualizada y auditada exitosamente sin alterar registros biométricos originales.",
+                data = updated
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet("calendar")]
