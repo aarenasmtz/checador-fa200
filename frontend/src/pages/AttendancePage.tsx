@@ -528,25 +528,25 @@ export const AttendancePage: React.FC = () => {
                   <table className="w-full text-left text-sm table-fixed border-collapse border border-slate-200">
                     <thead className="bg-slate-100/90 text-slate-700 border-b-2 border-slate-200 font-semibold text-xs">
                       <tr>
-                        <th className="py-3 px-3.5 w-[24%] border-r border-slate-200">{isZh ? '员工姓名 / 门店' : 'Empleado y Sucursal'}</th>
-                        <th className="py-3 px-3 w-[10%] border-r border-slate-200 text-center">{isZh ? '日期' : 'Fecha'}</th>
-                        <th className="py-3 px-3.5 w-[14%] border-r border-slate-200 bg-emerald-50/60">
+                        <th className="py-3 px-3.5 w-[20%] border-r border-slate-200">{isZh ? '员工姓名 / 门店' : 'Empleado y Sucursal'}</th>
+                        <th className="py-3 px-3 w-[9%] border-r border-slate-200 text-center">{isZh ? '日期' : 'Fecha'}</th>
+                        <th className="py-3 px-3.5 w-[13%] border-r border-slate-200 bg-emerald-50/60">
                           <span className="block text-emerald-800 font-bold">{isZh ? '1. 上班进' : '1. Entrada'}</span>
                           <span className="text-[11px] text-slate-500 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
                         </th>
-                        <th className="py-3 px-3.5 w-[14%] border-r border-slate-200 bg-amber-50/60">
+                        <th className="py-3 px-3.5 w-[13%] border-r border-slate-200 bg-amber-50/60">
                           <span className="block text-amber-800 font-bold">{isZh ? '2. 就餐出' : '2. Salida Comida'}</span>
                           <span className="text-[11px] text-slate-500 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
                         </th>
-                        <th className="py-3 px-3.5 w-[14%] border-r border-slate-200 bg-indigo-50/60">
+                        <th className="py-3 px-3.5 w-[13%] border-r border-slate-200 bg-indigo-50/60">
                           <span className="block text-indigo-800 font-bold">{isZh ? '3. 就餐归' : '3. Regreso Comida'}</span>
                           <span className="text-[11px] text-slate-500 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
                         </th>
-                        <th className="py-3 px-3.5 w-[14%] border-r border-slate-200 bg-slate-100/80">
+                        <th className="py-3 px-3.5 w-[13%] border-r border-slate-200 bg-slate-100/80">
                           <span className="block text-slate-900 font-bold">{isZh ? '4. 下班退' : '4. Salida Turno'}</span>
                           <span className="text-[11px] text-slate-500 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
                         </th>
-                        <th className="py-3 px-3.5 w-[10%] text-center">{isZh ? '状态与操作' : 'Estado / Acción'}</th>
+                        <th className="py-3 px-3.5 w-[19%] text-center">{isZh ? '状态与操作' : 'Estado / Acción'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
