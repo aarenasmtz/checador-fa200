@@ -28,11 +28,6 @@ export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) =
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Simulation mode badge */}
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold shadow-2xs">
-          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
-          <span>{t('dashboard.simulatedMode')}</span>
-        </div>
 
         {/* Language Switcher */}
         <button
