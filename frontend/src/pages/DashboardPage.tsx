@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import api from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
 import {
@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Clock,
   UserX,
-  Radio,
   TrendingUp,
   Building2,
   ScanFace,
@@ -15,8 +14,10 @@ import {
   UserCheck,
   X,
   Search,
-  ArrowRight,
-  Filter
+  ChevronDown,
+  ChevronRight,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
@@ -26,10 +27,16 @@ export const DashboardPage: React.FC = () => {
 
   // Selected Day Detail Modal state
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDateLabel, setSelectedDateLabel] = useState<string | null>(null);
+  const [modalBranchId, setModalBranchId] = useState<string>('');
   const [dayDetail, setDayDetail] = useState<any | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [filterTab, setFilterTab] = useState<'ALL' | 'OnTime' | 'Late' | 'Absent'>('ALL');
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [filterTab, setFilterTab] = useState<'ALL' | 'OnTime' | 'Late' | 'Absent' | 'EarlyExit' | 'Incomplete'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [expandedEmployeeId, setExpandedEmployeeId] = useState<number | null>(null);
+
+  const activeRequestIdRef = useRef<number>(0);
 
   const fetchDashboard = async () => {
     try {
@@ -44,24 +51,54 @@ export const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     fetchDashboard();
-    // Auto-refresh every 10 seconds to catch simulated punches
+    // Auto-refresh every 10 seconds to catch live punches
     const interval = setInterval(fetchDashboard, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  const handleSelectDay = async (dateStr: string) => {
-    setSelectedDate(dateStr);
+  const loadDayDetail = async (dateStr: string, branchIdVal: string) => {
+    const requestId = ++activeRequestIdRef.current;
     setDetailLoading(true);
-    setFilterTab('ALL');
-    setSearchTerm('');
+    setDetailError(null);
 
     try {
-      const res = await api.get(`/v1/dashboard/day-detail?date=${dateStr}`);
-      setDayDetail(res.data);
-    } catch (err) {
-      console.error('Error fetching day detail:', err);
+      const res = await api.get('/v1/dashboard/day-detail', {
+        params: {
+          date: dateStr,
+          branchId: branchIdVal ? parseInt(branchIdVal) : undefined,
+        },
+      });
+
+      // Avoid race conditions: only update if this is still the most recent request
+      if (requestId === activeRequestIdRef.current) {
+        setDayDetail(res.data);
+      }
+    } catch (err: any) {
+      if (requestId === activeRequestIdRef.current) {
+        console.error('Error fetching day detail:', err);
+        setDetailError(err.response?.data?.message || 'Error al cargar el detalle de asistencia');
+        setDayDetail(null);
+      }
     } finally {
-      setDetailLoading(false);
+      if (requestId === activeRequestIdRef.current) {
+        setDetailLoading(false);
+      }
+    }
+  };
+
+  const handleSelectDay = (dateFull: string, dateLabel?: string) => {
+    setSelectedDate(dateFull);
+    setSelectedDateLabel(dateLabel || dateFull);
+    setFilterTab('ALL');
+    setSearchTerm('');
+    setExpandedEmployeeId(null);
+    loadDayDetail(dateFull, modalBranchId);
+  };
+
+  const handleModalBranchChange = (newBranchId: string) => {
+    setModalBranchId(newBranchId);
+    if (selectedDate) {
+      loadDayDetail(selectedDate, newBranchId);
     }
   };
 
@@ -72,7 +109,7 @@ export const DashboardPage: React.FC = () => {
   const { metrics, trend, branches, recentActivity } = data || {};
 
   const getMethodIcon = (method: string) => {
-    switch (method.toLowerCase()) {
+    switch ((method || '').toLowerCase()) {
       case 'face': return <ScanFace className="w-4 h-4 text-indigo-500" />;
       case 'fingerprint': return <Fingerprint className="w-4 h-4 text-emerald-600" />;
       case 'card': return <CreditCard className="w-4 h-4 text-amber-600" />;
@@ -84,9 +121,9 @@ export const DashboardPage: React.FC = () => {
   const filteredRecords = dayDetail?.records?.filter((r: any) => {
     const matchesTab = filterTab === 'ALL' || r.status === filterTab;
     const matchesSearch = !searchTerm ||
-      r.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.employeeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.branchName.toLowerCase().includes(searchTerm.toLowerCase());
+      (r.employeeName && r.employeeName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (r.employeeCode && r.employeeCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (r.branchName && r.branchName.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesTab && matchesSearch;
   }) || [];
 
@@ -170,62 +207,31 @@ export const DashboardPage: React.FC = () => {
 
           <div className="h-52 flex items-end justify-between gap-3 pt-6 px-2">
             {(() => {
-              const now = new Date();
-              const samplePreset = [
-                { onTime: 49, late: 6, absent: 2 },
-                { onTime: 52, late: 4, absent: 1 },
-                { onTime: 48, late: 7, absent: 3 },
-                { onTime: 51, late: 5, absent: 2 },
-                { onTime: 47, late: 8, absent: 2 },
-                { onTime: 50, late: 5, absent: 1 },
-                { onTime: 50, late: 6, absent: 2 },
-              ];
-
-              const effectiveTrend = (trend && trend.length >= 7)
-                ? trend
-                : Array.from({ length: 7 }, (_, i) => {
-                    const offset = 6 - i;
-                    const d = new Date(now);
-                    d.setDate(d.getDate() - offset);
-                    const mm = String(d.getMonth() + 1).padStart(2, '0');
-                    const dd = String(d.getDate()).padStart(2, '0');
-                    const formatted = `${mm}-${dd}`;
-                    const existing = trend?.find((t: any) => t.date === formatted);
-                    if (existing && (existing.onTime + existing.late + existing.absent > 0)) {
-                      return existing;
-                    }
-                    const preset = samplePreset[i] || { onTime: 50, late: 5, absent: 2 };
-                    return {
-                      date: formatted,
-                      onTime: preset.onTime,
-                      late: preset.late,
-                      absent: preset.absent
-                    };
-                  });
-
+              const effectiveTrend = trend || [];
               const maxScale = Math.max(
-                60,
+                10,
                 ...effectiveTrend.map((d: any) => (d.onTime || 0) + (d.late || 0) + (d.absent || 0))
               );
 
               return effectiveTrend.map((day: any) => {
                 const total = (day.onTime || 0) + (day.late || 0) + (day.absent || 0);
-                const colHeight = Math.min(100, Math.max(30, Math.round((total / maxScale) * 100)));
+                const colHeight = Math.min(100, Math.max(total > 0 ? 30 : 6, Math.round((total / maxScale) * 100)));
                 const absentPct = total > 0 ? (day.absent / total) * 100 : 0;
                 const latePct = total > 0 ? (day.late / total) * 100 : 0;
                 const onTimePct = total > 0 ? (day.onTime / total) * 100 : 0;
                 const isSelected = selectedDate === day.date;
+                const displayLabel = day.label || day.dateShort || day.date;
 
                 return (
                   <div
                     key={day.date}
-                    onClick={() => handleSelectDay(day.date)}
+                    onClick={() => handleSelectDay(day.date, displayLabel)}
                     className="flex-1 flex flex-col items-center gap-2 h-full justify-end group relative cursor-pointer select-none"
                   >
                     {/* Floating Tooltip */}
                     <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col gap-1 bg-slate-900 text-white text-[11px] rounded-xl px-3 py-2 shadow-xl z-30 pointer-events-none whitespace-nowrap min-w-[140px]">
                       <span className="font-bold border-b border-slate-700 pb-1 text-slate-200">
-                        {day.date} · Total: {total}
+                        {displayLabel} ({day.date}) · Total: {total}
                       </span>
                       <span className="text-emerald-400 font-medium">✓ Puntuales: {day.onTime}</span>
                       <span className="text-amber-400 font-medium">⚠ Retardos: {day.late}</span>
@@ -238,16 +244,22 @@ export const DashboardPage: React.FC = () => {
                       style={{ height: `${colHeight}%` }}
                       className={`w-full max-w-[34px] rounded-t-lg overflow-hidden flex flex-col shadow-xs transition-all duration-300 group-hover:scale-105 group-hover:shadow-md ${
                         isSelected ? 'ring-2 ring-indigo-600 ring-offset-2 scale-105 shadow-md' : ''
-                      }`}
+                      } ${total === 0 ? 'bg-slate-100' : ''}`}
                     >
-                      <div style={{ height: `${absentPct}%` }} className="w-full bg-rose-400" />
-                      <div style={{ height: `${latePct}%` }} className="w-full bg-amber-400" />
-                      <div style={{ height: `${onTimePct}%` }} className="w-full bg-emerald-500" />
+                      {total > 0 ? (
+                        <>
+                          <div style={{ height: `${absentPct}%` }} className="w-full bg-rose-400" />
+                          <div style={{ height: `${latePct}%` }} className="w-full bg-amber-400" />
+                          <div style={{ height: `${onTimePct}%` }} className="w-full bg-emerald-500" />
+                        </>
+                      ) : (
+                        <div className="w-full h-full bg-slate-200/50" />
+                      )}
                     </div>
                     <span className={`text-[11px] font-mono font-medium transition-colors ${
                       isSelected ? 'text-indigo-600 font-bold' : 'text-slate-500 group-hover:text-indigo-600'
                     }`}>
-                      {day.date}
+                      {displayLabel}
                     </span>
                   </div>
                 );
@@ -356,84 +368,112 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Day Attendance Detail Modal (Triggered by clicking chart) */}
+      {/* Day Attendance Detail Modal */}
       {selectedDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl w-full max-w-4xl p-6 relative border border-slate-200 shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl w-full max-w-5xl p-6 relative border border-slate-200 shadow-2xl flex flex-col max-h-[92vh]">
+            
             {/* Modal Header */}
-            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 gap-3">
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-bold text-slate-900">
-                    {language === 'zh-CN' ? `考勤明细报告 · ${selectedDate}` : `Detalle de Asistencia · ${selectedDate}`}
+                    {language === 'zh-CN' ? `考勤明细报告 · ${selectedDateLabel || selectedDate}` : `Detalle de Asistencia · ${selectedDateLabel || selectedDate}`}
                   </h2>
-                  <span className="text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full">
-                    {dayDetail?.date || selectedDate}
+                  <span className="text-[11px] font-mono font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-0.5 rounded-full">
+                    {selectedDate}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
                   {language === 'zh-CN'
-                    ? '按时到岗员工、迟到人员与缺勤名单详细分析'
-                    : 'Desglose individual de entradas a tiempo, retardos con minutos excedentes y faltas'}
+                    ? '按时到岗员工、迟到人员与缺勤名单详细分析 · 点击员工可展开原始生物识别打卡流水'
+                    : 'Desglose individual de entradas a tiempo, retardos con minutos y faltas. Clic en un empleado para ver sus checadas originales.'}
                 </p>
               </div>
-              <button
-                onClick={() => { setSelectedDate(null); setDayDetail(null); }}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
+
+              <div className="flex items-center gap-3">
+                {/* Branch selector in modal */}
+                <select
+                  value={modalBranchId}
+                  onChange={(e) => handleModalBranchChange(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-medium focus:bg-white focus:border-indigo-500 focus:outline-none"
+                >
+                  <option value="">{language === 'zh-CN' ? '全部分店 (Todas)' : 'Todas las sucursales'}</option>
+                  {branches && branches.map((b: any) => (
+                    <option key={b.branchId} value={b.branchId}>{b.branchName}</option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={() => { setSelectedDate(null); setDayDetail(null); setDetailError(null); }}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                  title="Cerrar modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Quick KPI Summary Badges */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-4 border-b border-slate-100">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                <span className="text-[11px] text-slate-500 font-medium block">Total Registros</span>
-                <span className="text-xl font-bold text-slate-900 mt-0.5 block font-mono">
-                  {dayDetail?.summary?.total ?? '-'}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 py-3 border-b border-slate-100">
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] text-slate-500 font-medium block">Total Registros</span>
+                <span className="text-lg font-bold text-slate-900 mt-0.5 block font-mono">
+                  {dayDetail?.summary?.total ?? (detailLoading ? '...' : 0)}
                 </span>
               </div>
               <div
                 onClick={() => setFilterTab('OnTime')}
-                className={`p-3 rounded-xl border cursor-pointer transition ${
+                className={`p-2.5 rounded-xl border cursor-pointer transition ${
                   filterTab === 'OnTime' ? 'bg-emerald-100/70 border-emerald-300 ring-2 ring-emerald-500' : 'bg-emerald-50/70 border-emerald-200 hover:bg-emerald-100/50'
                 }`}
               >
-                <span className="text-[11px] text-emerald-800 font-medium block">✓ Entradas a Tiempo</span>
-                <span className="text-xl font-bold text-emerald-700 mt-0.5 block font-mono">
-                  {dayDetail?.summary?.onTime ?? '-'}
+                <span className="text-[10px] text-emerald-800 font-medium block">✓ Entradas a Tiempo</span>
+                <span className="text-lg font-bold text-emerald-700 mt-0.5 block font-mono">
+                  {dayDetail?.summary?.onTime ?? 0}
                 </span>
               </div>
               <div
                 onClick={() => setFilterTab('Late')}
-                className={`p-3 rounded-xl border cursor-pointer transition ${
+                className={`p-2.5 rounded-xl border cursor-pointer transition ${
                   filterTab === 'Late' ? 'bg-amber-100/70 border-amber-300 ring-2 ring-amber-500' : 'bg-amber-50/70 border-amber-200 hover:bg-amber-100/50'
                 }`}
               >
-                <span className="text-[11px] text-amber-800 font-medium block">⚠ Retardos</span>
-                <span className="text-xl font-bold text-amber-700 mt-0.5 block font-mono">
-                  {dayDetail?.summary?.late ?? '-'}
+                <span className="text-[10px] text-amber-800 font-medium block">⚠ Retardos</span>
+                <span className="text-lg font-bold text-amber-700 mt-0.5 block font-mono">
+                  {dayDetail?.summary?.late ?? 0}
                 </span>
               </div>
               <div
                 onClick={() => setFilterTab('Absent')}
-                className={`p-3 rounded-xl border cursor-pointer transition ${
+                className={`p-2.5 rounded-xl border cursor-pointer transition ${
                   filterTab === 'Absent' ? 'bg-rose-100/70 border-rose-300 ring-2 ring-rose-500' : 'bg-rose-50/70 border-rose-200 hover:bg-rose-100/50'
                 }`}
               >
-                <span className="text-[11px] text-rose-800 font-medium block">✕ Faltas</span>
-                <span className="text-xl font-bold text-rose-700 mt-0.5 block font-mono">
-                  {dayDetail?.summary?.absent ?? '-'}
+                <span className="text-[10px] text-rose-800 font-medium block">✕ Faltas</span>
+                <span className="text-lg font-bold text-rose-700 mt-0.5 block font-mono">
+                  {dayDetail?.summary?.absent ?? 0}
+                </span>
+              </div>
+              <div
+                onClick={() => setFilterTab('Incomplete')}
+                className={`p-2.5 rounded-xl border cursor-pointer transition ${
+                  filterTab === 'Incomplete' ? 'bg-purple-100/70 border-purple-300 ring-2 ring-purple-500' : 'bg-purple-50/70 border-purple-200 hover:bg-purple-100/50'
+                }`}
+              >
+                <span className="text-[10px] text-purple-800 font-medium block">⏱ Incompletos</span>
+                <span className="text-lg font-bold text-purple-700 mt-0.5 block font-mono">
+                  {dayDetail?.summary?.incomplete ?? 0}
                 </span>
               </div>
             </div>
 
             {/* Filter Tabs & Search Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 pb-3">
-              <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 pb-2">
+              <div className="flex flex-wrap bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
                 <button
                   onClick={() => setFilterTab('ALL')}
-                  className={`px-3 py-1.5 rounded-md font-semibold transition ${
+                  className={`px-3 py-1 rounded-md font-semibold transition ${
                     filterTab === 'ALL' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -441,7 +481,7 @@ export const DashboardPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setFilterTab('OnTime')}
-                  className={`px-3 py-1.5 rounded-md font-semibold transition ${
+                  className={`px-3 py-1 rounded-md font-semibold transition ${
                     filterTab === 'OnTime' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -449,7 +489,7 @@ export const DashboardPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setFilterTab('Late')}
-                  className={`px-3 py-1.5 rounded-md font-semibold transition ${
+                  className={`px-3 py-1 rounded-md font-semibold transition ${
                     filterTab === 'Late' ? 'bg-white text-amber-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -457,11 +497,19 @@ export const DashboardPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setFilterTab('Absent')}
-                  className={`px-3 py-1.5 rounded-md font-semibold transition ${
+                  className={`px-3 py-1 rounded-md font-semibold transition ${
                     filterTab === 'Absent' ? 'bg-white text-rose-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   Faltas ({dayDetail?.summary?.absent ?? 0})
+                </button>
+                <button
+                  onClick={() => setFilterTab('Incomplete')}
+                  className={`px-3 py-1 rounded-md font-semibold transition ${
+                    filterTab === 'Incomplete' ? 'bg-white text-purple-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Incompletos ({dayDetail?.summary?.incomplete ?? 0})
                 </button>
               </div>
 
@@ -481,83 +529,205 @@ export const DashboardPage: React.FC = () => {
             {/* Records Table */}
             <div className="overflow-y-auto flex-1 border border-slate-200 rounded-xl mt-1">
               {detailLoading ? (
-                <div className="py-12 text-center text-slate-400 text-xs">Cargando registros...</div>
+                <div className="py-16 text-center text-slate-500 text-xs flex flex-col items-center justify-center gap-2">
+                  <RefreshCw className="w-6 h-6 text-indigo-600 animate-spin" />
+                  <span>Cargando detalle de asistencias y checadas biométricas...</span>
+                </div>
+              ) : detailError ? (
+                <div className="py-16 text-center text-xs flex flex-col items-center justify-center gap-2 text-rose-600">
+                  <AlertCircle className="w-8 h-8 text-rose-500" />
+                  <span className="font-semibold">{detailError}</span>
+                  <button
+                    onClick={() => selectedDate && loadDayDetail(selectedDate, modalBranchId)}
+                    className="mt-2 px-3 py-1 bg-white border border-rose-300 rounded-md text-rose-700 hover:bg-rose-50"
+                  >
+                    Reintentar consulta
+                  </button>
+                </div>
               ) : filteredRecords.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs">
-                  No se encontraron empleados para este criterio de búsqueda.
+                <div className="py-16 text-center text-slate-400 text-xs">
+                  {dayDetail?.records?.length === 0
+                    ? `No se encontraron registros de asistencia para el ${selectedDate} en la sucursal seleccionada.`
+                    : 'No se encontraron empleados que coincidan con el criterio de búsqueda o filtro.'}
                 </div>
               ) : (
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50/90 sticky top-0 text-slate-600 font-semibold border-b border-slate-200">
                     <tr>
+                      <th className="py-2.5 px-3 w-8"></th>
                       <th className="py-2.5 px-3">Código</th>
                       <th className="py-2.5 px-3">Empleado</th>
                       <th className="py-2.5 px-3">Sucursal / Depto</th>
                       <th className="py-2.5 px-3">Entrada</th>
                       <th className="py-2.5 px-3">Salida</th>
-                      <th className="py-2.5 px-3">Método</th>
+                      <th className="py-2.5 px-3">Horas</th>
+                      <th className="py-2.5 px-3">Método Biométrico</th>
                       <th className="py-2.5 px-3">Estado</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredRecords.map((r: any) => (
-                      <tr key={r.id || r.employeeCode} className="hover:bg-slate-50/80 transition">
-                        <td className="py-2 px-3 font-mono font-bold text-indigo-600">{r.employeeCode}</td>
-                        <td className="py-2 px-3 font-semibold text-slate-800">{r.employeeName}</td>
-                        <td className="py-2 px-3 text-slate-600">
-                          <div>{r.branchName}</div>
-                          <div className="text-[10px] text-slate-400">{r.departmentName}</div>
-                        </td>
-                        <td className="py-2 px-3 font-mono">
-                          {r.status === 'Late' ? (
-                            <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60 inline-flex items-center gap-1">
-                              <span>{r.firstEntry}</span>
-                              <span className="text-[10px] text-amber-600 font-semibold">(+{r.minutesLate}m)</span>
-                            </span>
-                          ) : r.status === 'OnTime' ? (
-                            <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
-                              {r.firstEntry}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 font-semibold">-</span>
+                    {filteredRecords.map((r: any) => {
+                      const isExpanded = expandedEmployeeId === r.id;
+                      const hasPunches = r.punches && r.punches.length > 0;
+
+                      return (
+                        <React.Fragment key={r.id || r.employeeCode}>
+                          <tr
+                            onClick={() => setExpandedEmployeeId(isExpanded ? null : r.id)}
+                            className="hover:bg-slate-50/80 transition cursor-pointer"
+                          >
+                            <td className="py-2 px-2 text-slate-400">
+                              {hasPunches ? (
+                                isExpanded ? <ChevronDown className="w-4 h-4 text-indigo-600" /> : <ChevronRight className="w-4 h-4" />
+                              ) : null}
+                            </td>
+                            <td className="py-2 px-3 font-mono font-bold text-indigo-600">{r.employeeCode}</td>
+                            <td className="py-2 px-3 font-semibold text-slate-800">{r.employeeName}</td>
+                            <td className="py-2 px-3 text-slate-600">
+                              <div>{r.branchName}</div>
+                              <div className="text-[10px] text-slate-400">{r.departmentName}</div>
+                            </td>
+
+                            {/* FirstEntry is shown whenever it exists, even if Incomplete or EarlyExit */}
+                            <td className="py-2 px-3 font-mono">
+                              {r.firstEntry && r.firstEntry !== '-' ? (
+                                r.minutesLate > 0 ? (
+                                  <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60 inline-flex items-center gap-1">
+                                    <span>{r.firstEntry}</span>
+                                    <span className="text-[10px] text-amber-600 font-semibold">(+{r.minutesLate}m)</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
+                                    {r.firstEntry}
+                                  </span>
+                                )
+                              ) : (
+                                <span className="text-slate-400 font-semibold">-</span>
+                              )}
+                            </td>
+
+                            <td className="py-2 px-3 font-mono text-slate-600">{r.lastExit || '-'}</td>
+                            <td className="py-2 px-3 font-mono text-slate-700 font-medium">{r.hoursWorked} h</td>
+                            <td className="py-2 px-3">
+                              <div className="flex items-center gap-1.5 text-[11px] text-slate-700 font-medium">
+                                {getMethodIcon(r.method)}
+                                <span>{r.method || 'Sin información'}</span>
+                              </div>
+                            </td>
+                            <td className="py-2 px-3">
+                              {r.status === 'OnTime' && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  A tiempo
+                                </span>
+                              )}
+                              {r.status === 'Late' && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                  Retardo
+                                </span>
+                              )}
+                              {r.status === 'Absent' && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                  Falta
+                                </span>
+                              )}
+                              {r.status === 'EarlyExit' && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-50 text-orange-700 border border-orange-200">
+                                  Salida anticipada
+                                </span>
+                              )}
+                              {r.status === 'Incomplete' && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                                  Incompleto
+                                </span>
+                              )}
+                              {r.status === 'RestDay' && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                  Descanso
+                                </span>
+                              )}
+                              {r.status === 'Holiday' && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                  Festivo
+                                </span>
+                              )}
+                              {r.status === 'Permission' && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+                                  Permiso
+                                </span>
+                              )}
+                              {r.status === 'Vacation' && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                  Vacaciones
+                                </span>
+                              )}
+                              {r.status === 'Disability' && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200">
+                                  Incapacidad
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+
+                          {/* Expanded Original Biometric Punches Panel */}
+                          {isExpanded && (
+                            <tr className="bg-slate-50/70 border-b border-indigo-100">
+                              <td colSpan={9} className="p-3 pl-8">
+                                <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs space-y-2">
+                                  <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 text-[11px] font-bold text-slate-700">
+                                    <span>Checadas Biométricas Originales de la Jornada</span>
+                                    <span className="text-slate-400 font-normal">
+                                      {r.punches.length} marcaciones registradas
+                                    </span>
+                                  </div>
+
+                                  {hasPunches ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                                      {r.punches.map((p: any) => (
+                                        <div key={p.id} className="p-2 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] space-y-1">
+                                          <div className="flex items-center justify-between">
+                                            <span className="font-mono font-bold text-indigo-600">{p.time}</span>
+                                            <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                              {p.classifiedAs || p.type}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-1 text-slate-600">
+                                            {getMethodIcon(p.method)}
+                                            <span>Método: {p.method}</span>
+                                          </div>
+                                          <div className="text-[10px] text-slate-500 truncate" title={`${p.deviceName} (${p.branchName})`}>
+                                            📍 {p.deviceName} · {p.branchName}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="text-slate-400 text-xs py-2">
+                                      Sin marcaciones biométricas en el checador para esta fecha.
+                                    </div>
+                                  )}
+
+                                  {r.reviewNotes && (
+                                    <div className="text-[11px] text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                                      <strong>Observación del sistema:</strong> {r.reviewNotes}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
                           )}
-                        </td>
-                        <td className="py-2 px-3 font-mono text-slate-600">{r.lastExit || '-'}</td>
-                        <td className="py-2 px-3">
-                          <div className="flex items-center gap-1 text-[11px] text-slate-600">
-                            {getMethodIcon(r.method || 'face')}
-                            <span>{r.method || '-'}</span>
-                          </div>
-                        </td>
-                        <td className="py-2 px-3">
-                          {r.status === 'OnTime' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              Puntual
-                            </span>
-                          )}
-                          {r.status === 'Late' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                              Retardo
-                            </span>
-                          )}
-                          {r.status === 'Absent' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                              Falta
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                        </React.Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
             </div>
 
-            {/* Footer */}
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            {/* Modal Footer */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
               <span>Mostrando {filteredRecords.length} registros</span>
               <button
-                onClick={() => { setSelectedDate(null); setDayDetail(null); }}
+                onClick={() => { setSelectedDate(null); setDayDetail(null); setDetailError(null); }}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition"
               >
                 Cerrar

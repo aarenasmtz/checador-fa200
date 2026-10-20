@@ -17,9 +17,15 @@ public record AttendanceReportItemDto(
     string DepartmentName,
     DateTime Date,
     string? FirstEntry,
+    string? MealExit,
+    string? MealReturn,
     string? LastExit,
     int MinutesLate,
+    int MinutesWorked,
     decimal HoursWorked,
+    int OvertimeMinutes,
     decimal OvertimeHours,
-    string Status
+    string Status,
+    bool RequiresReview = false,
+    string? ReviewNotes = null
 );

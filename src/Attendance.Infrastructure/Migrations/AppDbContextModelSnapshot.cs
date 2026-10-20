@@ -30,6 +30,9 @@ namespace Attendance.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("ClassificationOrigin")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -45,14 +48,29 @@ namespace Attendance.Infrastructure.Migrations
                     b.Property<TimeSpan?>("ExpectedExit")
                         .HasColumnType("time");
 
+                    b.Property<TimeSpan?>("ExpectedMealEnd")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("ExpectedMealStart")
+                        .HasColumnType("time");
+
                     b.Property<TimeSpan?>("FirstEntry")
                         .HasColumnType("time");
+
+                    b.Property<bool>("IsManualOverride")
+                        .HasColumnType("bit");
 
                     b.Property<TimeSpan?>("LastExit")
                         .HasColumnType("time");
 
+                    b.Property<int?>("MealDurationMinutes")
+                        .HasColumnType("int");
+
                     b.Property<TimeSpan?>("MealExit")
                         .HasColumnType("time");
+
+                    b.Property<int>("MealMinutesLate")
+                        .HasColumnType("int");
 
                     b.Property<TimeSpan?>("MealReturn")
                         .HasColumnType("time");
@@ -63,8 +81,29 @@ namespace Attendance.Infrastructure.Migrations
                     b.Property<int>("MinutesWorked")
                         .HasColumnType("int");
 
+                    b.Property<string>("ModificationReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Origin")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("OriginalStatus")
+                        .HasColumnType("int");
+
                     b.Property<int>("OvertimeMinutes")
                         .HasColumnType("int");
+
+                    b.Property<bool>("RequiresReview")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ReviewNotes")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -97,6 +136,21 @@ namespace Attendance.Infrastructure.Migrations
                     b.Property<DateTime>("AttendanceDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("CancellationReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CancelledBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -107,11 +161,20 @@ namespace Attendance.Infrastructure.Migrations
                     b.Property<int>("Minutes")
                         .HasColumnType("int");
 
+                    b.Property<int?>("PunchMovementType")
+                        .HasColumnType("int");
+
+                    b.Property<TimeSpan?>("PunchTime")
+                        .HasColumnType("time");
+
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
                     b.Property<int>("Type")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -190,7 +253,13 @@ namespace Attendance.Infrastructure.Migrations
                     b.Property<DateTime?>("LastConnectionAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("LastErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("LastEventAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastSyncAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Model")
@@ -200,6 +269,9 @@ namespace Attendance.Infrastructure.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("PendingQueueCount")
+                        .HasColumnType("int");
 
                     b.Property<int?>("Port")
                         .HasColumnType("int");
@@ -232,13 +304,16 @@ namespace Attendance.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("ClassifiedAs")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("DeviceId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("DeviceTimestamp")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("EmployeeId")
+                    b.Property<int?>("EmployeeId")
                         .HasColumnType("int");
 
                     b.Property<string>("EventHash")
@@ -254,6 +329,9 @@ namespace Attendance.Infrastructure.Migrations
                     b.Property<int>("Method")
                         .HasColumnType("int");
 
+                    b.Property<int>("NativePunchCode")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("ProcessedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -265,6 +343,9 @@ namespace Attendance.Infrastructure.Migrations
 
                     b.Property<DateTime>("ReceivedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("UserClockId")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -655,14 +736,54 @@ namespace Attendance.Infrastructure.Migrations
                     b.Property<TimeSpan>("EndTime")
                         .HasColumnType("time");
 
+                    b.Property<TimeSpan?>("EntryWindowEnd")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("EntryWindowStart")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("ExitWindowEnd")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("ExitWindowStart")
+                        .HasColumnType("time");
+
                     b.Property<decimal>("ExpectedHours")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(4, 2)
+                        .HasColumnType("decimal(4,2)");
+
+                    b.Property<bool>("HasMealBreak")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsOvernight")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MealBreakMode")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MealDurationMinutes")
+                        .HasColumnType("int");
 
                     b.Property<TimeSpan?>("MealEndTime")
                         .HasColumnType("time");
 
+                    b.Property<TimeSpan?>("MealExitWindowEnd")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("MealExitWindowStart")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("MealReturnWindowEnd")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("MealReturnWindowStart")
+                        .HasColumnType("time");
+
                     b.Property<TimeSpan?>("MealStartTime")
                         .HasColumnType("time");
+
+                    b.Property<int>("MealToleranceMinutes")
+                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -822,8 +943,7 @@ namespace Attendance.Infrastructure.Migrations
                     b.HasOne("Attendance.Domain.Entities.Employee", "Employee")
                         .WithMany("BiometricEvents")
                         .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Device");
 

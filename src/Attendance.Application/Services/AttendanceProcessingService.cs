@@ -34,6 +34,130 @@ public class AttendanceProcessingService : IAttendanceProcessingService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Shared calculation logic for minutes worked, lunch break, late minutes, and overtime.
+    /// Used by both automated ingestion and manual supervisor adjustments.
+    /// </summary>
+    public static void RecalculateDailyMetrics(
+        AttendanceDaily daily,
+        Schedule? schedule,
+        bool isOvernight)
+    {
+        var expectedEntry = daily.ExpectedEntry ?? schedule?.StartTime ?? new TimeSpan(8, 0, 0);
+        var expectedExit = daily.ExpectedExit ?? schedule?.EndTime ?? new TimeSpan(18, 0, 0);
+        int tolerance = schedule?.ToleranceMinutes ?? 10;
+        int allowedMealMinutes = schedule?.MealDurationMinutes ?? 60;
+        int mealTolerance = schedule?.MealToleranceMinutes ?? 5;
+
+        // 1. Minutes Late at Entry
+        if (daily.FirstEntry.HasValue)
+        {
+            var expectedWithTol = expectedEntry.Add(TimeSpan.FromMinutes(tolerance));
+            if (daily.FirstEntry.Value > expectedWithTol)
+            {
+                daily.MinutesLate = (int)(daily.FirstEntry.Value - expectedEntry).TotalMinutes;
+            }
+            else
+            {
+                daily.MinutesLate = 0;
+            }
+        }
+        else
+        {
+            daily.MinutesLate = 0;
+        }
+
+        // 2. Meal duration and Meal Return Late Minutes
+        if (daily.MealExit.HasValue && daily.MealReturn.HasValue)
+        {
+            double mealMinutes;
+            if (daily.MealReturn.Value < daily.MealExit.Value)
+            {
+                // Crossing midnight during lunch
+                mealMinutes = (daily.MealReturn.Value.Add(TimeSpan.FromHours(24)) - daily.MealExit.Value).TotalMinutes;
+            }
+            else
+            {
+                mealMinutes = (daily.MealReturn.Value - daily.MealExit.Value).TotalMinutes;
+            }
+
+            daily.MealDurationMinutes = Math.Max(0, (int)mealMinutes);
+
+            if (daily.MealDurationMinutes.Value > allowedMealMinutes + mealTolerance)
+            {
+                daily.MealMinutesLate = daily.MealDurationMinutes.Value - allowedMealMinutes;
+            }
+            else
+            {
+                daily.MealMinutesLate = 0;
+            }
+        }
+        else
+        {
+            // Reset derived fields when meal punches are cleared/absent
+            daily.MealDurationMinutes = null;
+            daily.MealMinutesLate = 0;
+        }
+
+        // 3. Effective Worked Minutes
+        if (daily.FirstEntry.HasValue && daily.LastExit.HasValue)
+        {
+            double grossMinutes;
+            if (isOvernight && daily.LastExit.Value < daily.FirstEntry.Value)
+            {
+                grossMinutes = (daily.LastExit.Value.Add(TimeSpan.FromHours(24)) - daily.FirstEntry.Value).TotalMinutes;
+            }
+            else
+            {
+                grossMinutes = (daily.LastExit.Value - daily.FirstEntry.Value).TotalMinutes;
+                if (grossMinutes < 0) grossMinutes += 24 * 60; // Defensive check
+            }
+
+            if (daily.MealDurationMinutes.HasValue)
+            {
+                daily.MinutesWorked = Math.Max(0, (int)(grossMinutes - daily.MealDurationMinutes.Value));
+            }
+            else
+            {
+                daily.MinutesWorked = Math.Max(0, (int)grossMinutes);
+            }
+        }
+        else
+        {
+            daily.MinutesWorked = 0;
+        }
+
+        // 4. Overtime Calculation
+        decimal expectedHoursDecimal;
+        if (schedule != null && schedule.ExpectedHours > 0)
+        {
+            expectedHoursDecimal = schedule.ExpectedHours;
+        }
+        else
+        {
+            double grossExpected = isOvernight && expectedExit < expectedEntry
+                ? (expectedExit.Add(TimeSpan.FromHours(24)) - expectedEntry).TotalMinutes
+                : (expectedExit - expectedEntry).TotalMinutes;
+
+            if (schedule?.HasMealBreak == true)
+            {
+                grossExpected -= allowedMealMinutes;
+            }
+            expectedHoursDecimal = Math.Max(0, (decimal)grossExpected / 60m);
+        }
+
+        int expectedMinutes = (int)(expectedHoursDecimal * 60m);
+
+        if (daily.MinutesWorked > expectedMinutes)
+        {
+            daily.OvertimeMinutes = daily.MinutesWorked - expectedMinutes;
+        }
+        else
+        {
+            daily.OvertimeMinutes = 0;
+        }
+    }
+
     public async Task<AttendanceDaily> ProcessDailyAttendanceAsync(int employeeId, DateTime date, CancellationToken cancellationToken = default)
     {
         var targetDate = date.Date;
@@ -56,7 +180,6 @@ public class AttendanceProcessingService : IAttendanceProcessingService
             .Select(es => es.Schedule)
             .FirstOrDefault();
 
-        // Si no hay horario asignado, usar horario base por defecto
         bool isOvernight = schedule != null && (schedule.IsOvernight || schedule.StartTime > schedule.EndTime);
 
         // 2. Definir ventana de búsqueda de marcaciones biométricas
@@ -83,8 +206,10 @@ public class AttendanceProcessingService : IAttendanceProcessingService
         var isHoliday = await _context.Holidays
             .AnyAsync(h => h.CompanyId == employee.CompanyId && h.Date == targetDate, cancellationToken);
 
-        var approvedIncident = await _context.AttendanceIncidents
-            .FirstOrDefaultAsync(i => i.EmployeeId == employeeId && i.AttendanceDate == targetDate && i.Status == IncidentStatus.Approved, cancellationToken);
+        var approvedIncidents = await _context.AttendanceIncidents
+            .Where(i => i.EmployeeId == employeeId && i.AttendanceDate == targetDate && i.Status == IncidentStatus.Approved)
+            .OrderBy(i => i.Id)
+            .ToListAsync(cancellationToken);
 
         var approvedLeave = await _context.LeaveRequests
             .FirstOrDefaultAsync(l => l.EmployeeId == employeeId && l.StartDate <= targetDate && l.EndDate >= targetDate && l.Status == IncidentStatus.Approved, cancellationToken);
@@ -113,34 +238,30 @@ public class AttendanceProcessingService : IAttendanceProcessingService
             return daily;
         }
 
-        // Si es Festivo
+        // Si es Festivo oficial
         if (isHoliday)
         {
             daily.Status = AttendanceStatus.Holiday;
             daily.RequiresReview = false;
             daily.ReviewNotes = "Día Festivo Oficial";
+            daily.MinutesWorked = 0;
+            daily.MinutesLate = 0;
+            daily.OvertimeMinutes = 0;
             await _context.SaveChangesAsync(cancellationToken);
             return daily;
         }
 
-        // Si tiene permiso o vacaciones
+        // Si tiene permiso o vacaciones aprobadas por LeaveRequest
         if (approvedLeave != null)
         {
             daily.Status = approvedLeave.Type == LeaveType.Vacation ? AttendanceStatus.Vacation : AttendanceStatus.Permission;
             daily.RequiresReview = false;
             daily.ReviewNotes = approvedLeave.Reason;
+            daily.MinutesWorked = 0;
+            daily.MinutesLate = 0;
+            daily.OvertimeMinutes = 0;
             await _context.SaveChangesAsync(cancellationToken);
             return daily;
-        }
-
-        if (approvedIncident != null)
-        {
-            if (approvedIncident.Type == IncidentType.Disability)
-                daily.Status = AttendanceStatus.Disability;
-            else if (approvedIncident.Type == IncidentType.Vacation)
-                daily.Status = AttendanceStatus.Vacation;
-            else if (approvedIncident.Type == IncidentType.JustifiedAbsence)
-                daily.Status = AttendanceStatus.Permission;
         }
 
         // 5. Verificar si hoy es día laboral para el horario
@@ -166,90 +287,143 @@ public class AttendanceProcessingService : IAttendanceProcessingService
         daily.ExpectedMealStart = schedule?.HasMealBreak == true ? schedule.MealStartTime : null;
         daily.ExpectedMealEnd = schedule?.HasMealBreak == true ? schedule.MealEndTime : null;
 
-        var tolerance = schedule?.ToleranceMinutes ?? 10;
         var hasMealBreak = schedule?.HasMealBreak ?? true;
 
-        // 7. Filtrado de rebotes / marcaciones repetidas (Anti-Bounce: < 120 segundos)
+        // 7. Filtrado antirrebote inteligente (120 segundos)
+        // Solo descarta si es el MISMO movimiento repetido o duplicado en < 120s
         var validEvents = new List<BiometricEvent>();
         foreach (var ev in rawEvents)
         {
             if (validEvents.Count > 0)
             {
-                var diffSeconds = Math.Abs((ev.DeviceTimestamp - validEvents.Last().DeviceTimestamp).TotalSeconds);
+                var prev = validEvents.Last();
+                var diffSeconds = Math.Abs((ev.DeviceTimestamp - prev.DeviceTimestamp).TotalSeconds);
                 if (diffSeconds < 120)
                 {
-                    ev.ClassifiedAs = "ADDITIONAL";
-                    continue;
+                    // Si ambos tienen el mismo código nativo o ambos son Auto, es un rebote / doble marcación
+                    if (ev.NativePunchCode == prev.NativePunchCode || (ev.NativePunchCode == 255 && prev.NativePunchCode == 255))
+                    {
+                        ev.ClassifiedAs = "ADDITIONAL";
+                        continue;
+                    }
                 }
             }
             validEvents.Add(ev);
         }
 
-        // 8. Clasificación de las Checadas
+        // 8. Inicialización de checadas del día
         daily.FirstEntry = null;
         daily.MealExit = null;
         daily.MealReturn = null;
         daily.LastExit = null;
-        daily.MealDurationMinutes = null;
-        daily.MealMinutesLate = 0;
         daily.RequiresReview = false;
         daily.ReviewNotes = null;
 
         if (validEvents.Count == 0)
         {
-            if (approvedIncident == null && approvedLeave == null)
-            {
-                daily.Status = AttendanceStatus.Absent;
-                daily.ReviewNotes = "Inasistencia (Sin registros biométricos)";
-            }
+            daily.Status = AttendanceStatus.Absent;
+            daily.ReviewNotes = "Inasistencia (Sin registros biométricos)";
             daily.MinutesWorked = 0;
             daily.MinutesLate = 0;
             daily.OvertimeMinutes = 0;
+
+            // Si hay incidencias aprobadas para un día sin checadas (ej. JustifiedAbsence, Vacation, Disability)
+            ApplyApprovedIncidents(daily, approvedIncidents, schedule, isOvernight);
+
             await _context.SaveChangesAsync(cancellationToken);
             return daily;
         }
 
-        // Verificar si los eventos tienen código nativo explícito (0=CheckIn, 2=BreakOut, 3=BreakIn, 1=CheckOut)
-        bool hasNativeCodes = validEvents.Any(e => e.NativePunchCode >= 0 && e.NativePunchCode <= 3);
+        // Clasificación de checadas:
+        // Distinguir y combinar códigos nativos (0=CheckIn, 1=CheckOut, 2=BreakOut, 3=BreakIn) con códigos automáticos (255)
+        var nativePunches = validEvents.Where(e => e.NativePunchCode >= 0 && e.NativePunchCode <= 3).ToList();
+        var autoPunches = validEvents.Where(e => e.NativePunchCode == 255 || e.NativePunchCode > 3).ToList();
 
-        if (hasNativeCodes)
+        if (nativePunches.Count > 0)
         {
             daily.ClassificationOrigin = "DEVICE_CODE";
-            foreach (var ev in validEvents)
+
+            foreach (var ev in nativePunches)
             {
                 var t = ev.DeviceTimestamp.TimeOfDay;
                 switch (ev.NativePunchCode)
                 {
                     case 0: // CheckIn
-                        daily.FirstEntry = t;
-                        ev.ClassifiedAs = "ENTRY";
+                        // Conservar el primer CheckIn del día (evitar que un 2do código 0 sobrescriba la entrada original)
+                        if (!daily.FirstEntry.HasValue)
+                        {
+                            daily.FirstEntry = t;
+                            ev.ClassifiedAs = "ENTRY";
+                        }
+                        else
+                        {
+                            ev.ClassifiedAs = "ADDITIONAL";
+                        }
                         break;
+
                     case 2: // BreakOut
-                        daily.MealExit = t;
-                        ev.ClassifiedAs = "MEAL_EXIT";
+                        if (!daily.MealExit.HasValue)
+                        {
+                            daily.MealExit = t;
+                            ev.ClassifiedAs = "MEAL_EXIT";
+                        }
+                        else
+                        {
+                            ev.ClassifiedAs = "ADDITIONAL";
+                        }
                         break;
+
                     case 3: // BreakIn
                         daily.MealReturn = t;
                         ev.ClassifiedAs = "MEAL_RETURN";
                         break;
+
                     case 1: // CheckOut
+                        // Tomar la última salida registrada con código 1
                         daily.LastExit = t;
                         ev.ClassifiedAs = "EXIT";
                         break;
+
                     default:
                         ev.ClassifiedAs = "ADDITIONAL";
                         break;
                 }
             }
+
+            // Si quedaron huecos y hay checadas automáticas (255) mezcladas:
+            if (!daily.FirstEntry.HasValue && autoPunches.Count > 0)
+            {
+                var firstAuto = autoPunches.First();
+                daily.FirstEntry = firstAuto.DeviceTimestamp.TimeOfDay;
+                firstAuto.ClassifiedAs = "ENTRY";
+                autoPunches.RemoveAt(0);
+            }
+
+            if (!daily.LastExit.HasValue && autoPunches.Count > 0)
+            {
+                var lastAuto = autoPunches.Last();
+                var expectedThreshold = daily.ExpectedExit.Value.Subtract(TimeSpan.FromHours(2.5));
+                if (lastAuto.DeviceTimestamp.TimeOfDay >= expectedThreshold)
+                {
+                    daily.LastExit = lastAuto.DeviceTimestamp.TimeOfDay;
+                    lastAuto.ClassifiedAs = "EXIT";
+                    autoPunches.Remove(lastAuto);
+                }
+            }
+
+            foreach (var remaining in autoPunches)
+            {
+                remaining.ClassifiedAs = "ADDITIONAL";
+            }
         }
         else
         {
-            // Clasificación Inferencia Inteligente por Horario y Secuencia (NativePunchCode = 255 Auto)
+            // Inferencia inteligente secuencial por horario (todos los eventos son Auto = 255)
             daily.ClassificationOrigin = "INFERRED_WINDOW";
 
             if (!hasMealBreak)
             {
-                // Turno continuo sin comida (ej. turno de 6 u 8 horas corridas)
+                // Turno continuo sin comida
                 if (validEvents.Count == 1)
                 {
                     daily.FirstEntry = validEvents[0].DeviceTimestamp.TimeOfDay;
@@ -272,23 +446,22 @@ public class AttendanceProcessingService : IAttendanceProcessingService
                     if (validEvents.Count > 2)
                     {
                         daily.RequiresReview = true;
-                        daily.ReviewNotes = $"Marcaciones intermedias detectadas ({validEvents.Count} checadas en turno continuo)";
+                        daily.ReviewNotes = $"Marcaciones intermedias detectadas ({validEvents.Count} checadas)";
                     }
                 }
             }
             else
             {
-                // Turno con salida a comer esperada
+                // Turno con descanso de comida esperado
                 if (validEvents.Count == 1)
                 {
                     daily.FirstEntry = validEvents[0].DeviceTimestamp.TimeOfDay;
                     validEvents[0].ClassifiedAs = "ENTRY";
                     daily.RequiresReview = true;
-                    daily.ReviewNotes = "Jornada incompleta: solo se registró el ingreso";
+                    daily.ReviewNotes = "Jornada incompleta: solo se registró el ingreso (sin salida visible)";
                 }
                 else if (validEvents.Count == 4)
                 {
-                    // Secuencia limpia estándar completa
                     daily.FirstEntry = validEvents[0].DeviceTimestamp.TimeOfDay;
                     daily.MealExit = validEvents[1].DeviceTimestamp.TimeOfDay;
                     daily.MealReturn = validEvents[2].DeviceTimestamp.TimeOfDay;
@@ -309,19 +482,19 @@ public class AttendanceProcessingService : IAttendanceProcessingService
 
                     if (secondPunch >= expectedExitThreshold)
                     {
-                        // Omitió comer o no checó comida: checada 2 corresponde a salida
+                        // La 2da checada ocurrió al final del turno: omitió comida
                         daily.LastExit = secondPunch;
                         validEvents[1].ClassifiedAs = "EXIT";
                         daily.RequiresReview = true;
-                        daily.ReviewNotes = "Omitió checadas de comida (solo registró ingreso y salida)";
+                        daily.ReviewNotes = "Omitió checadas de comida (ingreso y salida directa)";
                     }
                     else
                     {
-                        // La 2da checada ocurrió a mediodía: salió a comer y no regresó / no checó salida
-                        daily.MealExit = secondPunch;
-                        validEvents[1].ClassifiedAs = "MEAL_EXIT";
+                        // Ambas checadas ocurrieron temprano o a mediodía (ej. 09:44 y 09:55)
+                        // No asumir que 09:55 es salida definitiva; clasificar como intermedia e incompleta
+                        validEvents[1].ClassifiedAs = "ADDITIONAL";
                         daily.RequiresReview = true;
-                        daily.ReviewNotes = "Falta regreso de comida y salida de turno";
+                        daily.ReviewNotes = "Jornada incompleta: marcaciones concentradas al ingreso sin salida del turno";
                     }
                 }
                 else if (validEvents.Count == 3)
@@ -337,7 +510,6 @@ public class AttendanceProcessingService : IAttendanceProcessingService
                         daily.LastExit = thirdPunch;
                         validEvents[2].ClassifiedAs = "EXIT";
 
-                        // El del medio: ¿salida a comer o regreso de comer?
                         var midPunch = validEvents[1].DeviceTimestamp.TimeOfDay;
                         var mealMiddle = daily.ExpectedMealStart.HasValue && daily.ExpectedMealEnd.HasValue
                             ? TimeSpan.FromTicks((daily.ExpectedMealStart.Value.Ticks + daily.ExpectedMealEnd.Value.Ticks) / 2)
@@ -348,19 +520,19 @@ public class AttendanceProcessingService : IAttendanceProcessingService
                             daily.MealExit = midPunch;
                             validEvents[1].ClassifiedAs = "MEAL_EXIT";
                             daily.RequiresReview = true;
-                            daily.ReviewNotes = "Secuencia incompleta (3 marcaciones): falta checada de regreso de comer";
+                            daily.ReviewNotes = "Secuencia incompleta (3 marcaciones): falta checada de regreso de comer (comida)";
                         }
                         else
                         {
                             daily.MealReturn = midPunch;
                             validEvents[1].ClassifiedAs = "MEAL_RETURN";
                             daily.RequiresReview = true;
-                            daily.ReviewNotes = "Secuencia incompleta (3 marcaciones): falta checada de salida a comer";
+                            daily.ReviewNotes = "Secuencia incompleta (3 marcaciones): falta checada de salida a comer (comida)";
                         }
                     }
                     else
                     {
-                        // Las 3 checadas fueron matutinas/mediodía: falta salida
+                        // Las 3 marcaciones fueron matutinas/mediodía: falta salida
                         daily.MealExit = validEvents[1].DeviceTimestamp.TimeOfDay;
                         daily.MealReturn = validEvents[2].DeviceTimestamp.TimeOfDay;
                         validEvents[1].ClassifiedAs = "MEAL_EXIT";
@@ -388,116 +560,171 @@ public class AttendanceProcessingService : IAttendanceProcessingService
                     }
 
                     daily.RequiresReview = true;
-                    daily.ReviewNotes = $"Marcaciones adicionales detectadas ({validEvents.Count} checadas): requiere validación";
+                    daily.ReviewNotes = $"Marcaciones adicionales detectadas ({validEvents.Count} checadas)";
                 }
             }
         }
 
-        // 9. Cálculos de Minutos y Tiempos
-        // Retardo al ingreso
-        if (daily.FirstEntry.HasValue)
-        {
-            var expectedWithTol = daily.ExpectedEntry.Value.Add(TimeSpan.FromMinutes(tolerance));
-            if (daily.FirstEntry.Value > expectedWithTol)
-            {
-                daily.MinutesLate = (int)(daily.FirstEntry.Value - daily.ExpectedEntry.Value).TotalMinutes;
-            }
-            else
-            {
-                daily.MinutesLate = 0;
-            }
-        }
+        // 9. Cálculo unificado de métricas
+        RecalculateDailyMetrics(daily, schedule, isOvernight);
 
-        // Comida y retardo en regreso de comida
-        if (daily.MealExit.HasValue && daily.MealReturn.HasValue)
-        {
-            int mealMinutes = (int)(daily.MealReturn.Value - daily.MealExit.Value).TotalMinutes;
-            daily.MealDurationMinutes = Math.Max(0, mealMinutes);
-
-            int allowedMeal = schedule?.MealDurationMinutes ?? 60;
-            int mealTol = schedule?.MealToleranceMinutes ?? 5;
-
-            if (daily.MealDurationMinutes.Value > allowedMeal + mealTol)
-            {
-                daily.MealMinutesLate = daily.MealDurationMinutes.Value - allowedMeal;
-            }
-        }
-
-        // Minutos trabajados netos
-        if (daily.FirstEntry.HasValue && daily.LastExit.HasValue)
-        {
-            double grossMinutes;
-            if (isOvernight && daily.LastExit.Value < daily.FirstEntry.Value)
-            {
-                // Cruce de medianoche
-                grossMinutes = (daily.LastExit.Value.Add(TimeSpan.FromHours(24)) - daily.FirstEntry.Value).TotalMinutes;
-            }
-            else
-            {
-                grossMinutes = (daily.LastExit.Value - daily.FirstEntry.Value).TotalMinutes;
-            }
-
-            if (daily.MealDurationMinutes.HasValue)
-            {
-                daily.MinutesWorked = Math.Max(0, (int)(grossMinutes - daily.MealDurationMinutes.Value));
-            }
-            else
-            {
-                daily.MinutesWorked = Math.Max(0, (int)grossMinutes);
-            }
-        }
-        else
-        {
-            daily.MinutesWorked = 0;
-        }
-
-        // Horas extras
-        var defaultExpectedHours = (decimal)(daily.ExpectedExit.Value - daily.ExpectedEntry.Value).TotalHours;
-        var expectedDecimal = (schedule != null && schedule.ExpectedHours > 0) ? schedule.ExpectedHours : defaultExpectedHours;
-        var expectedMinutes = (int)(expectedDecimal * 60);
-
-        if (daily.MinutesWorked > expectedMinutes)
-        {
-            daily.OvertimeMinutes = daily.MinutesWorked - expectedMinutes;
-        }
-        else
-        {
-            daily.OvertimeMinutes = 0;
-        }
-
-        // 10. Asignación de Estado de Asistencia
+        // 10. Asignación inicial de estado
         if (!daily.FirstEntry.HasValue || !daily.LastExit.HasValue)
         {
             daily.Status = AttendanceStatus.Incomplete;
         }
-        else if (daily.MinutesLate > 0)
-        {
-            daily.Status = AttendanceStatus.Late;
-        }
-        else if (!isOvernight && daily.LastExit.Value < daily.ExpectedExit.Value.Subtract(TimeSpan.FromMinutes(15)))
-        {
-            daily.Status = AttendanceStatus.EarlyExit;
-        }
-        else if (isOvernight && (daily.LastExit.Value < daily.ExpectedExit.Value.Subtract(TimeSpan.FromMinutes(15)) && daily.LastExit.Value > daily.FirstEntry.Value))
-        {
-            daily.Status = AttendanceStatus.EarlyExit;
-        }
         else
         {
-            daily.Status = AttendanceStatus.OnTime;
+            bool isEarlyExit = (!isOvernight && daily.LastExit.Value < daily.ExpectedExit.Value.Subtract(TimeSpan.FromMinutes(15)))
+                || (isOvernight && daily.LastExit.Value < daily.ExpectedExit.Value.Subtract(TimeSpan.FromMinutes(15)) && daily.LastExit.Value > daily.FirstEntry.Value);
+
+            if (daily.MinutesLate > 0 && isEarlyExit)
+            {
+                // Ambos coexisten: asignar Late y registrar observación de salida anticipada sin perder ninguna condición
+                daily.Status = AttendanceStatus.Late;
+                daily.ReviewNotes = string.IsNullOrEmpty(daily.ReviewNotes)
+                    ? $"Retardo de {daily.MinutesLate} min y salida anticipada a las {daily.LastExit:hh\\:mm}"
+                    : $"{daily.ReviewNotes} | Retardo ({daily.MinutesLate}m) y salida anticipada";
+            }
+            else if (daily.MinutesLate > 0)
+            {
+                daily.Status = AttendanceStatus.Late;
+            }
+            else if (isEarlyExit)
+            {
+                daily.Status = AttendanceStatus.EarlyExit;
+            }
+            else
+            {
+                daily.Status = AttendanceStatus.OnTime;
+            }
         }
+
+        // 11. Aplicación real de TODAS las incidencias aprobadas
+        ApplyApprovedIncidents(daily, approvedIncidents, schedule, isOvernight);
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("[AttendanceProcessing] Empleado {EmpId} @ {Date:yyyy-MM-dd} -> Estado: {Status}, Trabajado: {Worked}m, Retardo: {Late}m, Comida: {Meal}m, ReqReview: {Review} ({Notes})",
-            employeeId, targetDate, daily.Status, daily.MinutesWorked, daily.MinutesLate, daily.MealDurationMinutes, daily.RequiresReview, daily.ReviewNotes);
+        _logger.LogInformation("[AttendanceProcessing] Empleado {EmpId} @ {Date:yyyy-MM-dd} -> Estado: {Status}, Trabajado: {Worked}m, Retardo: {Late}m, ReqReview: {Review}",
+            employeeId, targetDate, daily.Status, daily.MinutesWorked, daily.MinutesLate, daily.RequiresReview);
 
         return daily;
     }
 
+    /// <summary>
+    /// Aplica el efecto de todas las incidencias aprobadas para la jornada según su tipo.
+    /// </summary>
+    private static void ApplyApprovedIncidents(
+        AttendanceDaily daily,
+        List<AttendanceIncident> approvedIncidents,
+        Schedule? schedule,
+        bool isOvernight)
+    {
+        if (approvedIncidents.Count == 0) return;
+
+        bool metricsNeedRecalculation = false;
+
+        foreach (var incident in approvedIncidents)
+        {
+            switch (incident.Type)
+            {
+                case IncidentType.PunchMiss:
+                    // Omisión de checada: si se especificó hora y tipo de movimiento, aplicarla
+                    if (incident.PunchTime.HasValue && incident.PunchMovementType.HasValue)
+                    {
+                        switch (incident.PunchMovementType.Value)
+                        {
+                            case BiometricEventType.Entry:
+                                daily.FirstEntry = incident.PunchTime.Value;
+                                break;
+                            case BiometricEventType.MealExit:
+                                daily.MealExit = incident.PunchTime.Value;
+                                break;
+                            case BiometricEventType.MealReturn:
+                                daily.MealReturn = incident.PunchTime.Value;
+                                break;
+                            case BiometricEventType.Exit:
+                                daily.LastExit = incident.PunchTime.Value;
+                                break;
+                        }
+                        metricsNeedRecalculation = true;
+                        daily.ReviewNotes = AppendNote(daily.ReviewNotes, $"Checada {incident.PunchMovementType} omitida justificada por {incident.ApprovedBy} ({incident.PunchTime:hh\\:mm})");
+                    }
+                    break;
+
+                case IncidentType.JustifiedLate:
+                    // Retardo justificado: exonerar penalización de retardo
+                    daily.MinutesLate = Math.Max(0, daily.MinutesLate - (incident.Minutes > 0 ? incident.Minutes : daily.MinutesLate));
+                    if (daily.Status == AttendanceStatus.Late && daily.MinutesLate == 0)
+                    {
+                        daily.Status = AttendanceStatus.OnTime;
+                    }
+                    daily.ReviewNotes = AppendNote(daily.ReviewNotes, $"Retardo justificado por {incident.ApprovedBy}: {incident.Description}");
+                    break;
+
+                case IncidentType.JustifiedAbsence:
+                    daily.Status = AttendanceStatus.Permission;
+                    daily.ReviewNotes = AppendNote(daily.ReviewNotes, $"Falta justificada por {incident.ApprovedBy}: {incident.Description}");
+                    break;
+
+                case IncidentType.Permission:
+                    daily.Status = AttendanceStatus.Permission;
+                    daily.ReviewNotes = AppendNote(daily.ReviewNotes, $"Permiso autorizado por {incident.ApprovedBy}: {incident.Description}");
+                    break;
+
+                case IncidentType.Vacation:
+                    daily.Status = AttendanceStatus.Vacation;
+                    daily.ReviewNotes = AppendNote(daily.ReviewNotes, $"Vacaciones autorizadas por {incident.ApprovedBy}: {incident.Description}");
+                    break;
+
+                case IncidentType.Disability:
+                    daily.Status = AttendanceStatus.Disability;
+                    daily.ReviewNotes = AppendNote(daily.ReviewNotes, $"Incapacidad médica aprobada por {incident.ApprovedBy}: {incident.Description}");
+                    break;
+
+                case IncidentType.HomeOffice:
+                    daily.Status = AttendanceStatus.OnTime;
+                    daily.ReviewNotes = AppendNote(daily.ReviewNotes, $"Home Office autorizado por {incident.ApprovedBy}: {incident.Description}");
+                    break;
+
+                case IncidentType.FieldWork:
+                    daily.Status = AttendanceStatus.OnTime;
+                    daily.ReviewNotes = AppendNote(daily.ReviewNotes, $"Trabajo en campo autorizado por {incident.ApprovedBy}: {incident.Description}");
+                    break;
+
+                case IncidentType.ScheduleCorrection:
+                    metricsNeedRecalculation = true;
+                    daily.ReviewNotes = AppendNote(daily.ReviewNotes, $"Corrección de horario autorizada por {incident.ApprovedBy}: {incident.Description}");
+                    break;
+            }
+        }
+
+        if (metricsNeedRecalculation)
+        {
+            RecalculateDailyMetrics(daily, schedule, isOvernight);
+
+            // Re-evaluar estado si se completaron las checadas
+            if (daily.FirstEntry.HasValue && daily.LastExit.HasValue && daily.Status == AttendanceStatus.Incomplete)
+            {
+                daily.Status = daily.MinutesLate > 0 ? AttendanceStatus.Late : AttendanceStatus.OnTime;
+            }
+        }
+    }
+
+    private static string AppendNote(string? current, string addition)
+    {
+        if (string.IsNullOrWhiteSpace(current)) return addition;
+        return $"{current} | {addition}";
+    }
+
     public async Task<AttendanceDaily> UpdateManualAttendanceAsync(long attendanceDailyId, ManualAttendanceUpdateRequest request, CancellationToken cancellationToken = default)
     {
-        var daily = await _context.AttendanceDailies.FindAsync(new object[] { attendanceDailyId }, cancellationToken);
+        var daily = await _context.AttendanceDailies
+            .Include(a => a.Employee)
+                .ThenInclude(e => e.EmployeeSchedules)
+                    .ThenInclude(es => es.Schedule)
+            .FirstOrDefaultAsync(a => a.Id == attendanceDailyId, cancellationToken);
+
         if (daily == null) throw new ArgumentException("Registro de asistencia no encontrado.");
 
         daily.OriginalStatus ??= daily.Status;
@@ -514,23 +741,36 @@ public class AttendanceProcessingService : IAttendanceProcessingService
         daily.RequiresReview = false;
         daily.ReviewNotes = $"Ajuste manual autorizado por {request.ModifiedBy}: {request.ModificationReason}";
 
+        var schedule = daily.Employee?.EmployeeSchedules
+            .Where(es => es.ValidFrom.Date <= daily.Date.Date && (!es.ValidTo.HasValue || es.ValidTo.Value.Date >= daily.Date.Date))
+            .OrderByDescending(es => es.ValidFrom)
+            .Select(es => es.Schedule)
+            .FirstOrDefault();
+
+        bool isOvernight = schedule != null && (schedule.IsOvernight || schedule.StartTime > schedule.EndTime);
+
+        // Recalcular métricas de forma integral con la lógica compartida
+        RecalculateDailyMetrics(daily, schedule, isOvernight);
+
         if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<AttendanceStatus>(request.Status, true, out var st))
         {
             daily.Status = st;
         }
-
-        // Recalcular minutos con los valores manuales
-        if (daily.MealExit.HasValue && daily.MealReturn.HasValue)
+        else
         {
-            daily.MealDurationMinutes = Math.Max(0, (int)(daily.MealReturn.Value - daily.MealExit.Value).TotalMinutes);
-        }
-
-        if (daily.FirstEntry.HasValue && daily.LastExit.HasValue)
-        {
-            double gross = (daily.LastExit.Value - daily.FirstEntry.Value).TotalMinutes;
-            if (gross < 0) gross += 24 * 60; // cruce medianoche
-
-            daily.MinutesWorked = Math.Max(0, (int)(gross - (daily.MealDurationMinutes ?? 0)));
+            // Auto-asignar estado adecuado con base en los nuevos valores manuales
+            if (!daily.FirstEntry.HasValue || !daily.LastExit.HasValue)
+            {
+                daily.Status = AttendanceStatus.Incomplete;
+            }
+            else if (daily.MinutesLate > 0)
+            {
+                daily.Status = AttendanceStatus.Late;
+            }
+            else
+            {
+                daily.Status = AttendanceStatus.OnTime;
+            }
         }
 
         await _context.SaveChangesAsync(cancellationToken);

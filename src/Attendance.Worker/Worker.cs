@@ -43,9 +43,16 @@ public class Worker : BackgroundService
                     {
                         try
                         {
-                            await attendanceService.ProcessDailyAttendanceAsync(evt.EmployeeId, evt.DeviceTimestamp.Date, stoppingToken);
-                            evt.ProcessingStatus = EventProcessingStatus.Processed;
-                            evt.ProcessedAtUtc = DateTime.UtcNow;
+                            if (evt.EmployeeId.HasValue)
+                            {
+                                await attendanceService.ProcessDailyAttendanceAsync(evt.EmployeeId.Value, evt.DeviceTimestamp.Date, stoppingToken);
+                                evt.ProcessingStatus = EventProcessingStatus.Processed;
+                                evt.ProcessedAtUtc = DateTime.UtcNow;
+                            }
+                            else
+                            {
+                                evt.ProcessingStatus = EventProcessingStatus.PendingLink;
+                            }
                         }
                         catch (Exception ex)
                         {

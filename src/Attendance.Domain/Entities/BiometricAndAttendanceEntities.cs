@@ -118,9 +118,22 @@ public class AttendanceIncident
     public int Minutes { get; set; } = 0;
     public string Description { get; set; } = string.Empty;
 
+    // Support for PunchMiss
+    public TimeSpan? PunchTime { get; set; }
+    public BiometricEventType? PunchMovementType { get; set; }
+
     public IncidentStatus Status { get; set; } = IncidentStatus.Pending;
     public string? ApprovedBy { get; set; }
     public DateTime? ApprovedAt { get; set; }
+
+    // Cancellation and audit tracking
+    public string? CancellationReason { get; set; }
+    public string? CancelledBy { get; set; }
+    public DateTime? CancelledAt { get; set; }
+
+    public string? CreatedBy { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
 
     public Employee Employee { get; set; } = null!;
 }
