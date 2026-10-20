@@ -44,6 +44,13 @@ if [ -f "init_attendance_db.sql" ]; then
     docker exec -u 0 mssql-server rm -f /var/opt/mssql/init_attendance_db.sql
 fi
 
+if [ -f "migration_incidents.sql" ]; then
+    echo "• Aplicando migraciones incrementales de incidencias a ChecadorDb..."
+    docker cp migration_incidents.sql mssql-server:/var/opt/mssql/migration_incidents.sql
+    docker exec mssql-server /opt/mssql-tools18/bin/sqlcmd -S localhost -U wpcadminaam -P "Aaron2804#" -d ChecadorDb -C -i /var/opt/mssql/migration_incidents.sql || true
+    docker exec -u 0 mssql-server rm -f /var/opt/mssql/migration_incidents.sql
+fi
+
 # 3. Mover binarios compilados de la API y Frontend
 echo "📦 [3/6] Instalando binarios de API y Frontend..."
 if [ -d "api" ]; then

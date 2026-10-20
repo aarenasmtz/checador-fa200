@@ -47,6 +47,10 @@ $SqlScript = Join-Path $RootDir "publish\init_attendance_db.sql"
 if (Test-Path $SqlScript) {
     Copy-Item $SqlScript "$DistDir\init_attendance_db.sql"
 }
+$MigrationScript = Join-Path $RootDir "publish\migration_incidents.sql"
+if (Test-Path $MigrationScript) {
+    Copy-Item $MigrationScript "$DistDir\migration_incidents.sql"
+}
 Copy-Item (Join-Path $RootDir "scripts\deployment\checador-api.service") "$DistDir\checador-api.service"
 Copy-Item (Join-Path $RootDir "scripts\deployment\checador.nginx.conf") "$DistDir\checador.nginx.conf"
 Copy-Item (Join-Path $RootDir "scripts\deployment\setup_vps_checador.sh") "$DistDir\setup_vps_checador.sh"
@@ -70,15 +74,17 @@ Write-Host "Paquete generado exitosamente: dist_vps.tar.gz ($([math]::Round($Arc
 Write-Host "Ubicacion: $TarFile" -ForegroundColor Green
 Write-Host "========================================================================" -ForegroundColor Green
 
-Write-Host "`nInstrucciones para subir al VPS:" -ForegroundColor Cyan
-Write-Host "1. Sube el paquete al VPS ejecutando:" -ForegroundColor White
 if ($VpsHost) {
-    Write-Host "   scp dist_vps.tar.gz ${VpsUser}@${VpsHost}:/root/" -ForegroundColor Yellow
-    Write-Host "`n2. Conéctate y ejecuta el instalador:" -ForegroundColor White
-    Write-Host "   ssh ${VpsUser}@${VpsHost} `"mkdir -p /root/attendance_deploy && tar -xzf /root/dist_vps.tar.gz -C /root/attendance_deploy && cd /root/attendance_deploy && chmod +x setup_vps_attendance.sh && ./setup_vps_attendance.sh`"" -ForegroundColor Yellow
+    Write-Host "`nSubiendo paquete al VPS $VpsHost..." -ForegroundColor Cyan
+    scp $TarFile "${VpsUser}@${VpsHost}:/root/"
+    
+    Write-Host "`nEjecutando script de despliegue en el VPS..." -ForegroundColor Cyan
+    ssh "${VpsUser}@${VpsHost}" "mkdir -p /root/attendance_deploy && tar -xzf /root/dist_vps.tar.gz -C /root/attendance_deploy && cd /root/attendance_deploy && chmod +x setup_vps_checador.sh && ./setup_vps_checador.sh"
 } else {
+    Write-Host "`nInstrucciones para subir al VPS:" -ForegroundColor Cyan
+    Write-Host "1. Sube el paquete al VPS ejecutando:" -ForegroundColor White
     Write-Host "   scp dist_vps.tar.gz root@<TU_IP_VPS>:/root/" -ForegroundColor Yellow
     Write-Host "`n2. Conéctate y ejecuta el instalador:" -ForegroundColor White
-    Write-Host "   ssh root@<TU_IP_VPS> `"mkdir -p /root/attendance_deploy && tar -xzf /root/dist_vps.tar.gz -C /root/attendance_deploy && cd /root/attendance_deploy && chmod +x setup_vps_attendance.sh && ./setup_vps_attendance.sh`"" -ForegroundColor Yellow
+    Write-Host "   ssh root@<TU_IP_VPS> `"mkdir -p /root/attendance_deploy && tar -xzf /root/dist_vps.tar.gz -C /root/attendance_deploy && cd /root/attendance_deploy && chmod +x setup_vps_checador.sh && ./setup_vps_checador.sh`"" -ForegroundColor Yellow
 }
 Write-Host "========================================================================`n" -ForegroundColor Cyan
