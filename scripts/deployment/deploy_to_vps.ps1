@@ -86,7 +86,7 @@ if ($VpsHost) {
     scp $TarFile "${VpsUser}@${VpsHost}:/root/"
     
     Write-Host "`nEjecutando script de despliegue en el VPS..." -ForegroundColor Cyan
-    ssh "${VpsUser}@${VpsHost}" "mkdir -p /root/attendance_deploy && tar -xzf /root/dist_vps.tar.gz -C /root/attendance_deploy && cd /root/attendance_deploy && chmod +x setup_vps_checador.sh && ./setup_vps_checador.sh"
+    ssh "${VpsUser}@${VpsHost}" "mkdir -p /root/attendance_deploy && tar -xzf /root/dist_vps.tar.gz -C /root/attendance_deploy && cd /root/attendance_deploy && sed -i 's/\r$//' setup_vps_checador.sh && chmod +x setup_vps_checador.sh && ./setup_vps_checador.sh"
 } else {
     Write-Host "`nInstrucciones para subir al VPS:" -ForegroundColor Cyan
     Write-Host "1. Sube el paquete al VPS ejecutando:" -ForegroundColor White
