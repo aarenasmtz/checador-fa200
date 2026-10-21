@@ -21,6 +21,9 @@ public class PdfReportService : IPdfReportService
             {
                 Path.Combine(AppContext.BaseDirectory, "Fonts", "msyh.ttc"),
                 Path.Combine(AppContext.BaseDirectory, "Fonts", "simsun.ttc"),
+                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
                 @"C:\Windows\Fonts\msyh.ttc",
                 @"C:\Windows\Fonts\simsun.ttc"
             };
@@ -31,7 +34,10 @@ public class PdfReportService : IPdfReportService
                 {
                     using var stream = File.OpenRead(path);
                     QuestPDF.Drawing.FontManager.RegisterFont(stream);
-                    chosenFont = path.Contains("msyh") ? "Microsoft YaHei" : "SimSun";
+                    if (path.Contains("msyh")) chosenFont = "Microsoft YaHei";
+                    else if (path.Contains("simsun")) chosenFont = "SimSun";
+                    else if (path.Contains("NotoSansCJK")) chosenFont = "Noto Sans CJK SC";
+                    else if (path.Contains("wqy")) chosenFont = "WenQuanYi Zen Hei";
                     break;
                 }
             }

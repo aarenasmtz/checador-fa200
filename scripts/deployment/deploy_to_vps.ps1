@@ -30,6 +30,13 @@ if (Test-Path $ProdSettings) {
     Copy-Item $ProdSettings "$DistDir\api\appsettings.Production.json" -Force
 }
 
+# Incluir fuente CJK para reportes PDF
+$FontsDir = "$DistDir\api\Fonts"
+New-Item -ItemType Directory -Path $FontsDir -Force | Out-Null
+if (Test-Path "C:\Windows\Fonts\msyh.ttc") {
+    Copy-Item "C:\Windows\Fonts\msyh.ttc" "$FontsDir\msyh.ttc" -Force
+}
+
 # 2. Compilar Frontend React 19 + Vite
 Write-Host "`n[2/4] Compilando Frontend React + Vite..." -ForegroundColor Yellow
 $FrontendDir = Join-Path $RootDir "frontend"
