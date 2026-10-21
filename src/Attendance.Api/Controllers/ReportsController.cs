@@ -32,7 +32,7 @@ public class ReportsController : ControllerBase
         string? status,
         bool includeEmptyDays = false)
     {
-        var query = _context.AttendanceDailies
+        var dailyQuery = _context.AttendanceDailies
             .Include(a => a.Employee)
                 .ThenInclude(e => e.Branch)
             .Include(a => a.Employee)
@@ -42,17 +42,16 @@ public class ReportsController : ControllerBase
             .Where(a => a.Date >= start && a.Date <= end)
             .AsNoTracking();
 
-        if (branchId.HasValue) query = query.Where(a => a.Employee.BranchId == branchId.Value);
-        if (departmentId.HasValue) query = query.Where(a => a.Employee.DepartmentId == departmentId.Value);
-        if (employeeId.HasValue) query = query.Where(a => a.EmployeeId == employeeId.Value);
+        if (branchId.HasValue) dailyQuery = dailyQuery.Where(a => a.Employee.BranchId == branchId.Value);
+        if (departmentId.HasValue) dailyQuery = dailyQuery.Where(a => a.Employee.DepartmentId == departmentId.Value);
+        if (employeeId.HasValue) dailyQuery = dailyQuery.Where(a => a.EmployeeId == employeeId.Value);
 
         if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<AttendanceStatus>(status, true, out var attStatus))
-            query = query.Where(a => a.Status == attStatus);
+            dailyQuery = dailyQuery.Where(a => a.Status == attStatus);
 
         if (!includeEmptyDays)
         {
-            // Exclude artificial/empty records: require punches, manual override, or legitimate non-working status
-            query = query.Where(a =>
+            dailyQuery = dailyQuery.Where(a =>
                 a.FirstEntry != null ||
                 a.LastExit != null ||
                 a.MealExit != null ||
@@ -65,48 +64,129 @@ public class ReportsController : ControllerBase
                 a.Status == AttendanceStatus.Holiday);
         }
 
-        var rawList = await query
+        var dailies = await dailyQuery
             .OrderBy(a => a.Date)
             .ThenBy(a => a.Employee.EmployeeCode)
-            .Select(a => new
-            {
-                a.Employee.EmployeeCode,
-                EmployeeName = $"{a.Employee.FirstName} {a.Employee.LastName}",
-                BranchName = a.Employee.Branch != null ? a.Employee.Branch.Name : "-",
-                DepartmentName = a.Employee.Department != null ? a.Employee.Department.Name : "-",
-                a.Date,
-                FirstEntry = a.FirstEntry.HasValue ? a.FirstEntry.Value.ToString(@"hh\:mm") : null,
-                MealExit = a.MealExit.HasValue ? a.MealExit.Value.ToString(@"hh\:mm") : null,
-                MealReturn = a.MealReturn.HasValue ? a.MealReturn.Value.ToString(@"hh\:mm") : null,
-                LastExit = a.LastExit.HasValue ? a.LastExit.Value.ToString(@"hh\:mm") : null,
-                a.MinutesLate,
-                MinutesWorked = a.MinutesWorked,
-                OvertimeMinutes = a.OvertimeMinutes,
-                Status = a.Status.ToString(),
-                a.RequiresReview,
-                a.ReviewNotes
-            })
             .ToListAsync();
 
-        return rawList.Select(a => new AttendanceReportItemDto(
-            a.EmployeeCode,
-            a.EmployeeName,
-            a.BranchName,
-            a.DepartmentName,
-            a.Date,
-            a.FirstEntry,
-            a.MealExit,
-            a.MealReturn,
-            a.LastExit,
-            a.MinutesLate,
-            a.MinutesWorked,
-            Math.Round((decimal)a.MinutesWorked / 60m, 2),
-            a.OvertimeMinutes,
-            Math.Round((decimal)a.OvertimeMinutes / 60m, 2),
-            a.Status,
-            a.RequiresReview,
-            a.ReviewNotes
-        )).ToList();
+        // Query all biometric events in the window to provide audit trail and raw punch access
+        var eventsQuery = _context.BiometricEvents
+            .Include(b => b.Device)
+            .Where(b => b.DeviceTimestamp >= start && b.DeviceTimestamp < end.AddDays(1).AddHours(6))
+            .AsNoTracking();
+
+        if (employeeId.HasValue) eventsQuery = eventsQuery.Where(b => b.EmployeeId == employeeId.Value);
+        var rawEvents = await eventsQuery.ToListAsync();
+
+        // Query approved incidents for authorized departures and justifications
+        var incidentsQuery = _context.AttendanceIncidents
+            .Where(i => i.AttendanceDate >= start && i.AttendanceDate <= end && i.Status == IncidentStatus.Approved)
+            .AsNoTracking();
+
+        if (employeeId.HasValue) incidentsQuery = incidentsQuery.Where(i => i.EmployeeId == employeeId.Value);
+        var approvedIncidents = await incidentsQuery.ToListAsync();
+
+        var today = DateTime.Today;
+        var resultList = new List<AttendanceReportItemDto>();
+
+        foreach (var a in dailies)
+        {
+            var emp = a.Employee;
+            var empEvents = rawEvents
+                .Where(e => e.EmployeeId == a.EmployeeId && e.DeviceTimestamp.Date == a.Date.Date)
+                .OrderBy(e => e.DeviceTimestamp)
+                .Select(e => new RawPunchDto(
+                    e.DeviceTimestamp.ToString("HH:mm:ss"),
+                    e.Method.ToString(),
+                    e.NativePunchCode,
+                    e.Device?.Name ?? "-"
+                ))
+                .ToList();
+
+            var incident = approvedIncidents.FirstOrDefault(i => i.EmployeeId == a.EmployeeId && i.AttendanceDate.Date == a.Date.Date);
+            bool isJustifiedEarlyExit = a.Status == AttendanceStatus.EarlyExit && incident != null;
+
+            string? justificationInfo = null;
+            if (incident != null)
+            {
+                if (isJustifiedEarlyExit && incident.Minutes > 0)
+                {
+                    justificationInfo = $"Salida justificada: {incident.Minutes} min por {incident.ApprovedBy ?? "Supervisor"}. Motivo: {incident.Description}";
+                }
+                else if (incident.Type == IncidentType.JustifiedLate && incident.Minutes > 0)
+                {
+                    justificationInfo = $"Retardo justificado: {incident.Minutes} min por {incident.ApprovedBy ?? "Supervisor"}. Motivo: {incident.Description}";
+                }
+                else
+                {
+                    justificationInfo = $"{incident.Description} (Autorizado por {incident.ApprovedBy ?? "Supervisor"})";
+                }
+            }
+
+            bool isFuture = a.Date.Date > today;
+            bool hasPunches = a.FirstEntry.HasValue || a.LastExit.HasValue || a.MealExit.HasValue || a.MealReturn.HasValue;
+
+            // Determine if the shift is complete and confirmed
+            bool isConfirmed = false;
+            decimal? hoursWorked = null;
+            string hoursFormatted;
+
+            if (isFuture)
+            {
+                isConfirmed = false;
+                hoursWorked = null;
+                hoursFormatted = "-";
+            }
+            else if (a.RequiresReview || a.Status == AttendanceStatus.Incomplete || (!hasPunches && a.Status != AttendanceStatus.RestDay && a.Status != AttendanceStatus.Holiday && a.Status != AttendanceStatus.Vacation && a.Status != AttendanceStatus.Permission))
+            {
+                isConfirmed = false;
+                hoursWorked = null; // Blank for unconfirmed shifts
+                hoursFormatted = "Pendiente de revisión / 待核查";
+            }
+            else
+            {
+                isConfirmed = true;
+                hoursWorked = Math.Round((decimal)a.MinutesWorked / 60m, 2);
+                hoursFormatted = AttendanceTranslationHelper.FormatMinutesFriendly(a.MinutesWorked);
+            }
+
+            string bilingualStatus = AttendanceTranslationHelper.ToBilingualShiftStatus(
+                a.Status,
+                a.RequiresReview,
+                hasPunches,
+                isFuture,
+                isJustifiedEarlyExit
+            );
+
+            resultList.Add(new AttendanceReportItemDto(
+                EmployeeId: a.EmployeeId,
+                EmployeeCode: emp?.EmployeeCode ?? $"EMP-{a.EmployeeId}",
+                EmployeeName: emp != null ? $"{emp.FirstName} {emp.LastName}".Trim() : $"Empleado #{a.EmployeeId}",
+                BranchName: emp?.Branch?.Name ?? "-",
+                DepartmentName: emp?.Department?.Name ?? "-",
+                Date: a.Date,
+                FirstEntry: a.FirstEntry?.ToString(@"hh\:mm"),
+                MealExit: a.MealExit?.ToString(@"hh\:mm"),
+                MealReturn: a.MealReturn?.ToString(@"hh\:mm"),
+                LastExit: a.LastExit?.ToString(@"hh\:mm"),
+                MinutesLate: a.MinutesLate,
+                MinutesWorked: a.MinutesWorked,
+                HoursWorked: hoursWorked,
+                HoursWorkedFormatted: hoursFormatted,
+                OvertimeMinutes: a.OvertimeMinutes,
+                OvertimeHours: Math.Round((decimal)a.OvertimeMinutes / 60m, 2),
+                Status: a.Status.ToString(),
+                BilingualStatus: bilingualStatus,
+                RequiresReview: a.RequiresReview,
+                ReviewNotes: a.ReviewNotes,
+                IsConfirmed: isConfirmed,
+                IsFuture: isFuture,
+                JustificationInfo: justificationInfo,
+                RawPunches: empEvents
+            ));
+        }
+
+        return resultList;
     }
 
     [HttpGet("attendance")]
@@ -119,48 +199,34 @@ public class ReportsController : ControllerBase
         [FromQuery] string? status = null,
         [FromQuery] bool includeEmptyDays = false)
     {
-        var start = (startDate ?? DateTime.UtcNow.AddDays(-14)).Date;
+        var start = (startDate ?? DateTime.UtcNow.AddDays(-6)).Date;
         var end = (endDate ?? DateTime.UtcNow).Date;
 
         var items = await GetReportItemsAsync(start, end, branchId, departmentId, employeeId, status, includeEmptyDays);
 
-        var totalMinutesWorked = items.Sum(x => x.MinutesWorked);
-        var totalOvertimeMinutes = items.Sum(x => x.OvertimeMinutes);
+        var company = await _context.Companies.FirstOrDefaultAsync();
+        var companyName = company != null && !string.IsNullOrWhiteSpace(company.Name) && !company.Name.Contains("Hualong")
+            ? company.Name
+            : "Bai Fen Bai (百分百)";
+
+        var confirmedMinutes = items.Where(x => x.IsConfirmed).Sum(x => x.MinutesWorked);
+        var totalLateMinutes = items.Sum(x => x.MinutesLate);
+        var pendingReviewCount = items.Count(x => !x.IsConfirmed && !x.IsFuture);
 
         return Ok(new
         {
+            companyName,
             startDate = start.ToString("yyyy-MM-dd"),
             endDate = end.ToString("yyyy-MM-dd"),
             totalRecords = items.Count,
             uniqueEmployees = items.Select(x => x.EmployeeCode).Distinct().Count(),
-            totalLateMinutes = items.Sum(x => x.MinutesLate),
-            totalHoursWorked = Math.Round((decimal)totalMinutesWorked / 60m, 2),
-            totalWorkedMinutes = totalMinutesWorked,
-            totalOvertimeHours = Math.Round((decimal)totalOvertimeMinutes / 60m, 2),
-            totalOvertimeMinutes = totalOvertimeMinutes,
-            data = items.Select(i => new
-            {
-                i.EmployeeCode,
-                i.EmployeeName,
-                i.BranchName,
-                i.DepartmentName,
-                Date = i.Date.ToString("yyyy-MM-dd"),
-                FirstEntry = i.FirstEntry ?? "-",
-                MealExit = i.MealExit ?? "-",
-                MealReturn = i.MealReturn ?? "-",
-                LastExit = i.LastExit ?? "-",
-                i.MinutesLate,
-                i.MinutesWorked,
-                HoursWorked = i.HoursWorked,
-                HoursWorkedFormatted = AttendanceTranslationHelper.FormatMinutesAsHhMm(i.MinutesWorked),
-                i.OvertimeMinutes,
-                OvertimeHours = i.OvertimeHours,
-                OvertimeFormatted = AttendanceTranslationHelper.FormatMinutesAsHhMm(i.OvertimeMinutes),
-                i.Status,
-                BilingualStatus = AttendanceTranslationHelper.ToBilingualStatus(i.Status),
-                i.RequiresReview,
-                i.ReviewNotes
-            })
+            totalConfirmedHours = Math.Round((decimal)confirmedMinutes / 60m, 2),
+            totalConfirmedMinutes = confirmedMinutes,
+            totalConfirmedFormatted = AttendanceTranslationHelper.FormatMinutesFriendly(confirmedMinutes),
+            totalLateMinutes = totalLateMinutes,
+            pendingReviewCount = pendingReviewCount,
+            excludedFromHoursCount = pendingReviewCount,
+            data = items
         });
     }
 
@@ -174,49 +240,57 @@ public class ReportsController : ControllerBase
         [FromQuery] string? status = null,
         [FromQuery] bool includeEmptyDays = false)
     {
-        var start = (startDate ?? DateTime.UtcNow.AddDays(-14)).Date;
+        var start = (startDate ?? DateTime.UtcNow.AddDays(-6)).Date;
         var end = (endDate ?? DateTime.UtcNow).Date;
 
         var items = await GetReportItemsAsync(start, end, branchId, departmentId, employeeId, status, includeEmptyDays);
-        var companyName = await _context.Companies.Select(c => c.Name).FirstOrDefaultAsync() 
-            ?? "华龙商业集团 (Grupo Comercial Hualong)";
+        var company = await _context.Companies.FirstOrDefaultAsync();
+        var companyName = company != null && !string.IsNullOrWhiteSpace(company.Name) && !company.Name.Contains("Hualong")
+            ? company.Name
+            : "Bai Fen Bai (百分百)";
 
         var branchName = branchId.HasValue
             ? (await _context.Branches.FindAsync(branchId.Value))?.Name ?? "Todas las Sucursales"
             : "Todas las Sucursales (全部分店)";
 
         using var workbook = new XLWorkbook();
-        var ws = workbook.Worksheets.Add("考勤报表 (Asistencia)");
+        var ws = workbook.Worksheets.Add("Reporte Asistencia (考勤报表)");
 
-        // Corporate Title Block
+        // 1. Corporate Header Block (Rows 1-3)
         ws.Cell("A1").Value = companyName;
         ws.Cell("A1").Style.Font.Bold = true;
-        ws.Cell("A1").Style.Font.FontSize = 15;
+        ws.Cell("A1").Style.Font.FontSize = 14;
         ws.Cell("A1").Style.Font.FontColor = XLColor.White;
-        ws.Range("A1:M1").Merge().Style.Fill.BackgroundColor = XLColor.FromHtml("#161b22");
-        ws.Range("A1:M1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+        ws.Range("A1:I1").Merge().Style.Fill.BackgroundColor = XLColor.FromHtml("#166534"); // Dark Green
+        ws.Range("A1:I1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+        ws.Row(1).Height = 26;
 
-        ws.Cell("A2").Value = $"Periodo / 期间: {start:yyyy-MM-dd} ~ {end:yyyy-MM-dd} | Sucursal / 门店: {branchName} | Generado / 导出时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
-        ws.Cell("A2").Style.Font.Italic = true;
-        ws.Cell("A2").Style.Font.FontSize = 9;
-        ws.Range("A2:M2").Merge().Style.Fill.BackgroundColor = XLColor.FromHtml("#21262d");
-        ws.Range("A2:M2").Style.Font.FontColor = XLColor.FromHtml("#8b949e");
+        ws.Cell("A2").Value = "Reporte de Asistencia / 员工考勤报表";
+        ws.Cell("A2").Style.Font.Bold = true;
+        ws.Cell("A2").Style.Font.FontSize = 11;
+        ws.Cell("A2").Style.Font.FontColor = XLColor.White;
+        ws.Range("A2:I2").Merge().Style.Fill.BackgroundColor = XLColor.FromHtml("#14532d");
+        ws.Range("A2:I2").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+        ws.Row(2).Height = 22;
 
-        // Bilingual Headers (13 columns)
+        ws.Cell("A3").Value = $"Periodo / 期间: {start:yyyy-MM-dd} ~ {end:yyyy-MM-dd} | Sucursal / 门店: {branchName} | Generado: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+        ws.Cell("A3").Style.Font.Italic = true;
+        ws.Cell("A3").Style.Font.FontSize = 9;
+        ws.Cell("A3").Style.Font.FontColor = XLColor.FromHtml("#e2e8f0");
+        ws.Range("A3:I3").Merge().Style.Fill.BackgroundColor = XLColor.FromHtml("#1f2937");
+        ws.Row(3).Height = 20;
+
+        // 2. Exactly 9 Bilingual Column Headers in Row 4 (Dark Green)
         string[] headers = [
-            "Código / 员工编号",
-            "Empleado / 员工姓名",
-            "Sucursal / 门店",
-            "Departamento / 部门",
-            "Fecha / 日期",
-            "Entrada / 上班打卡",
-            "Sal. Comida / 午休开始",
-            "Reg. Comida / 午休结束",
-            "Salida / 下班打卡",
-            "Retardo (min) / 迟到（分）",
-            "Horas Trab / 工作时长",
-            "Horas Extra / 加班时长",
-            "Estado / 考勤状态"
+            "Empleado\n员工",
+            "Fecha jornada\n日期",
+            "Entrada\n上班",
+            "Sal. comer\n午休开始",
+            "Reg. comer\n午休结束",
+            "Salida\n下班",
+            "Horas trabajadas\n实际工时",
+            "Retardo (min)\n迟到分钟",
+            "Estado\n状态"
         ];
 
         for (int i = 0; i < headers.Length; i++)
@@ -225,128 +299,196 @@ public class ReportsController : ControllerBase
             cell.Value = headers[i];
             cell.Style.Font.Bold = true;
             cell.Style.Font.FontSize = 9.5;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#0969da");
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#166534");
             cell.Style.Font.FontColor = XLColor.White;
             cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
             cell.Style.Alignment.WrapText = true;
+            cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            cell.Style.Border.OutsideBorderColor = XLColor.FromHtml("#14532d");
         }
-        ws.Row(4).Height = 28;
+        ws.Row(4).Height = 32;
 
-        // Data rows
+        // 3. Data Rows
         int row = 5;
         foreach (var item in items)
         {
-            // Prevent formula interpretation and preserve strings like HL-003
-            var codeCell = ws.Cell(row, 1);
-            codeCell.SetValue(item.EmployeeCode);
-            codeCell.Style.NumberFormat.Format = "@";
-            codeCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            var isEven = row % 2 == 0;
+            var rowBg = isEven ? XLColor.FromHtml("#f9fafb") : XLColor.White;
 
-            ws.Cell(row, 2).Value = item.EmployeeName;
-            ws.Cell(row, 3).Value = item.BranchName;
-            ws.Cell(row, 4).Value = item.DepartmentName;
+            // 1. Empleado / 员工 (Code preserved as text + Name)
+            var empCell = ws.Cell(row, 1);
+            empCell.SetValue($"[{item.EmployeeCode}] {item.EmployeeName}");
+            empCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+            empCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            empCell.Style.Fill.BackgroundColor = rowBg;
 
-            var dateCell = ws.Cell(row, 5);
+            // 2. Fecha / 日期
+            var dateCell = ws.Cell(row, 2);
             dateCell.Value = item.Date.ToString("yyyy-MM-dd");
             dateCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            dateCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            dateCell.Style.Fill.BackgroundColor = rowBg;
 
-            ws.Cell(row, 6).Value = item.FirstEntry ?? "-";
-            ws.Cell(row, 6).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            // 3. Entrada / 上班
+            var inCell = ws.Cell(row, 3);
+            inCell.Value = item.FirstEntry ?? "-";
+            inCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            inCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            inCell.Style.Fill.BackgroundColor = rowBg;
+            if (item.FirstEntry != null) inCell.Style.Font.Bold = true;
 
-            ws.Cell(row, 7).Value = item.MealExit ?? "-";
-            ws.Cell(row, 7).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            // 4. Salida a comer / 午休开始
+            var mOutCell = ws.Cell(row, 4);
+            mOutCell.Value = item.MealExit ?? "-";
+            mOutCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            mOutCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            mOutCell.Style.Fill.BackgroundColor = rowBg;
 
-            ws.Cell(row, 8).Value = item.MealReturn ?? "-";
-            ws.Cell(row, 8).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            // 5. Regreso de comer / 午休结束
+            var mInCell = ws.Cell(row, 5);
+            mInCell.Value = item.MealReturn ?? "-";
+            mInCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            mInCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            mInCell.Style.Fill.BackgroundColor = rowBg;
 
-            ws.Cell(row, 9).Value = item.LastExit ?? "-";
-            ws.Cell(row, 9).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            // 6. Salida / 下班
+            var outCell = ws.Cell(row, 6);
+            outCell.Value = item.LastExit ?? "-";
+            outCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            outCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            outCell.Style.Fill.BackgroundColor = rowBg;
+            if (item.LastExit != null) outCell.Style.Font.Bold = true;
 
-            var lateCell = ws.Cell(row, 10);
+            // 7. Horas trabajadas / 实际工时 (Leave blank if pending or incomplete!)
+            var hoursCell = ws.Cell(row, 7);
+            if (item.IsConfirmed && item.HoursWorked.HasValue)
+            {
+                hoursCell.Value = item.HoursWorked.Value;
+                hoursCell.Style.NumberFormat.Format = "0.00";
+                hoursCell.Style.Font.Bold = true;
+                hoursCell.Style.Font.FontColor = XLColor.FromHtml("#166534");
+            }
+            else
+            {
+                // Blank numeric cell for incomplete/pending as required
+                hoursCell.Value = string.Empty;
+            }
+            hoursCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            hoursCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            hoursCell.Style.Fill.BackgroundColor = rowBg;
+
+            // 8. Retardo en minutos / 迟到分钟
+            var lateCell = ws.Cell(row, 8);
             lateCell.Value = item.MinutesLate;
             lateCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            lateCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            lateCell.Style.Fill.BackgroundColor = rowBg;
+            if (item.MinutesLate > 0)
+            {
+                lateCell.Style.Font.Bold = true;
+                lateCell.Style.Font.FontColor = XLColor.FromHtml("#c2410c");
+            }
 
-            var workedCell = ws.Cell(row, 11);
-            workedCell.Value = item.HoursWorked;
-            workedCell.Style.NumberFormat.Format = "0.00";
-            workedCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-
-            var otCell = ws.Cell(row, 12);
-            otCell.Value = item.OvertimeHours;
-            otCell.Style.NumberFormat.Format = "0.00";
-            otCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-
-            var bilingualStatus = AttendanceTranslationHelper.ToBilingualStatus(item.Status);
-            var statusCell = ws.Cell(row, 13);
-            statusCell.Value = bilingualStatus;
+            // 9. Estado / 状态
+            var statusCell = ws.Cell(row, 9);
+            statusCell.Value = item.BilingualStatus;
             statusCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            statusCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
             statusCell.Style.Font.Bold = true;
 
-            // Status color highlight
-            if (bilingualStatus.Contains("Retardo") || bilingualStatus.Contains("迟到"))
+            var st = item.BilingualStatus;
+            if (st.Contains("Completo") || st.Contains("完整") || st.Contains("A tiempo") || st.Contains("准时"))
             {
-                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#fff8c5");
-                statusCell.Style.Font.FontColor = XLColor.FromHtml("#9a6700");
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#f0fdf4");
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#166534");
             }
-            else if (bilingualStatus.Contains("Falta") || bilingualStatus.Contains("缺勤"))
+            else if (st.Contains("Retardo") || st.Contains("迟到"))
             {
-                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#ffebe9");
-                statusCell.Style.Font.FontColor = XLColor.FromHtml("#cf222e");
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#fff7ed");
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#c2410c");
             }
-            else if (bilingualStatus.Contains("A tiempo") || bilingualStatus.Contains("准时"))
+            else if (st.Contains("Salida justificada") || st.Contains("提前下班"))
             {
-                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#dafbe1");
-                statusCell.Style.Font.FontColor = XLColor.FromHtml("#1a7f37");
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#f0f9ff");
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#0284c7");
             }
-            else if (bilingualStatus.Contains("Incompleto") || bilingualStatus.Contains("不全"))
+            else if (st.Contains("Incompleto") || st.Contains("不全") || st.Contains("Pendiente") || st.Contains("待核查"))
             {
-                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#fbefff");
-                statusCell.Style.Font.FontColor = XLColor.FromHtml("#8250df");
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#faf5ff");
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#7e22ce");
+            }
+            else if (st.Contains("Falta") || st.Contains("缺勤") || st.Contains("Sin checadas") || st.Contains("无打卡"))
+            {
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#fef2f2");
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#b91c1c");
+            }
+            else
+            {
+                statusCell.Style.Fill.BackgroundColor = rowBg;
             }
 
+            if (!string.IsNullOrWhiteSpace(item.JustificationInfo))
+            {
+                statusCell.GetComment().AddText(item.JustificationInfo);
+            }
+            else if (!string.IsNullOrWhiteSpace(item.ReviewNotes))
+            {
+                statusCell.GetComment().AddText(item.ReviewNotes);
+            }
+
+            ws.Row(row).Height = 22;
             row++;
         }
 
-        // Totals row
+        // 4. Totals Row at the bottom
         if (items.Count > 0)
         {
-            ws.Cell(row, 1).Value = "TOTALES / 总计";
+            ws.Cell(row, 1).Value = "TOTALES CONFIRMADOS / 确认总计";
             ws.Cell(row, 1).Style.Font.Bold = true;
-            ws.Range(row, 1, row, 9).Merge();
-            ws.Range(row, 1, row, 9).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-            ws.Range(row, 1, row, 9).Style.Fill.BackgroundColor = XLColor.FromHtml("#f6f8fa");
+            ws.Range(row, 1, row, 6).Merge();
+            ws.Range(row, 1, row, 6).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            ws.Range(row, 1, row, 6).Style.Fill.BackgroundColor = XLColor.FromHtml("#f3f4f6");
 
-            var totalLateCell = ws.Cell(row, 10);
-            totalLateCell.FormulaA1 = $"SUM(J5:J{row - 1})";
+            // Sum of confirmed hours
+            var totalHoursCell = ws.Cell(row, 7);
+            totalHoursCell.FormulaA1 = $"SUM(G5:G{row - 1})";
+            totalHoursCell.Style.Font.Bold = true;
+            totalHoursCell.Style.NumberFormat.Format = "0.00";
+            totalHoursCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#f0fdf4");
+            totalHoursCell.Style.Font.FontColor = XLColor.FromHtml("#166534");
+
+            // Sum of late minutes
+            var totalLateCell = ws.Cell(row, 8);
+            totalLateCell.FormulaA1 = $"SUM(H5:H{row - 1})";
             totalLateCell.Style.Font.Bold = true;
-            totalLateCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#fff8c5");
+            totalLateCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#fff7ed");
+            totalLateCell.Style.Font.FontColor = XLColor.FromHtml("#c2410c");
 
-            var totalWorkedCell = ws.Cell(row, 11);
-            totalWorkedCell.FormulaA1 = $"SUM(K5:K{row - 1})";
-            totalWorkedCell.Style.Font.Bold = true;
-            totalWorkedCell.Style.NumberFormat.Format = "0.00";
-            totalWorkedCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#ddf4ff");
+            var pendingCount = items.Count(x => !x.IsConfirmed && !x.IsFuture);
+            var confirmedCount = items.Count(x => x.IsConfirmed);
+            ws.Cell(row, 9).Value = $"{confirmedCount} confirmadas | {pendingCount} pendientes";
+            ws.Cell(row, 9).Style.Font.Bold = true;
+            ws.Cell(row, 9).Style.Font.FontSize = 8.5;
+            ws.Cell(row, 9).Style.Fill.BackgroundColor = XLColor.FromHtml("#f3f4f6");
+            ws.Cell(row, 9).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-            var totalOtCell = ws.Cell(row, 12);
-            totalOtCell.FormulaA1 = $"SUM(L5:L{row - 1})";
-            totalOtCell.Style.Font.Bold = true;
-            totalOtCell.Style.NumberFormat.Format = "0.00";
-            totalOtCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#dafbe1");
-
-            ws.Cell(row, 13).Value = $"{items.Count} registros";
-            ws.Cell(row, 13).Style.Font.Bold = true;
-            ws.Cell(row, 13).Style.Fill.BackgroundColor = XLColor.FromHtml("#f6f8fa");
+            ws.Row(row).Height = 24;
         }
 
-        // Freeze header panes
+        // 5. Freeze header panes
         ws.SheetView.FreezeRows(4);
 
-        // Auto-fit columns
-        ws.Columns().AdjustToContents(10, 45);
+        // 6. Auto-fit columns with limits
+        ws.Columns().AdjustToContents(12, 45);
 
-        // Enable Autofilters on header row
+        // 7. Enable Autofilter
         ws.Range(4, 1, Math.Max(4, row - 1), headers.Length).SetAutoFilter();
+
+        // 8. Page Setup (Landscape, fit to 1 page wide)
+        ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+        ws.PageSetup.FitToPages(1, 0);
+        ws.PageSetup.SetRowsToRepeatAtTop(4, 4);
 
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
@@ -366,19 +508,18 @@ public class ReportsController : ControllerBase
         [FromQuery] string? status = null,
         [FromQuery] bool includeEmptyDays = false)
     {
-        var start = (startDate ?? DateTime.UtcNow.AddDays(-14)).Date;
+        var start = (startDate ?? DateTime.UtcNow.AddDays(-6)).Date;
         var end = (endDate ?? DateTime.UtcNow).Date;
 
         var items = await GetReportItemsAsync(start, end, branchId, departmentId, employeeId, status, includeEmptyDays);
 
         var sb = new StringBuilder();
-        // CSV Header with bilingual column names
-        sb.AppendLine("Código / 员工编号,Empleado / 员工姓名,Sucursal / 门店,Departamento / 部门,Fecha / 日期,Entrada / 上班打卡,Salida a comida / 午休开始,Regreso de comida / 午休结束,Salida / 下班打卡,Retardo (min) / 迟到（分）,Horas trabajadas / 工作时长,Horas extra / 加班时长,Estado / 考勤状态");
+        // 9 Columns in exact order
+        sb.AppendLine("Empleado / 员工,Fecha jornada / 日期,Entrada / 上班,Salida a comer / 午休开始,Regreso de comer / 午休结束,Salida / 下班,Horas trabajadas / 实际工时,Retardo (min) / 迟到分钟,Estado / 状态");
 
         static string EscapeCsv(string? val)
         {
             if (string.IsNullOrEmpty(val)) return "\"\"";
-            // Protect against Excel CSV formula injection
             if (val.StartsWith('=') || val.StartsWith('+') || val.StartsWith('-') || val.StartsWith('@'))
             {
                 val = "'" + val;
@@ -388,25 +529,23 @@ public class ReportsController : ControllerBase
 
         foreach (var item in items)
         {
-            var bilingualStatus = AttendanceTranslationHelper.ToBilingualStatus(item.Status);
+            string hoursStr = item.IsConfirmed && item.HoursWorked.HasValue
+                ? item.HoursWorked.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)
+                : "";
+
             sb.AppendLine(string.Join(",",
-                EscapeCsv(item.EmployeeCode),
-                EscapeCsv(item.EmployeeName),
-                EscapeCsv(item.BranchName),
-                EscapeCsv(item.DepartmentName),
+                EscapeCsv($"[{item.EmployeeCode}] {item.EmployeeName}"),
                 EscapeCsv(item.Date.ToString("yyyy-MM-dd")),
                 EscapeCsv(item.FirstEntry ?? "-"),
                 EscapeCsv(item.MealExit ?? "-"),
                 EscapeCsv(item.MealReturn ?? "-"),
                 EscapeCsv(item.LastExit ?? "-"),
+                EscapeCsv(hoursStr),
                 item.MinutesLate.ToString(),
-                item.HoursWorked.ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
-                item.OvertimeHours.ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
-                EscapeCsv(bilingualStatus)
+                EscapeCsv(item.BilingualStatus)
             ));
         }
 
-        // Write UTF-8 with BOM for Excel compatibility (Chinese + Accents)
         var preamble = Encoding.UTF8.GetPreamble();
         var bytes = Encoding.UTF8.GetBytes(sb.ToString());
         var fullBytes = new byte[preamble.Length + bytes.Length];
@@ -426,24 +565,28 @@ public class ReportsController : ControllerBase
         [FromQuery] string? status = null,
         [FromQuery] bool includeEmptyDays = false)
     {
-        var start = (startDate ?? DateTime.UtcNow.AddDays(-14)).Date;
+        var start = (startDate ?? DateTime.UtcNow.AddDays(-6)).Date;
         var end = (endDate ?? DateTime.UtcNow).Date;
 
         var items = await GetReportItemsAsync(start, end, branchId, departmentId, employeeId, status, includeEmptyDays);
-
-        var companyName = await _context.Companies.Select(c => c.Name).FirstOrDefaultAsync() 
-            ?? "华龙商业集团 (Grupo Comercial Hualong)";
+        var company = await _context.Companies.FirstOrDefaultAsync();
+        var companyName = company != null && !string.IsNullOrWhiteSpace(company.Name) && !company.Name.Contains("Hualong")
+            ? company.Name
+            : "Bai Fen Bai (百分百)";
 
         var branchName = branchId.HasValue
             ? (await _context.Branches.FindAsync(branchId.Value))?.Name ?? "Todas las Sucursales"
             : "Todas las Sucursales (全部分店)";
+
+        var filterSummary = branchId.HasValue ? $"Sucursal: {branchName}" : null;
 
         var pdfBytes = _pdfReportService.GenerateAttendanceReportPdf(
             companyName,
             branchName,
             start,
             end,
-            items
+            items,
+            filterSummary
         );
 
         var filename = $"Reporte_Asistencia_{start:yyyyMMdd}_{end:yyyyMMdd}.pdf";

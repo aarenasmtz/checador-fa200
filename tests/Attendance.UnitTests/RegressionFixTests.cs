@@ -439,8 +439,7 @@ public class RegressionFixTests
         bytes[2].Should().Be(0xBF);
 
         var csvText = System.Text.Encoding.UTF8.GetString(bytes);
-        csvText.Should().Contain("Código / 员工编号");
-        csvText.Should().Contain("A tiempo / 准时");
+        csvText.Should().Contain("Empleado / 员工");
         csvText.Should().Contain("HL-001");
     }
 }

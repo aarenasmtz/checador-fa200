@@ -1,16 +1,14 @@
 namespace Attendance.Application.Interfaces;
 
-public interface IPdfReportService
-{
-    byte[] GenerateAttendanceReportPdf(
-        string companyName,
-        string branchName,
-        DateTime startDate,
-        DateTime endDate,
-        IReadOnlyList<AttendanceReportItemDto> items);
-}
+public record RawPunchDto(
+    string Time,
+    string Method,
+    int NativePunchCode,
+    string? DeviceName
+);
 
 public record AttendanceReportItemDto(
+    int EmployeeId,
     string EmployeeCode,
     string EmployeeName,
     string BranchName,
@@ -22,10 +20,27 @@ public record AttendanceReportItemDto(
     string? LastExit,
     int MinutesLate,
     int MinutesWorked,
-    decimal HoursWorked,
+    decimal? HoursWorked,
+    string HoursWorkedFormatted,
     int OvertimeMinutes,
     decimal OvertimeHours,
     string Status,
+    string BilingualStatus,
     bool RequiresReview = false,
-    string? ReviewNotes = null
+    string? ReviewNotes = null,
+    bool IsConfirmed = true,
+    bool IsFuture = false,
+    string? JustificationInfo = null,
+    IReadOnlyList<RawPunchDto>? RawPunches = null
 );
+
+public interface IPdfReportService
+{
+    byte[] GenerateAttendanceReportPdf(
+        string companyName,
+        string branchName,
+        DateTime startDate,
+        DateTime endDate,
+        IReadOnlyList<AttendanceReportItemDto> items,
+        string? filterSummary = null);
+}

@@ -38,7 +38,7 @@ public class PdfReportService : IPdfReportService
         }
         catch
         {
-            // fallback
+            // Fallback font
         }
 
         MainFontFamily = chosenFont;
@@ -49,16 +49,22 @@ public class PdfReportService : IPdfReportService
         string branchName,
         DateTime startDate,
         DateTime endDate,
-        IReadOnlyList<AttendanceReportItemDto> items)
+        IReadOnlyList<AttendanceReportItemDto> items,
+        string? filterSummary = null)
     {
         var totalRecords = items.Count;
         var uniqueEmployees = items.Select(x => x.EmployeeCode).Distinct().Count();
-        var totalWorkedMinutes = items.Sum(x => x.MinutesWorked);
+        
+        // Sum only confirmed minutes worked
+        var totalConfirmedMinutes = items.Where(x => x.IsConfirmed).Sum(x => x.MinutesWorked);
         var totalLateMinutes = items.Sum(x => x.MinutesLate);
-        var totalOvertimeMinutes = items.Sum(x => x.OvertimeMinutes);
+        var pendingReviewCount = items.Count(x => !x.IsConfirmed && !x.IsFuture);
 
-        var totalHours = Math.Round((decimal)totalWorkedMinutes / 60m, 2);
-        var totalOvertime = Math.Round((decimal)totalOvertimeMinutes / 60m, 2);
+        var totalHours = Math.Round((decimal)totalConfirmedMinutes / 60m, 2);
+
+        var finalCompanyName = string.IsNullOrWhiteSpace(companyName) || companyName.Contains("Hualong")
+            ? "Bai Fen Bai (百分百)"
+            : companyName;
 
         var document = Document.Create(container =>
         {
@@ -68,29 +74,33 @@ public class PdfReportService : IPdfReportService
                 page.Margin(16);
                 page.DefaultTextStyle(x => x.FontSize(8).FontFamily(MainFontFamily));
 
-                // Header
+                // Page Header
                 page.Header().Column(col =>
                 {
                     col.Item().Row(row =>
                     {
                         row.RelativeItem().Column(titleCol =>
                         {
-                            titleCol.Item().Text(companyName).FontSize(14).Bold().FontColor("#0969da");
-                            titleCol.Item().Text("REPORTE BILINGÜE DE ASISTENCIA Y CONTROL BIOMÉTRICO | 考勤管理综合报表")
+                            titleCol.Item().Text(finalCompanyName).FontSize(14).Bold().FontColor("#166534");
+                            titleCol.Item().Text("Reporte de Asistencia / 员工考勤报表")
                                 .FontSize(11).SemiBold().FontColor("#1f2328");
-                            titleCol.Item().Text($"Sucursal / 门店: {branchName}  |  Periodo / 考勤周期: {startDate:yyyy-MM-dd} ~ {endDate:yyyy-MM-dd}")
+                            titleCol.Item().Text($"Sucursal / 门店: {branchName}  |  Periodo / 期间: {startDate:yyyy-MM-dd} ~ {endDate:yyyy-MM-dd}")
                                 .FontSize(8.5f).FontColor("#57606a");
+                            if (!string.IsNullOrWhiteSpace(filterSummary))
+                            {
+                                titleCol.Item().Text($"Filtros / 筛选: {filterSummary}").FontSize(7.5f).FontColor("#57606a");
+                            }
                         });
 
-                        row.ConstantItem(200).Column(metaCol =>
+                        row.ConstantItem(220).Column(metaCol =>
                         {
-                            metaCol.Item().AlignRight().Text($"Generado / 生成时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}").FontSize(7.5f).FontColor("#57606a");
+                            metaCol.Item().AlignRight().Text($"Generado / 导出时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}").FontSize(7.5f).FontColor("#57606a");
                             metaCol.Item().AlignRight().Text($"Empleados / 员工: {uniqueEmployees} | Jornadas / 班次: {totalRecords}").FontSize(7.5f).FontColor("#57606a");
-                            metaCol.Item().AlignRight().Text("Sistema FA200 Biometric Agent").FontSize(7.5f).Bold().FontColor("#1a7f37");
+                            metaCol.Item().AlignRight().Text("Sistema FA200 Biometric Agent").FontSize(7.5f).Bold().FontColor("#166534");
                         });
                     });
 
-                    col.Item().PaddingVertical(6).LineHorizontal(0.8f).LineColor("#d0d7de");
+                    col.Item().PaddingVertical(5).LineHorizontal(0.8f).LineColor("#d0d7de");
 
                     // Summary KPI Cards (5 metrics)
                     col.Item().PaddingBottom(8).Row(kpiRow =>
@@ -107,72 +117,73 @@ public class PdfReportService : IPdfReportService
                             c.Item().Text(totalRecords.ToString()).FontSize(11).Bold().FontColor("#24292f");
                         });
                         kpiRow.ConstantItem(6);
-                        kpiRow.RelativeItem().Border(1).BorderColor("#b6e3ff").Background("#ddf4ff").Padding(5).Column(c =>
+                        kpiRow.RelativeItem().Border(1).BorderColor("#86efac").Background("#f0fdf4").Padding(5).Column(c =>
                         {
-                            c.Item().Text("Horas Trab / 总工时").FontSize(6.5f).FontColor("#0969da");
-                            c.Item().Text($"{totalHours:F1} h ({AttendanceTranslationHelper.FormatMinutesAsHhMm(totalWorkedMinutes)})").FontSize(10).Bold().FontColor("#0969da");
+                            c.Item().Text("Horas Confirmadas / 确认工时").FontSize(6.5f).FontColor("#166534");
+                            c.Item().Text($"{totalHours:F1} h ({AttendanceTranslationHelper.FormatMinutesFriendly(totalConfirmedMinutes)})").FontSize(10).Bold().FontColor("#166534");
                         });
                         kpiRow.ConstantItem(6);
-                        kpiRow.RelativeItem().Border(1).BorderColor("#d4a72c").Background("#fff8c5").Padding(5).Column(c =>
+                        kpiRow.RelativeItem().Border(1).BorderColor("#fed7aa").Background("#fff7ed").Padding(5).Column(c =>
                         {
-                            c.Item().Text("Retardos / 迟到总计").FontSize(6.5f).FontColor("#9a6700");
-                            c.Item().Text($"{totalLateMinutes} min").FontSize(11).Bold().FontColor("#9a6700");
+                            c.Item().Text("Retardo Total / 迟到总计").FontSize(6.5f).FontColor("#c2410c");
+                            c.Item().Text($"{totalLateMinutes} min").FontSize(11).Bold().FontColor("#c2410c");
                         });
                         kpiRow.ConstantItem(6);
-                        kpiRow.RelativeItem().Border(1).BorderColor("#82e0aa").Background("#dafbe1").Padding(5).Column(c =>
+                        kpiRow.RelativeItem().Border(1).BorderColor("#e9d5ff").Background("#faf5ff").Padding(5).Column(c =>
                         {
-                            c.Item().Text("Horas Extra / 加班").FontSize(6.5f).FontColor("#1a7f37");
-                            c.Item().Text($"{totalOvertime:F1} h ({AttendanceTranslationHelper.FormatMinutesAsHhMm(totalOvertimeMinutes)})").FontSize(10).Bold().FontColor("#1a7f37");
+                            c.Item().Text("Pendientes / 待核查").FontSize(6.5f).FontColor("#7e22ce");
+                            c.Item().Text($"{pendingReviewCount} (excluidas)").FontSize(10).Bold().FontColor("#7e22ce");
                         });
                     });
                 });
 
-                // Content Table with 13 bilingual columns
+                // Exactly 9 Columns in the exact specified order:
+                // 1. Empleado / 员工
+                // 2. Fecha de jornada / 日期
+                // 3. Entrada / 上班
+                // 4. Salida a comer / 午休开始
+                // 5. Regreso de comer / 午休结束
+                // 6. Salida / 下班
+                // 7. Horas trabajadas / 实际工时
+                // 8. Retardo en minutos / 迟到分钟
+                // 9. Estado / 状态
                 page.Content().Table(table =>
                 {
                     table.ColumnsDefinition(columns =>
                     {
-                        columns.ConstantColumn(52);   // Código / 员工编号
-                        columns.RelativeColumn(1.8f); // Empleado / 员工姓名
-                        columns.RelativeColumn(1.0f); // Sucursal / 门店
-                        columns.RelativeColumn(1.0f); // Depto / 部门
-                        columns.ConstantColumn(54);   // Fecha / 日期
-                        columns.ConstantColumn(38);   // Entrada / 上班
-                        columns.ConstantColumn(38);   // Sal. Comida / 午休出
-                        columns.ConstantColumn(38);   // Reg. Comida / 午休入
-                        columns.ConstantColumn(38);   // Salida / 下班
-                        columns.ConstantColumn(42);   // Retardo / 迟到
-                        columns.ConstantColumn(48);   // Horas Trab / 工时
-                        columns.ConstantColumn(44);   // H. Extra / 加班
-                        columns.ConstantColumn(68);   // Estado / 考勤状态
+                        columns.RelativeColumn(2.5f); // 1. Empleado / 员工 (ID + Nombre)
+                        columns.ConstantColumn(56);   // 2. Fecha de jornada / 日期
+                        columns.ConstantColumn(42);   // 3. Entrada / 上班
+                        columns.ConstantColumn(48);   // 4. Salida a comer / 午休开始
+                        columns.ConstantColumn(48);   // 5. Regreso de comer / 午休结束
+                        columns.ConstantColumn(42);   // 6. Salida / 下班
+                        columns.ConstantColumn(68);   // 7. Horas trabajadas / 实际工时
+                        columns.ConstantColumn(46);   // 8. Retardo (min) / 迟到分钟
+                        columns.ConstantColumn(86);   // 9. Estado / 状态
                     });
 
-                    // Table Header (Bilingual, repeats on all pages)
+                    // Table Header (Bilingual in 2 lines, Dark Green, repeated on all pages)
                     table.Header(header =>
                     {
                         var headerDefs = new (string es, string zh)[]
                         {
-                            ("Código", "员工编号"),
-                            ("Empleado", "员工姓名"),
-                            ("Sucursal", "门店"),
-                            ("Depto", "部门"),
-                            ("Fecha", "日期"),
-                            ("Entrada", "上班打卡"),
-                            ("Sal. Com", "午休开始"),
-                            ("Reg. Com", "午休结束"),
-                            ("Salida", "下班打卡"),
-                            ("Retardo", "迟到(分)"),
-                            ("Trabajado", "工作时长"),
-                            ("H. Extra", "加班时长"),
-                            ("Estado", "考勤状态")
+                            ("Empleado", "员工"),
+                            ("Fecha jornada", "日期"),
+                            ("Entrada", "上班"),
+                            ("Sal. comer", "午休开始"),
+                            ("Reg. comer", "午休结束"),
+                            ("Salida", "下班"),
+                            ("Horas trabajadas", "实际工时"),
+                            ("Retardo (min)", "迟到分钟"),
+                            ("Estado", "状态")
                         };
 
                         foreach (var (es, zh) in headerDefs)
                         {
-                            header.Cell().Background("#0969da").Border(0.5f).BorderColor("#0550ae").Padding(2.5f).AlignCenter().Column(c =>
+                            header.Cell().Background("#166534").Border(0.5f).BorderColor("#14532d").Padding(3).AlignCenter().Column(c =>
                             {
-                                c.Item().AlignCenter().Text(es).FontSize(6.5f).Bold().FontColor("#ffffff");
-                                c.Item().AlignCenter().Text(zh).FontSize(5.5f).FontColor("#ddf4ff");
+                                c.Item().AlignCenter().Text(es).FontSize(6.8f).Bold().FontColor("#ffffff");
+                                c.Item().AlignCenter().Text(zh).FontSize(5.6f).FontColor("#bbf7d0");
                             });
                         }
                     });
@@ -181,114 +192,106 @@ public class PdfReportService : IPdfReportService
                     var isEven = false;
                     foreach (var item in items)
                     {
-                        var bg = isEven ? "#f6f8fa" : "#ffffff";
+                        var bg = isEven ? "#f9fafb" : "#ffffff";
                         isEven = !isEven;
 
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#eaeef2").Padding(2).AlignCenter()
-                            .Text(item.EmployeeCode).FontSize(7);
+                        // 1. Empleado / 员工 (Code + Name + notes if any)
+                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e5e7eb").Padding(2.5f).Column(col =>
+                        {
+                            col.Item().Row(r =>
+                            {
+                                r.AutoItem().Text($"[{item.EmployeeCode}] ").FontSize(7).Bold().FontColor("#166534");
+                                r.RelativeItem().Text(item.EmployeeName).FontSize(7.2f).SemiBold().FontColor("#1f2937");
+                            });
+                            if (!string.IsNullOrWhiteSpace(item.JustificationInfo))
+                            {
+                                col.Item().Text(item.JustificationInfo).FontSize(5.6f).Italic().FontColor("#0369a1");
+                            }
+                            else if (!string.IsNullOrWhiteSpace(item.ReviewNotes))
+                            {
+                                col.Item().Text(item.ReviewNotes).FontSize(5.6f).Italic().FontColor("#6b7280");
+                            }
+                        });
 
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#eaeef2").Padding(2)
-                            .Text(item.EmployeeName).FontSize(7.5f).SemiBold();
+                        // 2. Fecha de jornada / 日期
+                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e5e7eb").Padding(2.5f).AlignCenter()
+                            .Text(item.Date.ToString("yyyy-MM-dd")).FontSize(6.8f).FontColor("#374151");
 
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#eaeef2").Padding(2)
-                            .Text(item.BranchName).FontSize(6.5f).FontColor("#57606a");
+                        // 3. Entrada / 上班
+                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e5e7eb").Padding(2.5f).AlignCenter()
+                            .Text(item.FirstEntry ?? "-").FontSize(7.2f).Bold().FontColor(item.FirstEntry != null ? "#111827" : "#9ca3af");
 
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#eaeef2").Padding(2)
-                            .Text(item.DepartmentName).FontSize(6.5f).FontColor("#57606a");
+                        // 4. Salida a comer / 午休开始
+                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e5e7eb").Padding(2.5f).AlignCenter()
+                            .Text(item.MealExit ?? "-").FontSize(6.8f).FontColor(item.MealExit != null ? "#4b5563" : "#9ca3af");
 
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#eaeef2").Padding(2).AlignCenter()
-                            .Text(item.Date.ToString("yyyy-MM-dd")).FontSize(6.8f);
+                        // 5. Regreso de comer / 午休结束
+                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e5e7eb").Padding(2.5f).AlignCenter()
+                            .Text(item.MealReturn ?? "-").FontSize(6.8f).FontColor(item.MealReturn != null ? "#4b5563" : "#9ca3af");
 
-                        // 4 Punches
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#eaeef2").Padding(2).AlignCenter()
-                            .Text(item.FirstEntry ?? "-").FontSize(7).FontColor(item.FirstEntry != null ? "#1f2328" : "#8c959f");
+                        // 6. Salida / 下班
+                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e5e7eb").Padding(2.5f).AlignCenter()
+                            .Text(item.LastExit ?? "-").FontSize(7.2f).Bold().FontColor(item.LastExit != null ? "#111827" : "#9ca3af");
 
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#eaeef2").Padding(2).AlignCenter()
-                            .Text(item.MealExit ?? "-").FontSize(6.8f).FontColor(item.MealExit != null ? "#57606a" : "#8c959f");
+                        // 7. Horas trabajadas / 实际工时
+                        var hoursCell = table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e5e7eb").Padding(2.5f).AlignCenter();
+                        if (item.IsConfirmed)
+                        {
+                            hoursCell.Text(item.HoursWorkedFormatted).FontSize(7.2f).SemiBold().FontColor("#166534");
+                        }
+                        else
+                        {
+                            hoursCell.Text("Pendiente / 待核查").FontSize(6f).Italic().FontColor("#7e22ce");
+                        }
 
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#eaeef2").Padding(2).AlignCenter()
-                            .Text(item.MealReturn ?? "-").FontSize(6.8f).FontColor(item.MealReturn != null ? "#57606a" : "#8c959f");
-
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#eaeef2").Padding(2).AlignCenter()
-                            .Text(item.LastExit ?? "-").FontSize(7).FontColor(item.LastExit != null ? "#1f2328" : "#8c959f");
-
-                        // Retardo
-                        var lateCell = table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#eaeef2").Padding(2).AlignCenter();
+                        // 8. Retardo en minutos / 迟到分钟
+                        var lateCell = table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e5e7eb").Padding(2.5f).AlignCenter();
                         if (item.MinutesLate > 0)
-                            lateCell.Text($"{item.MinutesLate} m").FontSize(7).Bold().FontColor("#cf222e");
+                            lateCell.Text($"{item.MinutesLate}").FontSize(7.2f).Bold().FontColor("#c2410c");
                         else
-                            lateCell.Text("0").FontSize(7).FontColor("#8c959f");
+                            lateCell.Text("0").FontSize(7f).FontColor("#9ca3af");
 
-                        // Horas Trabajadas
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#eaeef2").Padding(2).AlignCenter()
-                            .Text(AttendanceTranslationHelper.FormatMinutesAsHhMm(item.MinutesWorked)).FontSize(7).SemiBold();
-
-                        // Horas Extra
-                        var otCell = table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#eaeef2").Padding(2).AlignCenter();
-                        if (item.OvertimeMinutes > 0)
-                            otCell.Text(AttendanceTranslationHelper.FormatMinutesAsHhMm(item.OvertimeMinutes)).FontSize(7).Bold().FontColor("#1a7f37");
-                        else
-                            otCell.Text("-").FontSize(7).FontColor("#8c959f");
-
-                        // Bilingual Status
-                        var bilingualStatus = AttendanceTranslationHelper.ToBilingualStatus(item.Status);
+                        // 9. Estado / 状态
+                        var bilingualStatus = item.BilingualStatus;
                         var statusBg = bilingualStatus switch
                         {
-                            var s when s.Contains("A tiempo") || s.Contains("准时") => "#dafbe1",
-                            var s when s.Contains("Retardo") || s.Contains("迟到") => "#fff8c5",
-                            var s when s.Contains("Falta") || s.Contains("缺勤") => "#ffebe9",
-                            var s when s.Contains("Incompleto") || s.Contains("不全") => "#fbefff",
-                            _ => "#f6f8fa"
+                            var s when s.Contains("Completo") || s.Contains("完整") || s.Contains("A tiempo") || s.Contains("准时") => "#f0fdf4",
+                            var s when s.Contains("Retardo") || s.Contains("迟到") => "#fff7ed",
+                            var s when s.Contains("Salida justificada") || s.Contains("提前下班") => "#f0f9ff",
+                            var s when s.Contains("Incompleto") || s.Contains("不全") || s.Contains("Pendiente") || s.Contains("待核查") => "#faf5ff",
+                            var s when s.Contains("Falta") || s.Contains("缺勤") || s.Contains("Sin checadas") || s.Contains("无打卡") => "#fef2f2",
+                            _ => "#f3f4f6"
                         };
-                        var statusColor = bilingualStatus switch
+                        var statusTextColor = bilingualStatus switch
                         {
-                            var s when s.Contains("A tiempo") || s.Contains("准时") => "#1a7f37",
-                            var s when s.Contains("Retardo") || s.Contains("迟到") => "#9a6700",
-                            var s when s.Contains("Falta") || s.Contains("缺勤") => "#cf222e",
-                            var s when s.Contains("Incompleto") || s.Contains("不全") => "#8250df",
-                            _ => "#57606a"
+                            var s when s.Contains("Completo") || s.Contains("完整") || s.Contains("A tiempo") || s.Contains("准时") => "#166534",
+                            var s when s.Contains("Retardo") || s.Contains("迟到") => "#c2410c",
+                            var s when s.Contains("Salida justificada") || s.Contains("提前下班") => "#0284c7",
+                            var s when s.Contains("Incompleto") || s.Contains("不全") || s.Contains("Pendiente") || s.Contains("待核查") => "#7e22ce",
+                            var s when s.Contains("Falta") || s.Contains("缺勤") || s.Contains("Sin checadas") || s.Contains("无打卡") => "#b91c1c",
+                            _ => "#374151"
                         };
 
-                        table.Cell().Background(statusBg).BorderBottom(0.5f).BorderColor("#eaeef2").Padding(1.5f).AlignCenter()
-                            .Text(bilingualStatus).FontSize(6.2f).Bold().FontColor(statusColor);
+                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e5e7eb").Padding(2).AlignCenter()
+                            .Border(0.5f).BorderColor(statusTextColor).Background(statusBg).PaddingVertical(1).PaddingHorizontal(3)
+                            .Text(bilingualStatus).FontSize(6.2f).Bold().FontColor(statusTextColor);
                     }
                 });
 
-                // Footer with signatures and pagination
+                // Page Footer
                 page.Footer().Column(col =>
                 {
-                    col.Item().PaddingTop(10).Row(sigRow =>
+                    col.Item().PaddingTop(6).LineHorizontal(0.5f).LineColor("#e5e7eb");
+                    col.Item().PaddingTop(2).Row(r =>
                     {
-                        sigRow.RelativeItem().Column(c =>
+                        r.RelativeItem().Text("Reporte de Asistencia Semanal Bai Fen Bai (百分百) · Documento Confidencial para Pago de Nómina").FontSize(6.8f).FontColor("#6b7280");
+                        r.RelativeItem().AlignRight().Text(text =>
                         {
-                            c.Item().AlignCenter().LineHorizontal(0.8f).LineColor("#8c959f");
-                            c.Item().PaddingTop(2).AlignCenter().Text("Elaborado / 制表人: Recursos Humanos (人事部)").FontSize(6.5f).FontColor("#57606a");
-                        });
-                        sigRow.ConstantItem(30);
-                        sigRow.RelativeItem().Column(c =>
-                        {
-                            c.Item().AlignCenter().LineHorizontal(0.8f).LineColor("#8c959f");
-                            c.Item().PaddingTop(2).AlignCenter().Text("Autorizado / 审批人: Gerente de Sucursal (店长)").FontSize(6.5f).FontColor("#57606a");
-                        });
-                        sigRow.ConstantItem(30);
-                        sigRow.RelativeItem().Column(c =>
-                        {
-                            c.Item().AlignCenter().LineHorizontal(0.8f).LineColor("#8c959f");
-                            c.Item().PaddingTop(2).AlignCenter().Text("Auditoría / 财务稽核: Grupo Comercial Hualong").FontSize(6.5f).FontColor("#57606a");
-                        });
-                    });
-
-                    col.Item().PaddingTop(4).Row(pageRow =>
-                    {
-                        pageRow.RelativeItem().Text("Documento oficial para cálculo de nómina y cumplimiento laboral | 华龙商业集团考勤核算凭证")
-                            .FontSize(6.5f).Italic().FontColor("#8c959f");
-                        pageRow.RelativeItem().AlignRight().Text(x =>
-                        {
-                            x.DefaultTextStyle(t => t.FontSize(6.5f).FontColor("#57606a"));
-                            x.Span("Página / 页码 ");
-                            x.CurrentPageNumber();
-                            x.Span(" / ");
-                            x.TotalPages();
+                            text.Span("Página / 第 ").FontSize(6.8f).FontColor("#6b7280");
+                            text.CurrentPageNumber().FontSize(6.8f).Bold();
+                            text.Span(" de / 共 ").FontSize(6.8f).FontColor("#6b7280");
+                            text.TotalPages().FontSize(6.8f).Bold();
+                            text.Span(" 页").FontSize(6.8f).FontColor("#6b7280");
                         });
                     });
                 });

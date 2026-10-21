@@ -19,6 +19,24 @@ public static class AttendanceTranslationHelper
         _ => status.ToString()
     };
 
+    public static string ToBilingualShiftStatus(
+        AttendanceStatus status,
+        bool requiresReview = false,
+        bool hasPunches = true,
+        bool isFuture = false,
+        bool isJustifiedEarlyExit = false)
+    {
+        if (isFuture) return "Programado / 待出勤";
+        if (isJustifiedEarlyExit) return "Salida justificada / 批准提前下班";
+        if (requiresReview && status == AttendanceStatus.Incomplete) return "Checada incompleta / 打卡不全";
+        if (requiresReview) return "Pendiente de revisión / 待核查";
+        if (status == AttendanceStatus.Absent && !hasPunches) return "Sin checadas / 无打卡记录";
+        if (status == AttendanceStatus.OnTime) return "Completo / 完整";
+        if (status == AttendanceStatus.Late) return "Retardo / 迟到";
+        if (status == AttendanceStatus.EarlyExit) return "Salida anticipada / 早退";
+        return ToBilingualStatus(status);
+    }
+
     public static string ToBilingualStatus(string? statusStr)
     {
         if (string.IsNullOrWhiteSpace(statusStr)) return "-";
