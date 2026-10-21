@@ -53,6 +53,8 @@ fi
 
 # 3. Mover binarios compilados de la API y Frontend
 echo "📦 [3/6] Instalando binarios de API y Frontend..."
+systemctl stop checador-api.service 2>/dev/null || true
+
 if [ -d "api" ]; then
     cp -r api/* /var/www/checador-api/
 fi
