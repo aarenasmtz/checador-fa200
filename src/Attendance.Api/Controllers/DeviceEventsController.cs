@@ -15,7 +15,9 @@ public record DeviceHeartbeatRequest(
     string? SerialNumber = null,
     int PendingQueueCount = 0,
     DateTime? LastSyncAt = null,
-    string? LastError = null
+    string? LastError = null,
+    DateTime? LastSuccessfulSyncAt = null,
+    int? LastSyncRecordsCount = null
 );
 
 public record SingleEventIngestRequest(
@@ -184,6 +186,16 @@ public class DeviceEventsController : ControllerBase
         if (request.LastSyncAt.HasValue)
         {
             device.LastSyncAt = request.LastSyncAt.Value;
+        }
+
+        if (request.LastSuccessfulSyncAt.HasValue)
+        {
+            device.LastSuccessfulSyncAt = request.LastSuccessfulSyncAt.Value;
+        }
+
+        if (request.LastSyncRecordsCount.HasValue)
+        {
+            device.LastSyncRecordsCount = request.LastSyncRecordsCount.Value;
         }
 
         device.LastErrorMessage = request.LastError;

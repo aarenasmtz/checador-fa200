@@ -257,6 +257,10 @@ public class BiometricIngestionService : IBiometricIngestionService
         // Update Device heartbeat and status
         device.LastConnectionAt = DateTime.UtcNow;
         device.Status = DeviceStatus.Online;
+        device.LastSyncAt = DateTime.UtcNow;
+        device.LastSuccessfulSyncAt = DateTime.UtcNow;
+        device.LastSyncRecordsCount = persistedCount;
+        device.LastErrorMessage = null;
         if (persistedCount > 0)
         {
             device.LastEventAt = DateTime.UtcNow;

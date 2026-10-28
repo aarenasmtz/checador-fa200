@@ -58,7 +58,13 @@ $MigrationScript = Join-Path $RootDir "publish\migration_incidents.sql"
 if (Test-Path $MigrationScript) {
     Copy-Item $MigrationScript "$DistDir\migration_incidents.sql"
 }
+$VpnMigrationScript = Join-Path $RootDir "publish\migration_vpn_devices.sql"
+if (Test-Path $VpnMigrationScript) {
+    Copy-Item $VpnMigrationScript "$DistDir\migration_vpn_devices.sql"
+}
+Copy-Item (Join-Path $RootDir "scripts\server_fa200_vpn_sync.py") "$DistDir\api\server_fa200_vpn_sync.py"
 Copy-Item (Join-Path $RootDir "scripts\deployment\checador-api.service") "$DistDir\checador-api.service"
+Copy-Item (Join-Path $RootDir "scripts\deployment\checador-sync.service") "$DistDir\checador-sync.service"
 Copy-Item (Join-Path $RootDir "scripts\deployment\checador.nginx.conf") "$DistDir\checador.nginx.conf"
 Copy-Item (Join-Path $RootDir "scripts\deployment\setup_vps_checador.sh") "$DistDir\setup_vps_checador.sh"
 

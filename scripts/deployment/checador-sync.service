@@ -1,0 +1,20 @@
+[Unit]
+Description=Checador FA200 Multi-Sucursal VPN Sync Engine (GL.iNet Mango)
+After=network.target checador-api.service
+Wants=checador-api.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/checador-api
+ExecStart=/usr/bin/python3 /var/www/checador-api/server_fa200_vpn_sync.py
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=checador-sync
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

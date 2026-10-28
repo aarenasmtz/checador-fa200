@@ -22,9 +22,21 @@ public class BiometricDevice
     public DeviceConnectionMode ConnectionMode { get; set; } = DeviceConnectionMode.LocalAgent;
     public DeviceStatus Status { get; set; } = DeviceStatus.Simulated;
 
+    public bool IsEnabled { get; set; } = true;
+    public string TimeZoneId { get; set; } = "America/Mexico_City";
+    public int SyncIntervalSeconds { get; set; } = 30;
+
     public DateTime? LastConnectionAt { get; set; }
     public DateTime? LastEventAt { get; set; }
     public DateTime? LastSyncAt { get; set; }
+    public DateTime? LastSyncAttemptAt { get; set; }
+    public DateTime? LastSuccessfulSyncAt { get; set; }
+    public int LastSyncRecordsCount { get; set; } = 0;
+    public bool IsSyncInProgress { get; set; } = false;
+
+    public string? VpnSubnet { get; set; } // e.g. "10.10.1.0/24"
+    public string? VpnClientIp { get; set; } // e.g. "10.10.0.2"
+
     public int PendingQueueCount { get; set; } = 0;
     public string? LastErrorMessage { get; set; }
     public string? FirmwareVersion { get; set; }

@@ -51,6 +51,13 @@ if [ -f "migration_incidents.sql" ]; then
     docker exec -u 0 mssql-server rm -f /var/opt/mssql/migration_incidents.sql
 fi
 
+if [ -f "migration_vpn_devices.sql" ]; then
+    echo "• Aplicando migraciones de soporte VPN Mango a ChecadorDb..."
+    docker cp migration_vpn_devices.sql mssql-server:/var/opt/mssql/migration_vpn_devices.sql
+    docker exec mssql-server /opt/mssql-tools18/bin/sqlcmd -S localhost -U wpcadminaam -P "Aaron2804#" -d ChecadorDb -C -i /var/opt/mssql/migration_vpn_devices.sql || true
+    docker exec -u 0 mssql-server rm -f /var/opt/mssql/migration_vpn_devices.sql
+fi
+
 # 3. Mover binarios compilados de la API y Frontend
 echo "📦 [3/6] Instalando binarios de API y Frontend..."
 systemctl stop checador-api.service 2>/dev/null || true
@@ -66,15 +73,31 @@ fi
 chown -R www-data:www-data /var/www/checador-api
 chown -R www-data:www-data /var/www/checador-web
 
-# 4. Configurar e Iniciar Servicio Systemd Independiente
-echo "⚙️ [4/6] Configurando servicio systemd checador-api (puerto 5081)..."
+# 4. Configurar e Iniciar Servicios Systemd Independientes
+echo "⚙️ [4/6] Configurando servicios systemd checador-api (puerto 5081) y checador-sync..."
 if [ -f "checador-api.service" ]; then
     cp checador-api.service /etc/systemd/system/checador-api.service
+fi
+
+if [ -f "checador-sync.service" ]; then
+    cp checador-sync.service /etc/systemd/system/checador-sync.service
+fi
+
+# Instalar pyzk si falta
+if ! python3 -c "import zk" 2>/dev/null; then
+    echo "• Instalando biblioteca pyzk para lector de checadores..."
+    apt-get update -qq && apt-get install -y -qq python3-pip python3-venv 2>/dev/null || true
+    python3 -m pip install --break-system-packages pyzk 2>/dev/null || pip install pyzk 2>/dev/null || true
 fi
 
 systemctl daemon-reload
 systemctl enable checador-api.service
 systemctl restart checador-api.service
+
+if python3 -c "import zk" 2>/dev/null && [ -f "/etc/systemd/system/checador-sync.service" ]; then
+    systemctl enable checador-sync.service
+    systemctl restart checador-sync.service
+fi
 
 # 5. Configurar Nginx para Subdominios del Checador
 echo "🌐 [5/6] Configurando Nginx Reverse Proxy (checador.wpcbajio.com & api-checador.wpcbajio.com)..."

@@ -48,7 +48,7 @@ public class Fa200BiometricProvider : IBiometricProvider
             _logger.LogWarning(ex, "[Fa200BiometricProvider] No se pudo conectar directamente por TCP al reloj {DeviceCode} ({Ip}:{Port}). Operando en modo Agente Local.", device.Code, device.IpAddress, device.Port);
         }
 
-        return true;
+        return false;
     }
 
     public Task<IEnumerable<BiometricEvent>> GetEventsAsync(BiometricDevice device, DateTime? from, CancellationToken cancellationToken = default)
