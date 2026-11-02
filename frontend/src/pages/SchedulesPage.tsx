@@ -14,7 +14,10 @@ import {
   Sun,
   Sliders,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  LayoutGrid,
+  Table as TableIcon,
+  Search
 } from 'lucide-react';
 import api from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
@@ -59,6 +62,17 @@ export const SchedulesPage: React.FC = () => {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Mosaico / Lista mode with localStorage persistence
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>(() => {
+    return (localStorage.getItem('schedules_view_mode') as 'grid' | 'table') || 'grid';
+  });
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const handleSetViewMode = (mode: 'grid' | 'table') => {
+    setViewMode(mode);
+    localStorage.setItem('schedules_view_mode', mode);
+  };
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -277,38 +291,88 @@ export const SchedulesPage: React.FC = () => {
     }
   };
 
+  const filteredSchedules = schedules.filter((s) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return s.name.toLowerCase().includes(term);
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <CalendarClock className="w-6 h-6 text-indigo-600" />
+          <h1 className="text-xl font-bold text-[#203441] tracking-tight flex items-center gap-2">
+            <CalendarClock className="w-6 h-6 text-[#00695F]" />
             {t('schedules.title')}
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-[#60727E] mt-1">
             {language === 'zh-CN'
               ? 'ABC 班次日程：配置4次打卡逻辑、固定/灵活就餐、跨午夜夜班及容差窗口'
               : 'Configuración de Turnos y 4 Marcaciones: Entrada, Comida (Fija o Flexible), Tolerancias, Jornadas Nocturnas y Ventanas'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {/* Mosaico / Lista Selector */}
+          <div className="flex items-center bg-white p-1 rounded-xl border border-[#DFE7EB] shadow-2xs">
+            <button
+              type="button"
+              onClick={() => handleSetViewMode('grid')}
+              className={`p-2 rounded-lg transition cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center ${
+                viewMode === 'grid'
+                  ? 'bg-[#00695F] text-white shadow-2xs'
+                  : 'text-[#60727E] hover:text-[#203441] hover:bg-slate-50'
+              }`}
+              title={language === 'zh-CN' ? '网格卡片视图' : 'Vista en cuadrícula de tarjetas (Mosaico)'}
+              aria-label="Mosaico"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetViewMode('table')}
+              className={`p-2 rounded-lg transition cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center ${
+                viewMode === 'table'
+                  ? 'bg-[#00695F] text-white shadow-2xs'
+                  : 'text-[#60727E] hover:text-[#203441] hover:bg-slate-50'
+              }`}
+              title={language === 'zh-CN' ? '列表表格视图' : 'Vista en tabla compacta (Lista)'}
+              aria-label="Lista"
+            >
+              <TableIcon className="w-4 h-4" />
+            </button>
+          </div>
+
           <button
             onClick={fetchSchedules}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-[#DFE7EB] text-xs font-semibold text-[#203441] hover:bg-slate-50 shadow-2xs transition min-h-[40px]"
           >
-            <RefreshCw className="w-4 h-4 text-indigo-600" />
+            <RefreshCw className="w-4 h-4 text-[#00695F]" />
             <span>{language === 'zh-CN' ? '刷新' : 'Actualizar'}</span>
           </button>
 
           <button
             onClick={handleOpenAddModal}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white shadow-xs transition"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#00695F] hover:bg-[#005149] text-xs font-semibold text-white shadow-xs transition min-h-[40px]"
           >
             <Plus className="w-4 h-4" />
             <span>{language === 'zh-CN' ? '添加新班次' : 'Nuevo Horario'}</span>
           </button>
+        </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="bg-white border border-[#DFE7EB] rounded-2xl p-4 shadow-xs">
+        <div className="relative w-full max-w-md">
+          <Search className="w-4 h-4 absolute left-3 top-3 text-[#60727E]" />
+          <input
+            type="text"
+            placeholder={language === 'zh-CN' ? '搜索班次名称...' : 'Buscar turno u horario por nombre...'}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-[#DFE7EB] rounded-xl text-xs text-[#203441] placeholder-[#60727E] focus:bg-white focus:border-[#00695F] focus:outline-none min-h-[42px]"
+          />
         </div>
       </div>
 
@@ -330,21 +394,21 @@ export const SchedulesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Grid of Schedules */}
+      {/* Main Content: Loading / Empty / Grid / Table */}
       {loading ? (
-        <div className="text-center py-12 text-slate-400 animate-pulse text-xs">
+        <div className="text-center py-12 text-[#60727E] animate-pulse text-xs">
           {t('common.loading')}
         </div>
-      ) : schedules.length === 0 ? (
-        <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mx-auto">
+      ) : filteredSchedules.length === 0 ? (
+        <div className="bg-white border border-dashed border-[#DFE7EB] rounded-2xl p-12 text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-[#E6F2F0] border border-[#00695F]/20 flex items-center justify-center text-[#00695F] mx-auto">
             <CalendarClock className="w-7 h-7" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-800">
-              {language === 'zh-CN' ? '未配置工作班次' : 'No hay horarios configurados'}
+            <h3 className="text-sm font-bold text-[#203441]">
+              {language === 'zh-CN' ? '未找到符合条件的班次' : 'No se encontraron horarios'}
             </h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+            <p className="text-xs text-[#60727E] mt-1 max-w-md mx-auto">
               {language === 'zh-CN'
                 ? '点击上方“添加新班次”创建你的第一个工作作息时间表。'
                 : 'Haga clic en "+ Nuevo Horario" para crear turnos con horarios de entrada, salida, comida y tolerancias.'}
@@ -352,15 +416,16 @@ export const SchedulesPage: React.FC = () => {
           </div>
           <button
             onClick={handleOpenAddModal}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white shadow-xs transition"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#00695F] hover:bg-[#005149] text-xs font-semibold text-white shadow-xs transition"
           >
             <Plus className="w-4 h-4" />
             <span>{language === 'zh-CN' ? '立即添加班次' : 'Crear Horario Ahora'}</span>
           </button>
         </div>
-      ) : (
+      ) : viewMode === 'grid' ? (
+        /* ==================== 1. GRID (MOSAICO) ==================== */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {schedules.map((s) => {
+          {filteredSchedules.map((s) => {
             const isWorkingDay = (dayNum: number) => {
               const wd = s.workDays?.find((w) => w.dayOfWeek === dayNum);
               return wd?.isWorkingDay ?? false;
@@ -369,20 +434,20 @@ export const SchedulesPage: React.FC = () => {
             return (
               <div
                 key={s.id}
-                className="bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition shadow-xs space-y-4"
+                className="bg-white border border-[#DFE7EB] rounded-2xl p-5 hover:border-[#00695F]/40 hover:shadow-md transition shadow-xs space-y-4"
               >
                 <div className="flex items-start justify-between">
                   <div className="pr-2">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-slate-900 text-base">{s.name}</h3>
+                      <h3 className="font-bold text-[#203441] text-base">{s.name}</h3>
                       {s.isOvernight && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-900 text-indigo-100" title="Cruza medianoche">
-                          <Moon className="w-3 h-3 text-indigo-300" />
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#00695F] text-white" title="Cruza medianoche">
+                          <Moon className="w-3 h-3 text-emerald-200" />
                           Nocturno
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-slate-400 font-mono">
+                    <span className="text-xs text-[#60727E] font-mono">
                       {s.assignedEmployeesCount || 0} {language === 'zh-CN' ? '名员工使用' : 'empleados vinculados'}
                     </span>
                   </div>
@@ -391,7 +456,7 @@ export const SchedulesPage: React.FC = () => {
                     <button
                       onClick={() => handleOpenEditModal(s)}
                       title="Editar horario"
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition"
+                      className="p-1.5 rounded-lg text-[#60727E] hover:text-[#00695F] hover:bg-[#E6F2F0] transition"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
@@ -399,7 +464,7 @@ export const SchedulesPage: React.FC = () => {
                     <button
                       onClick={() => setDeletingSchedule(s)}
                       title="Eliminar horario"
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                      className="p-1.5 rounded-lg text-[#60727E] hover:text-rose-600 hover:bg-rose-50 transition"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -407,28 +472,28 @@ export const SchedulesPage: React.FC = () => {
                 </div>
 
                 {/* Time Block */}
-                <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200 flex items-center justify-between">
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-[#DFE7EB] flex items-center justify-between">
                   <div className="text-center flex-1">
-                    <span className="text-[11px] text-slate-500 uppercase block font-semibold flex items-center justify-center gap-1">
+                    <span className="text-[11px] text-[#60727E] uppercase block font-semibold flex items-center justify-center gap-1">
                       <Sun className="w-3 h-3 text-amber-500" /> {t('common.entry')}
                     </span>
-                    <span className="text-lg font-bold text-indigo-600 font-mono">
+                    <span className="text-lg font-bold text-[#00695F] font-mono">
                       {s.startTime ? s.startTime.substring(0, 5) : '08:00'}
                     </span>
                   </div>
-                  <div className="h-8 w-[1px] bg-slate-200" />
+                  <div className="h-8 w-[1px] bg-[#DFE7EB]" />
                   <div className="text-center flex-1">
-                    <span className="text-[11px] text-slate-500 uppercase block font-semibold flex items-center justify-center gap-1">
-                      {s.isOvernight ? <Moon className="w-3 h-3 text-indigo-400" /> : <Sun className="w-3 h-3 text-amber-500" />} {t('common.exit')}
+                    <span className="text-[11px] text-[#60727E] uppercase block font-semibold flex items-center justify-center gap-1">
+                      {s.isOvernight ? <Moon className="w-3 h-3 text-emerald-600" /> : <Sun className="w-3 h-3 text-amber-500" />} {t('common.exit')}
                     </span>
-                    <span className="text-lg font-bold text-slate-800 font-mono">
+                    <span className="text-lg font-bold text-[#203441] font-mono">
                       {s.endTime ? s.endTime.substring(0, 5) : '18:00'}
                     </span>
                   </div>
                 </div>
 
                 {/* Rules & Food Breakdown */}
-                <div className="space-y-2 text-xs text-slate-600">
+                <div className="space-y-2 text-xs text-[#60727E]">
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5 font-medium">
                       <Clock className="w-3.5 h-3.5 text-amber-500" />
@@ -440,42 +505,42 @@ export const SchedulesPage: React.FC = () => {
                   </div>
 
                   {s.hasMealBreak ? (
-                    <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80 space-y-1.5">
+                    <div className="p-2.5 bg-slate-50 rounded-xl border border-[#DFE7EB] space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 font-semibold text-slate-700">
-                          <UtensilsCrossed className="w-3.5 h-3.5 text-indigo-500" />
+                        <span className="flex items-center gap-1.5 font-semibold text-[#203441]">
+                          <UtensilsCrossed className="w-3.5 h-3.5 text-[#00695F]" />
                           {s.mealBreakMode === 'Flexible' ? 'Comida Flexible' : 'Comida Programada'}
                         </span>
-                        <span className="font-bold text-indigo-700 font-mono">
+                        <span className="font-bold text-[#00695F] font-mono">
                           {s.mealBreakMode === 'Flexible'
                             ? `${s.mealDurationMinutes || 60} min máx`
                             : `${s.mealStartTime ? s.mealStartTime.substring(0, 5) : '13:00'} - ${s.mealEndTime ? s.mealEndTime.substring(0, 5) : '14:00'}`}
                         </span>
                       </div>
-                      <div className="text-[11px] text-slate-500 flex justify-between">
+                      <div className="text-[11px] text-[#60727E] flex justify-between">
                         <span>Tolerancia regreso:</span>
-                        <span className="font-mono font-medium text-slate-700">+{s.mealToleranceMinutes ?? 5} min</span>
+                        <span className="font-mono font-medium text-[#203441]">+{s.mealToleranceMinutes ?? 5} min</span>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between text-slate-500 italic bg-slate-50 px-2 py-1 rounded">
+                    <div className="flex items-center justify-between text-[#60727E] italic bg-slate-50 px-2.5 py-1.5 rounded-lg border border-[#DFE7EB]">
                       <span className="flex items-center gap-1 text-[11px]">
-                        <UtensilsCrossed className="w-3 h-3 text-slate-400" />
+                        <UtensilsCrossed className="w-3 h-3 text-[#60727E]" />
                         Jornada Continua (Sin Salida a Comer)
                       </span>
-                      <span className="text-[10px] font-mono font-semibold text-slate-600">2 Checadas</span>
+                      <span className="text-[10px] font-mono font-semibold text-[#203441]">2 Checadas</span>
                     </div>
                   )}
 
                   <div className="flex items-center justify-between pt-1">
-                    <span className="text-slate-500 font-medium">Jornada esperada:</span>
-                    <span className="font-mono font-bold text-slate-700">{s.expectedHours} hrs</span>
+                    <span className="text-[#60727E] font-medium">Jornada esperada:</span>
+                    <span className="font-mono font-bold text-[#203441]">{s.expectedHours} hrs</span>
                   </div>
                 </div>
 
                 {/* Work days badge list */}
-                <div className="pt-3 border-t border-slate-100">
-                  <span className="text-[11px] text-slate-500 block mb-2 font-medium">{t('schedules.workDays')}:</span>
+                <div className="pt-3 border-t border-[#DFE7EB]/60">
+                  <span className="text-[11px] text-[#60727E] block mb-2 font-medium">{t('schedules.workDays')}:</span>
                   <div className="flex flex-wrap gap-1">
                     {daysList.map((day) => {
                       const active = isWorkingDay(day.num);
@@ -484,7 +549,7 @@ export const SchedulesPage: React.FC = () => {
                           key={day.num}
                           className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
                             active
-                              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                              ? 'bg-[#E6F2F0] text-[#00695F] border border-[#00695F]/20'
                               : 'bg-slate-100 text-slate-400'
                           }`}
                         >
@@ -497,6 +562,108 @@ export const SchedulesPage: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      ) : (
+        /* ==================== 2. TABLE / LIST (LISTA) ==================== */
+        <div className="space-y-3">
+          {/* Mobile cards */}
+          <div className="block sm:hidden space-y-3">
+            {filteredSchedules.map((s) => (
+              <div key={s.id} className="bg-white border border-[#DFE7EB] rounded-2xl p-4 shadow-xs space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-bold text-[#203441] text-sm">{s.name}</h4>
+                    <span className="text-xs text-[#00695F] font-mono font-bold">
+                      {s.startTime?.substring(0, 5)} - {s.endTime?.substring(0, 5)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleOpenEditModal(s)}
+                      className="p-1.5 rounded-lg text-[#00695F] bg-[#E6F2F0]"
+                      title="Editar"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setDeletingSchedule(s)}
+                      className="p-1.5 rounded-lg text-rose-600 bg-rose-50"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="text-xs text-[#60727E] space-y-1">
+                  <p>🍽️ {s.hasMealBreak ? (s.mealBreakMode === 'Flexible' ? `${s.mealDurationMinutes}m flex.` : `${s.mealStartTime?.substring(0, 5)}-${s.mealEndTime?.substring(0, 5)}`) : 'Jornada continua'}</p>
+                  <p>⏱️ Tolerancia: {s.toleranceMinutes} min · Esperado: {s.expectedHours} hrs</p>
+                  <p>👥 {s.assignedEmployeesCount || 0} empleados asignados</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden sm:block bg-white border border-[#DFE7EB] rounded-2xl overflow-hidden shadow-xs">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50/90 text-[#60727E] font-semibold border-b border-[#DFE7EB]">
+                <tr>
+                  <th className="py-3 px-4">Nombre Turno</th>
+                  <th className="py-3 px-4">Horario Entrada - Salida</th>
+                  <th className="py-3 px-4">Modalidad Comida</th>
+                  <th className="py-3 px-4 text-center">Tolerancia</th>
+                  <th className="py-3 px-4 text-center">Jornada</th>
+                  <th className="py-3 px-4 text-center">Empleados</th>
+                  <th className="py-3 px-4 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#DFE7EB]/60">
+                {filteredSchedules.map((s) => (
+                  <tr key={s.id} className="hover:bg-slate-50/80 transition">
+                    <td className="py-3 px-4 font-semibold text-[#203441]">{s.name}</td>
+                    <td className="py-3 px-4 font-mono font-bold text-[#00695F]">
+                      {s.startTime?.substring(0, 5)} - {s.endTime?.substring(0, 5)}
+                      {s.isOvernight && <span className="ml-1 text-[10px] bg-slate-900 text-white px-1.5 py-0.5 rounded">Nocturno</span>}
+                    </td>
+                    <td className="py-3 px-4 text-[#60727E]">
+                      {s.hasMealBreak
+                        ? s.mealBreakMode === 'Flexible'
+                          ? `Flexible (${s.mealDurationMinutes} min)`
+                          : `Fija (${s.mealStartTime?.substring(0, 5)} - ${s.mealEndTime?.substring(0, 5)})`
+                        : 'Continua (Sin comida)'}
+                    </td>
+                    <td className="py-3 px-4 text-center font-mono text-amber-700 font-bold">
+                      +{s.toleranceMinutes} min
+                    </td>
+                    <td className="py-3 px-4 text-center font-mono font-medium text-[#203441]">
+                      {s.expectedHours} hrs
+                    </td>
+                    <td className="py-3 px-4 text-center font-bold text-[#203441]">
+                      {s.assignedEmployeesCount || 0}
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => handleOpenEditModal(s)}
+                          className="p-1.5 rounded-lg text-[#60727E] hover:text-[#00695F] hover:bg-[#E6F2F0] transition"
+                          title="Editar"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeletingSchedule(s)}
+                          className="p-1.5 rounded-lg text-[#60727E] hover:text-rose-600 hover:bg-rose-50 transition"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

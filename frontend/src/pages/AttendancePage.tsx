@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
 import { AttendanceMatrixView } from '../components/AttendanceMatrixView';
+import { DailyAttendanceDetailModal } from '../components/DailyAttendanceDetailModal';
 import {
   CalendarCheck,
   RefreshCw,
@@ -23,7 +24,8 @@ import {
   Calendar,
   Building2,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Eye
 } from 'lucide-react';
 
 export const AttendancePage: React.FC = () => {
@@ -63,6 +65,7 @@ export const AttendancePage: React.FC = () => {
 
   // Manual Audit Modal State
   const [editingRecord, setEditingRecord] = useState<any | null>(null);
+  const [selectedDetailRecord, setSelectedDetailRecord] = useState<any | null>(null);
   const [auditFormData, setAuditFormData] = useState({
     firstEntry: '',
     mealExit: '',
@@ -331,11 +334,11 @@ export const AttendancePage: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
           {/* Tabs switch */}
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+          <div className="flex bg-[#F4F7F8] p-1 rounded-xl border border-[#DFE7EB] text-xs">
             <button
               onClick={() => { setActiveTab('daily'); setPage(1); }}
               className={`px-3 py-2 rounded-lg font-semibold transition cursor-pointer min-h-[40px] flex items-center gap-1.5 ${
-                activeTab === 'daily' ? 'bg-white text-indigo-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                activeTab === 'daily' ? 'bg-white text-[#00695F] shadow-xs font-bold border border-[#DFE7EB]' : 'text-[#60727E] hover:text-[#203441]'
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
@@ -344,7 +347,7 @@ export const AttendancePage: React.FC = () => {
             <button
               onClick={() => setActiveTab('matrix')}
               className={`px-3 py-2 rounded-lg font-semibold transition cursor-pointer min-h-[40px] flex items-center gap-1.5 ${
-                activeTab === 'matrix' ? 'bg-white text-indigo-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                activeTab === 'matrix' ? 'bg-white text-[#00695F] shadow-xs font-bold border border-[#DFE7EB]' : 'text-[#60727E] hover:text-[#203441]'
               }`}
             >
               <Calendar className="w-3.5 h-3.5" />
@@ -353,7 +356,7 @@ export const AttendancePage: React.FC = () => {
             <button
               onClick={() => { setActiveTab('raw'); setPage(1); }}
               className={`px-3 py-2 rounded-lg font-semibold transition cursor-pointer min-h-[40px] flex items-center gap-1.5 ${
-                activeTab === 'raw' ? 'bg-white text-indigo-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                activeTab === 'raw' ? 'bg-white text-[#00695F] shadow-xs font-bold border border-[#DFE7EB]' : 'text-[#60727E] hover:text-[#203441]'
               }`}
             >
               <Cpu className="w-3.5 h-3.5" />
@@ -365,10 +368,10 @@ export const AttendancePage: React.FC = () => {
           <button
             onClick={handleReprocess}
             disabled={reprocessing}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold border border-slate-200 shadow-xs transition disabled:opacity-50 min-h-[40px] cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-[#F4F7F8] text-[#203441] rounded-xl text-xs font-semibold border border-[#DFE7EB] shadow-xs transition disabled:opacity-50 min-h-[40px] cursor-pointer"
             title={isZh ? '依据现有排班重新运算' : 'Reprocesar asistencias con horario vigente'}
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-indigo-600 ${reprocessing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-[#00695F] ${reprocessing ? 'animate-spin' : ''}`} />
             <span>{isZh ? '重新计算' : t('common.reprocess')}</span>
           </button>
         </div>
@@ -601,21 +604,21 @@ export const AttendancePage: React.FC = () => {
                                   <div className="flex items-center justify-center gap-1.5 pt-0.5">
                                     <button
                                       type="button"
-                                      onClick={() => toggleRowExpansion(row.id)}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition cursor-pointer min-h-[32px] border border-slate-200"
-                                      title={isZh ? '查看考勤完整明细' : 'Ver detalle ampliado'}
+                                      onClick={() => setSelectedDetailRecord(row)}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#E6F2F0] text-[#00695F] hover:bg-[#00695F] hover:text-white transition cursor-pointer min-h-[32px] border border-[#B2DFDB]"
+                                      title={isZh ? '查看四次打卡卡片明细' : 'Ver detalle de la jornada (4 checadas)'}
                                     >
-                                      <span>{isExpanded ? (isZh ? '收起' : 'Ocultar') : (isZh ? 'Detalle' : 'Detalle')}</span>
-                                      {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                      <Eye className="w-3.5 h-3.5" />
+                                      <span>{isZh ? '详情' : 'Detalle'}</span>
                                     </button>
 
                                     <button
                                       type="button"
                                       onClick={() => openAuditModal(row)}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white transition cursor-pointer min-h-[32px] border border-indigo-200"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-[#203441] hover:bg-[#F4F7F8] transition cursor-pointer min-h-[32px] border border-[#DFE7EB]"
                                       title={isZh ? '人工审核修正' : 'Auditar o corregir marcación'}
                                     >
-                                      <Edit3 className="w-3.5 h-3.5" />
+                                      <Edit3 className="w-3.5 h-3.5 text-[#60727E]" />
                                       <span>{isZh ? '修正' : 'Auditar'}</span>
                                     </button>
                                   </div>
@@ -877,20 +880,20 @@ export const AttendancePage: React.FC = () => {
                           )}
 
                           {/* Card Action Buttons (Touch Target >= 44px) */}
-                          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#DFE7EB]">
                             <button
                               type="button"
-                              onClick={() => toggleRowExpansion(row.id)}
-                              className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-xs font-semibold min-h-[44px] cursor-pointer"
+                              onClick={() => setSelectedDetailRecord(row)}
+                              className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-[#B2DFDB] text-[#00695F] bg-[#E6F2F0] hover:bg-[#00695F] hover:text-white text-xs font-semibold min-h-[44px] cursor-pointer transition shadow-2xs"
                             >
-                              <span>{isExpanded ? (isZh ? '收起明细' : 'Menos Detalle') : (isZh ? '查看完整明细' : 'Ver Detalle')}</span>
-                              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              <Eye className="w-4 h-4" />
+                              <span>{isZh ? '查看四卡' : 'Ver Detalle'}</span>
                             </button>
 
                             <button
                               type="button"
                               onClick={() => openAuditModal(row)}
-                              className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold min-h-[44px] cursor-pointer shadow-xs"
+                              className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-[#00695F] hover:bg-[#00524A] text-white text-xs font-semibold min-h-[44px] cursor-pointer shadow-xs transition"
                             >
                               <Edit3 className="w-4 h-4" />
                               <span>{isZh ? '人工审核' : 'Auditar'}</span>
@@ -1163,6 +1166,14 @@ export const AttendancePage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+      {/* Daily 4-Punch Detail Modal ("Tarjetas claras") */}
+      {selectedDetailRecord && (
+        <DailyAttendanceDetailModal
+          record={selectedDetailRecord}
+          onClose={() => setSelectedDetailRecord(null)}
+          onOpenAudit={(rec) => openAuditModal(rec)}
+        />
       )}
     </div>
   );

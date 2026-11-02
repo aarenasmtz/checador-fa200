@@ -4,7 +4,8 @@ import {
   AlertTriangle,
   Layers,
   CheckSquare,
-  Square
+  Square,
+  ShieldCheck
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -304,80 +305,82 @@ export const SettingsPage: React.FC = () => {
         </p>
       </div>
 
-      {/* Prominent Physical Device Notice */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-xs relative overflow-hidden">
+      {/* Active Integration Status Card (Replaces obsolete pending notice) */}
+      <div className="bg-[#E6F2F0] border border-[#00695F]/30 rounded-2xl p-5 shadow-xs relative overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-12 h-12 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0">
-              <AlertTriangle className="w-6 h-6" />
+          <div className="flex items-start gap-3.5">
+            <div className="w-12 h-12 rounded-xl bg-[#00695F] text-white flex items-center justify-center shrink-0 shadow-xs">
+              <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-900 text-base">
-                  {t('settings.badgePending')}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-[#203441] text-base">
+                  {language === 'zh-CN' ? 'FA200 生物识别硬件已完成对接验证' : 'Integración Biométrica FA200 Homologada'}
                 </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-100 text-amber-800 border border-amber-300 font-bold">
-                  PHASE 1 SECURE
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-[#00695F] text-white font-bold">
+                  PILOTO WIREGUARD ACTIVO
                 </span>
               </div>
-              <p className="text-xs text-slate-600 mt-1 max-w-3xl leading-relaxed">
+              <p className="text-xs text-[#203441] mt-1 max-w-3xl leading-relaxed">
                 {language === 'zh-CN'
-                  ? '目前开发阶段未接入 FA200 实体机。系统完全通过 MockBiometricProvider 运行，未编写任何猜测性的二进制通信命令。当您收到实体机器时，请按本页面提供的 30 步标准化检测规程执行硬件验证。'
-                  : 'En esta etapa el checador FA200 no está presente físicamente. El sistema corre 100% sobre MockBiometricProvider sin inventar protocolos binarios. Al recibir el dispositivo, siga esta lista de 30 pasos para la homologación real.'}
+                  ? 'FA200 硬件与 GL.iNet Mango 路由器 WireGuard VPN 隧道已完成联调，固件 Ver 6.60 经测试可稳定直读打卡记录与指纹面部编码。请在“考勤机设备”模块监控各网点实时连通状态。'
+                  : 'El hardware FA200 y el túnel WireGuard VPN mediante GL.iNet Mango han superado exitosamente las pruebas de lectura TCP 4370 y enrollamiento biométrico. La conectividad actual por sucursal se monitorea en tiempo real desde el módulo Dispositivos.'}
               </p>
             </div>
           </div>
 
-          {/* Progress widget */}
-          <div className="bg-white p-3.5 rounded-xl border border-amber-200 shadow-2xs min-w-[180px] shrink-0 text-center">
-            <span className="text-[11px] text-slate-600 block font-semibold">
-              {language === 'zh-CN' ? '硬件接入准备进度' : 'Progreso de Homologación'}
-            </span>
-            <div className="text-xl font-bold text-slate-900 mt-0.5 font-mono">
-              {completedChecks} / {totalChecks}
-              <span className="text-xs text-indigo-600 ml-1.5 font-bold">({progressPercent}%)</span>
+          {/* Telemetry quick summary */}
+          <div className="bg-white p-3.5 rounded-xl border border-[#00695F]/20 shadow-2xs min-w-[200px] shrink-0 text-xs font-mono space-y-1">
+            <div className="text-[10px] text-[#60727E] font-sans font-semibold border-b border-slate-100 pb-1">
+              {language === 'zh-CN' ? '接入网络参数' : 'Topología de Red Activa'}
             </div>
-            <div className="w-full bg-slate-100 h-2 rounded-full mt-2 overflow-hidden">
-              <div
-                className="bg-indigo-600 h-full transition-all duration-300 rounded-full"
-                style={{ width: `${progressPercent}%` }}
-              />
+            <div className="flex justify-between">
+              <span className="text-[#60727E]">WireGuard:</span>
+              <span className="font-bold text-[#00695F]">10.10.0.0/24</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#60727E]">Puerto FA200:</span>
+              <span className="font-bold text-[#203441]">4370 TCP</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#60727E]">Firmware:</span>
+              <span className="font-bold text-[#203441]">Ver 6.60</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Architecture Decoupling Card */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
-        <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-          <Layers className="w-4 h-4 text-indigo-600" />
+      <div className="bg-white border border-[#DFE7EB] rounded-2xl p-5 shadow-xs space-y-4">
+        <h3 className="font-bold text-[#203441] text-sm flex items-center gap-2">
+          <Layers className="w-4 h-4 text-[#00695F]" />
           {language === 'zh-CN' ? '系统防风险解耦架构 (零破坏集成设计)' : 'Arquitectura Desacoplada Antirriesgo (Diseño Cero Impacto)'}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
           <div className="bg-emerald-50/60 p-4 rounded-xl border border-emerald-200">
             <span className="text-emerald-800 font-bold block mb-1">1. Fa200BiometricProvider (Activo)</span>
-            <p className="text-slate-600 font-sans">
+            <p className="text-[#60727E] font-sans">
               {language === 'zh-CN'
                 ? 'FA200 真实硬件通信层。处理物理打卡传输、网络重连与 SHA-256 存证防重。'
                 : 'Driver real de integración FA200. Comunicación TCP/IP, sincronización de checadas e idempotencia SHA-256.'}
             </p>
           </div>
 
-          <div className="bg-indigo-50/60 p-4 rounded-xl border border-indigo-200">
-            <span className="text-indigo-800 font-bold block mb-1">2. IBiometricProvider (统一契约)</span>
-            <p className="text-slate-600 font-sans">
+          <div className="bg-[#E6F2F0] p-4 rounded-xl border border-[#00695F]/20">
+            <span className="text-[#00695F] font-bold block mb-1">2. IBiometricProvider (统一契约)</span>
+            <p className="text-[#60727E] font-sans">
               {language === 'zh-CN'
                 ? '定义 TestConnectionAsync, PullNewEventsAsync, SyncUsersAsync。解耦硬件实现与考勤工时计算。'
                 : 'Define la interfaz contractual. Desacopla la lógica de negocio del protocolo de comunicación de hardware.'}
             </p>
           </div>
 
-          <div className="bg-blue-50/60 p-4 rounded-xl border border-blue-200">
-            <span className="text-blue-800 font-bold block mb-1">3. Agente Local en Tiempo Real</span>
-            <p className="text-slate-600 font-sans">
+          <div className="bg-slate-50 p-4 rounded-xl border border-[#DFE7EB]">
+            <span className="text-[#203441] font-bold block mb-1">3. Servicio Sync en VPS Hostinger</span>
+            <p className="text-[#60727E] font-sans">
               {language === 'zh-CN'
                 ? '运行于本地节点，实时监听 FA200 硬件端口（4370），毫秒级自动推送打卡数据至云端。'
-                : 'Servicio residente local en red. Sondea el puerto 4370 del FA200 y transmite checadas en tiempo real a la API.'}
+                : 'Servicio checador-sync sondea WireGuard 10.10.1.10:4370 e ingiere a la API en 127.0.0.1:5081.'}
             </p>
           </div>
         </div>
@@ -385,9 +388,9 @@ export const SettingsPage: React.FC = () => {
 
       {/* 30-Check Checklist categorized */}
       <div className="space-y-6">
-        <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-          <CheckSquare className="w-5 h-5 text-indigo-600" />
-          {language === 'zh-CN' ? 'FA200 硬件到货 30 项实操检测清单' : 'Lista de Verificación de 30 Pasos para Hardware FA200'}
+        <h2 className="text-base font-bold text-[#203441] tracking-tight flex items-center gap-2">
+          <CheckSquare className="w-5 h-5 text-[#00695F]" />
+          {language === 'zh-CN' ? 'FA200 硬件到货 30 项实操检测清单' : 'Guía de Verificación Técnica para Hardware FA200'}
         </h2>
 
         {categories.map((cat) => {
@@ -395,13 +398,13 @@ export const SettingsPage: React.FC = () => {
             ? cat.split(' (')[0]
             : (cat.match(/\((.*?)\)/)?.[1] ? `${cat.split('.')[0]}. ${cat.match(/\((.*?)\)/)?.[1]}` : cat);
           return (
-            <div key={cat} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-              <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between">
-                <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+            <div key={cat} className="bg-white border border-[#DFE7EB] rounded-2xl overflow-hidden shadow-xs">
+              <div className="px-4 py-3 bg-slate-50/80 border-b border-[#DFE7EB] flex items-center justify-between">
+                <span className="font-bold text-[#203441] text-xs uppercase tracking-wider">
                   {catTitle}
                 </span>
               </div>
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-[#DFE7EB]/60">
               {CHECKLIST_ITEMS.filter((i) => i.category === cat).map((item) => {
                 const isChecked = !!checkedItems[item.id];
                 return (
@@ -412,7 +415,7 @@ export const SettingsPage: React.FC = () => {
                   >
                     <div className="mt-0.5">
                       {isChecked ? (
-                        <CheckSquare className="w-5 h-5 text-indigo-600" />
+                        <CheckSquare className="w-5 h-5 text-[#00695F]" />
                       ) : (
                         <Square className="w-5 h-5 text-slate-300" />
                       )}
@@ -421,13 +424,13 @@ export const SettingsPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <span
                           className={`font-semibold text-sm ${
-                            isChecked ? 'line-through text-slate-400' : 'text-slate-900'
+                            isChecked ? 'line-through text-slate-400' : 'text-[#203441]'
                           }`}
                         >
                           {language === 'zh-CN' ? item.titleZh : item.titleEs}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-[#60727E] mt-1">
                         {language === 'zh-CN' ? item.descZh : item.descEs}
                       </p>
                     </div>

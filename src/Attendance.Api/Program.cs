@@ -2,6 +2,7 @@ using Attendance.Application.Interfaces;
 using Attendance.Domain.Entities;
 using Attendance.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -135,7 +136,19 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// Configure Forwarded Headers for reverse proxy (Nginx)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+    options.KnownProxies.Add(System.Net.IPAddress.Loopback);
+    options.KnownProxies.Add(System.Net.IPAddress.IPv6Loopback);
+});
+
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 // Auto-migrate & Seed Database in Development
 using (var scope = app.Services.CreateScope())

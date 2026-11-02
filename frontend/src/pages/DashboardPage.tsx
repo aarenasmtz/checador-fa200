@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
+import { DailyAttendanceDetailModal } from '../components/DailyAttendanceDetailModal';
 import {
   Users,
   CheckCircle2,
@@ -17,7 +19,9 @@ import {
   ChevronDown,
   ChevronRight,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Link2,
+  Eye
 } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
@@ -35,6 +39,8 @@ export const DashboardPage: React.FC = () => {
   const [filterTab, setFilterTab] = useState<'ALL' | 'OnTime' | 'Late' | 'Absent' | 'EarlyExit' | 'Incomplete'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedEmployeeId, setExpandedEmployeeId] = useState<number | null>(null);
+  const [selectedDailyRecord, setSelectedDailyRecord] = useState<any | null>(null);
+  const navigate = useNavigate();
 
   const activeRequestIdRef = useRef<number>(0);
 
@@ -307,13 +313,13 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Bottom row: Live punches real-time feed */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+      <div className="bg-white border border-[#DFE7EB] rounded-xl p-5 shadow-xs">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-            <h3 className="font-bold text-sm text-slate-800">{t('dashboard.livePunches')}</h3>
+            <h3 className="font-bold text-sm text-[#203441]">{t('dashboard.livePunches')}</h3>
           </div>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-[#60727E]">
             {language === 'zh-CN' ? '每10秒自动更新 · 实时同步' : 'Actualización cada 10s · Tiempo real'}
           </span>
         </div>
@@ -321,44 +327,79 @@ export const DashboardPage: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500 bg-slate-50/60">
+              <tr className="border-b border-[#DFE7EB] text-[#60727E] bg-slate-50/60">
                 <th className="py-2.5 px-3">{language === 'zh-CN' ? '打卡时间 (日期与时间)' : 'Fecha y Hora'}</th>
                 <th className="py-2.5 px-3">{t('common.name')}</th>
                 <th className="py-2.5 px-3">{t('common.code')}</th>
-                <th className="py-2.5 px-3">{t('common.branch')}</th>
+                <th className="py-2.5 px-3">{language === 'zh-CN' ? '考勤机所在分店' : 'Sucursal Reloj (Origen)'}</th>
                 <th className="py-2.5 px-3">{t('common.status')}</th>
                 <th className="py-2.5 px-3">{t('common.method')}</th>
+                <th className="py-2.5 px-3 text-right">{language === 'zh-CN' ? '操作' : 'Acción'}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[#DFE7EB]/60">
               {recentActivity && recentActivity.length > 0 ? (
-                recentActivity.map((punch: any) => (
-                  <tr key={punch.id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-2.5 px-3 font-mono text-indigo-600 font-medium whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-800">{punch.time}</span>
-                        <span className="text-[11px] text-slate-400 font-sans font-normal">{punch.date || new Date().toISOString().slice(0, 10)}</span>
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-800 whitespace-nowrap">{punch.employeeName}</td>
-                    <td className="py-2.5 px-3 font-mono text-slate-500 whitespace-nowrap">{punch.employeeCode}</td>
-                    <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">{punch.branchName}</td>
-                    <td className="py-2.5 px-3 whitespace-nowrap">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        {punch.eventType === 'Entry' ? (language === 'zh-CN' ? '上班 (Entry)' : 'Entrada (Entry)') : punch.eventType === 'Exit' ? (language === 'zh-CN' ? '下班 (Exit)' : 'Salida (Exit)') : punch.eventType}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                        {getMethodIcon(punch.method)}
-                        <span>{punch.method}</span>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                recentActivity.map((punch: any) => {
+                  const isUnlinked = !punch.employeeId || punch.employeeId === 0 || !punch.employeeName;
+                  return (
+                    <tr key={punch.id} className="hover:bg-slate-50/80 transition">
+                      <td className="py-2.5 px-3 font-mono text-[#00695F] font-semibold whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-[#203441]">{punch.time}</span>
+                          <span className="text-[11px] text-[#60727E] font-sans font-normal">{punch.date || new Date().toISOString().slice(0, 10)}</span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        {isUnlinked ? (
+                          <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full text-[11px] font-semibold border border-amber-200">
+                            {language === 'zh-CN' ? '未关联员工' : 'Sin vincular'} ({punch.userClockId ? `#${punch.userClockId}` : 'ID ?'})
+                          </span>
+                        ) : (
+                          <span className="font-semibold text-[#203441]">{punch.employeeName}</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[#60727E] whitespace-nowrap">
+                        {punch.employeeCode || (punch.userClockId ? `#${punch.userClockId}` : '-')}
+                      </td>
+                      <td className="py-2.5 px-3 text-[#203441] whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-emerald-600">📍</span>
+                          <span className="font-medium">{punch.branchName || 'Sucursal FA200'}</span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          {punch.eventType === 'Entry' ? (language === 'zh-CN' ? '上班 (Entry)' : 'Entrada (Entry)') : punch.eventType === 'Exit' ? (language === 'zh-CN' ? '下班 (Exit)' : 'Salida (Exit)') : punch.eventType}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 text-xs text-[#60727E]">
+                          {getMethodIcon(punch.method)}
+                          <span>{punch.method}</span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap text-right">
+                        {isUnlinked ? (
+                          <button
+                            onClick={() => navigate('/employees')}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#00695F] hover:text-[#005149] bg-[#E6F2F0] hover:bg-[#d6e9e6] px-2.5 py-1 rounded-lg border border-[#00695F]/20 transition"
+                            title="Vincular a ficha de empleado"
+                          >
+                            <Link2 className="w-3 h-3" />
+                            {language === 'zh-CN' ? '去关联' : 'Vincular'}
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                            {language === 'zh-CN' ? '已关联' : 'Vinculado'}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-6 text-center text-slate-400">
+                  <td colSpan={7} className="py-6 text-center text-[#60727E]">
                     {language === 'zh-CN' ? '暂无打卡数据' : 'Sin actividad reciente'}
                   </td>
                 </tr>
@@ -563,6 +604,7 @@ export const DashboardPage: React.FC = () => {
                       <th className="py-2.5 px-3">Horas</th>
                       <th className="py-2.5 px-3">Método Biométrico</th>
                       <th className="py-2.5 px-3">Estado</th>
+                      <th className="py-2.5 px-3 text-center">Detalle</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -666,12 +708,21 @@ export const DashboardPage: React.FC = () => {
                                 </span>
                               )}
                             </td>
+                            <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => setSelectedDailyRecord({ ...r, attendanceDate: selectedDate, date: selectedDate })}
+                                className="inline-flex items-center justify-center p-1.5 rounded-lg text-[#00695F] bg-[#E6F2F0] hover:bg-[#d6e9e6] transition"
+                                title="Ver tarjeta de 4 checadas y detalle diario"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
                           </tr>
 
                           {/* Expanded Original Biometric Punches Panel */}
                           {isExpanded && (
-                            <tr className="bg-slate-50/70 border-b border-indigo-100">
-                              <td colSpan={9} className="p-3 pl-8">
+                            <tr className="bg-slate-50/70 border-b border-[#00695F]/10">
+                              <td colSpan={10} className="p-3 pl-8">
                                 <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs space-y-2">
                                   <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 text-[11px] font-bold text-slate-700">
                                     <span>Checadas Biométricas Originales de la Jornada</span>
@@ -685,8 +736,8 @@ export const DashboardPage: React.FC = () => {
                                       {r.punches.map((p: any) => (
                                         <div key={p.id} className="p-2 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] space-y-1">
                                           <div className="flex items-center justify-between">
-                                            <span className="font-mono font-bold text-indigo-600">{p.time}</span>
-                                            <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                            <span className="font-mono font-bold text-[#00695F]">{p.time}</span>
+                                            <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-[#E6F2F0] text-[#00695F] border border-[#00695F]/20">
                                               {p.classifiedAs || p.type}
                                             </span>
                                           </div>
@@ -735,6 +786,19 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Daily Attendance 4-Punch Modal ("Tarjetas claras") */}
+      {selectedDailyRecord && (
+        <DailyAttendanceDetailModal
+          record={selectedDailyRecord}
+          onClose={() => setSelectedDailyRecord(null)}
+          onRefresh={() => {
+            if (selectedDate) {
+              loadDayDetail(selectedDate, modalBranchId);
+            }
+          }}
+        />
       )}
     </div>
   );

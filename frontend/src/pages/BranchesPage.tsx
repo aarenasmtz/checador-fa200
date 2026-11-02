@@ -12,7 +12,10 @@ import {
   Trash2,
   X,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  LayoutGrid,
+  Table as TableIcon,
+  Search
 } from 'lucide-react';
 import api from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
@@ -37,6 +40,17 @@ export const BranchesPage: React.FC = () => {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // View Mode with localStorage persistence ('grid' or 'table')
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>(() => {
+    return (localStorage.getItem('branches_view_mode') as 'grid' | 'table') || 'grid';
+  });
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const handleSetViewMode = (mode: 'grid' | 'table') => {
+    setViewMode(mode);
+    localStorage.setItem('branches_view_mode', mode);
+  };
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -157,38 +171,92 @@ export const BranchesPage: React.FC = () => {
     }
   };
 
+  const filteredBranches = branches.filter((b) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      b.name.toLowerCase().includes(term) ||
+      b.code.toLowerCase().includes(term) ||
+      (b.address && b.address.toLowerCase().includes(term))
+    );
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-indigo-600" />
+          <h1 className="text-xl font-bold text-[#203441] tracking-tight flex items-center gap-2">
+            <Building2 className="w-6 h-6 text-[#00695F]" />
             {t('branches.title')}
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-[#60727E] mt-1">
             {language === 'zh-CN'
               ? '管理华龙商业集团旗下所有商场及仓储分店架构 (增删改查)'
               : 'ABC de Sucursales: Alta, Baja y Cambio de tiendas y centros del Grupo Hualong'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {/* Mosaico / Lista Selector */}
+          <div className="flex items-center bg-white p-1 rounded-xl border border-[#DFE7EB] shadow-2xs">
+            <button
+              type="button"
+              onClick={() => handleSetViewMode('grid')}
+              className={`p-2 rounded-lg transition cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center ${
+                viewMode === 'grid'
+                  ? 'bg-[#00695F] text-white shadow-2xs'
+                  : 'text-[#60727E] hover:text-[#203441] hover:bg-slate-50'
+              }`}
+              title={language === 'zh-CN' ? '网格卡片视图' : 'Vista en cuadrícula de tarjetas (Mosaico)'}
+              aria-label="Mosaico"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetViewMode('table')}
+              className={`p-2 rounded-lg transition cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center ${
+                viewMode === 'table'
+                  ? 'bg-[#00695F] text-white shadow-2xs'
+                  : 'text-[#60727E] hover:text-[#203441] hover:bg-slate-50'
+              }`}
+              title={language === 'zh-CN' ? '列表表格视图' : 'Vista en tabla compacta (Lista)'}
+              aria-label="Lista"
+            >
+              <TableIcon className="w-4 h-4" />
+            </button>
+          </div>
+
           <button
             onClick={fetchBranches}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-[#DFE7EB] text-xs font-semibold text-[#203441] hover:bg-slate-50 shadow-2xs transition min-h-[40px]"
           >
-            <RefreshCw className="w-4 h-4 text-indigo-600" />
+            <RefreshCw className="w-4 h-4 text-[#00695F]" />
             <span>{language === 'zh-CN' ? '刷新' : 'Actualizar'}</span>
           </button>
 
           <button
             onClick={handleOpenAddModal}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white shadow-xs transition"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#00695F] hover:bg-[#005149] text-xs font-semibold text-white shadow-xs transition min-h-[40px]"
           >
             <Plus className="w-4 h-4" />
             <span>{language === 'zh-CN' ? '新增分店' : 'Nueva Sucursal'}</span>
           </button>
+        </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="bg-white border border-[#DFE7EB] rounded-2xl p-4 shadow-xs">
+        <div className="relative w-full max-w-md">
+          <Search className="w-4 h-4 absolute left-3 top-3 text-[#60727E]" />
+          <input
+            type="text"
+            placeholder={language === 'zh-CN' ? '搜索分店名称、编号或地址...' : 'Buscar sucursal por nombre, código o dirección...'}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-[#DFE7EB] rounded-xl text-xs text-[#203441] placeholder-[#60727E] focus:bg-white focus:border-[#00695F] focus:outline-none min-h-[42px]"
+          />
         </div>
       </div>
 
@@ -210,51 +278,52 @@ export const BranchesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Grid of Branches */}
+      {/* Main Content: Loading / Empty / Grid / Table */}
       {loading ? (
-        <div className="text-center py-12 text-slate-400 animate-pulse text-xs">
+        <div className="text-center py-12 text-[#60727E] animate-pulse text-xs">
           {t('common.loading')}
         </div>
-      ) : branches.length === 0 ? (
-        <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mx-auto">
+      ) : filteredBranches.length === 0 ? (
+        <div className="bg-white border border-dashed border-[#DFE7EB] rounded-2xl p-12 text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-[#E6F2F0] border border-[#00695F]/20 flex items-center justify-center text-[#00695F] mx-auto">
             <Building2 className="w-7 h-7" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-800">
-              {language === 'zh-CN' ? '未登记任何分店' : 'No hay sucursales registradas'}
+            <h3 className="text-sm font-bold text-[#203441]">
+              {language === 'zh-CN' ? '未找到符合条件的分店' : 'No se encontraron sucursales'}
             </h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+            <p className="text-xs text-[#60727E] mt-1 max-w-md mx-auto">
               {language === 'zh-CN'
-                ? '点击上方“新增分店”按钮创建你的第一家分店，并为其关联 FA200 考勤机。'
-                : 'Haga clic en "+ Nueva Sucursal" para dar de alta su primera sucursal y asociarle un checador biométrico.'}
+                ? '请尝试修改搜索词或点击“新增分店”创建新网点。'
+                : 'Intente con otro término de búsqueda o dé de alta una nueva sucursal.'}
             </p>
           </div>
           <button
             onClick={handleOpenAddModal}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white shadow-xs transition"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#00695F] hover:bg-[#005149] text-xs font-semibold text-white shadow-xs transition"
           >
             <Plus className="w-4 h-4" />
             <span>{language === 'zh-CN' ? '立即添加分店' : 'Agregar Sucursal Ahora'}</span>
           </button>
         </div>
-      ) : (
+      ) : viewMode === 'grid' ? (
+        /* ==================== 1. GRID (MOSAICO) ==================== */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-          {branches.map((b) => {
+          {filteredBranches.map((b) => {
             const isOnline = b.status === 'Active' || b.isActive !== false;
             return (
               <div
                 key={b.id}
-                className="bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition shadow-xs space-y-4"
+                className="bg-white border border-[#DFE7EB] rounded-2xl p-5 hover:border-[#00695F]/40 hover:shadow-md transition shadow-xs space-y-4"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
+                    <div className="w-10 h-10 rounded-xl bg-[#E6F2F0] border border-[#00695F]/20 flex items-center justify-center text-[#00695F] font-bold text-sm">
                       {b.code}
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-900 text-base">{b.name}</h3>
-                      <span className="text-xs text-slate-400 font-mono">{b.timeZone}</span>
+                      <h3 className="font-bold text-[#203441] text-base">{b.name}</h3>
+                      <span className="text-xs text-[#60727E] font-mono">{b.timeZone}</span>
                     </div>
                   </div>
 
@@ -282,22 +351,22 @@ export const BranchesPage: React.FC = () => {
                     <button
                       onClick={() => handleOpenEditModal(b)}
                       title="Editar sucursal"
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition"
+                      className="p-1.5 rounded-lg text-[#60727E] hover:text-[#00695F] hover:bg-[#E6F2F0] transition"
                     >
-                      <Edit2 className="w-3.5 h-3.5" />
+                      <Edit2 className="w-4 h-4" />
                     </button>
 
                     <button
                       onClick={() => setDeletingBranch(b)}
                       title="Eliminar sucursal"
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                      className="p-1.5 rounded-lg text-[#60727E] hover:text-rose-600 hover:bg-rose-50 transition"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-2 text-xs text-slate-600">
+                <div className="space-y-2 text-xs text-[#60727E]">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
                     <span className="truncate">{b.address || (language === 'zh-CN' ? '未登记地址' : 'Sin dirección especificada')}</span>
@@ -310,19 +379,138 @@ export const BranchesPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <div className="pt-3 border-t border-[#DFE7EB]/60 flex items-center justify-between text-xs text-[#60727E]">
                   <div className="flex items-center gap-1.5">
-                    <Cpu className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>FA200 设备: <strong className="text-slate-800 font-semibold">{b.deviceCount ?? b.devicesCount ?? 0} 台</strong></span>
+                    <Cpu className="w-3.5 h-3.5 text-[#00695F]" />
+                    <span>FA200 设备: <strong className="text-[#203441] font-semibold">{b.deviceCount ?? b.devicesCount ?? 0} 台</strong></span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>员工编制: <strong className="text-slate-800 font-semibold">{b.employeeCount ?? b.employeesCount ?? 0} 人</strong></span>
+                    <span>员工编制: <strong className="text-[#203441] font-semibold">{b.employeeCount ?? b.employeesCount ?? 0} 人</strong></span>
                   </div>
                 </div>
               </div>
             );
           })}
+        </div>
+      ) : (
+        /* ==================== 2. TABLE / LIST (LISTA) ==================== */
+        <div className="space-y-3">
+          {/* Mobile Vertical Cards (iPhone friendly, no horizontal overflow) */}
+          <div className="block sm:hidden space-y-3">
+            {filteredBranches.map((b) => {
+              const isOnline = b.status === 'Active' || b.isActive !== false;
+              return (
+                <div key={b.id} className="bg-white border border-[#DFE7EB] rounded-2xl p-4 shadow-xs space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="text-[11px] font-mono font-bold text-[#00695F] bg-[#E6F2F0] px-2 py-0.5 rounded border border-[#00695F]/20">
+                        {b.code}
+                      </span>
+                      <h4 className="font-bold text-[#203441] text-sm mt-1">{b.name}</h4>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                      isOnline ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                    }`}>
+                      {isOnline ? 'Activa' : 'Inactiva'}
+                    </span>
+                  </div>
+
+                  <div className="text-xs text-[#60727E] space-y-1">
+                    <p className="truncate">📍 {b.address || 'Sin dirección'}</p>
+                    <p className="font-mono text-[11px]">🕒 {b.timeZone}</p>
+                  </div>
+
+                  <div className="pt-2 border-t border-[#DFE7EB]/60 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-3 text-[#60727E]">
+                      <span>📠 <strong>{b.deviceCount ?? b.devicesCount ?? 0}</strong> relojes</span>
+                      <span>👥 <strong>{b.employeeCount ?? b.employeesCount ?? 0}</strong> emp.</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenEditModal(b)}
+                        className="p-2 rounded-lg text-[#00695F] bg-[#E6F2F0]"
+                        title="Editar"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeletingBranch(b)}
+                        className="p-2 rounded-lg text-rose-600 bg-rose-50"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden sm:block bg-white border border-[#DFE7EB] rounded-2xl overflow-hidden shadow-xs">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50/90 text-[#60727E] border-b border-[#DFE7EB] font-semibold">
+                <tr>
+                  <th className="py-3 px-4">Código</th>
+                  <th className="py-3 px-4">Nombre de Sucursal</th>
+                  <th className="py-3 px-4">Dirección</th>
+                  <th className="py-3 px-4">Zona Horaria</th>
+                  <th className="py-3 px-4 text-center">Dispositivos</th>
+                  <th className="py-3 px-4 text-center">Empleados</th>
+                  <th className="py-3 px-4 text-center">Estado</th>
+                  <th className="py-3 px-4 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#DFE7EB]/60">
+                {filteredBranches.map((b) => {
+                  const isOnline = b.status === 'Active' || b.isActive !== false;
+                  return (
+                    <tr key={b.id} className="hover:bg-slate-50/80 transition">
+                      <td className="py-3 px-4 font-mono font-bold text-[#00695F]">{b.code}</td>
+                      <td className="py-3 px-4 font-semibold text-[#203441]">{b.name}</td>
+                      <td className="py-3 px-4 text-[#60727E] max-w-[200px] truncate">{b.address || '-'}</td>
+                      <td className="py-3 px-4 font-mono text-[#60727E]">{b.timeZone}</td>
+                      <td className="py-3 px-4 text-center font-bold text-[#203441]">
+                        {b.deviceCount ?? b.devicesCount ?? 0}
+                      </td>
+                      <td className="py-3 px-4 text-center font-bold text-[#203441]">
+                        {b.employeeCount ?? b.employeesCount ?? 0}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+                          isOnline
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        }`}>
+                          {isOnline ? 'Activa' : 'Inactiva'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditModal(b)}
+                            className="p-1.5 rounded-lg text-[#60727E] hover:text-[#00695F] hover:bg-[#E6F2F0] transition"
+                            title="Editar"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingBranch(b)}
+                            className="p-1.5 rounded-lg text-[#60727E] hover:text-rose-600 hover:bg-rose-50 transition"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

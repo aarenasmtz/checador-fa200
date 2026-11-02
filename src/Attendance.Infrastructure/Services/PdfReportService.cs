@@ -106,41 +106,7 @@ public class PdfReportService : IPdfReportService
                         });
                     });
 
-                    col.Item().PaddingVertical(5).LineHorizontal(0.8f).LineColor("#d0d7de");
-
-                    // Summary KPI Cards (5 metrics)
-                    col.Item().PaddingBottom(8).Row(kpiRow =>
-                    {
-                        kpiRow.RelativeItem().Border(1).BorderColor("#d0d7de").Background("#f6f8fa").Padding(5).Column(c =>
-                        {
-                            c.Item().Text("Empleados / 员工数").FontSize(6.5f).FontColor("#57606a");
-                            c.Item().Text(uniqueEmployees.ToString()).FontSize(11).Bold().FontColor("#24292f");
-                        });
-                        kpiRow.ConstantItem(6);
-                        kpiRow.RelativeItem().Border(1).BorderColor("#d0d7de").Background("#f6f8fa").Padding(5).Column(c =>
-                        {
-                            c.Item().Text("Jornadas / 考勤记录").FontSize(6.5f).FontColor("#57606a");
-                            c.Item().Text(totalRecords.ToString()).FontSize(11).Bold().FontColor("#24292f");
-                        });
-                        kpiRow.ConstantItem(6);
-                        kpiRow.RelativeItem().Border(1).BorderColor("#86efac").Background("#f0fdf4").Padding(5).Column(c =>
-                        {
-                            c.Item().Text("Horas Confirmadas / 确认工时").FontSize(6.5f).FontColor("#166534");
-                            c.Item().Text($"{totalHours:F1} h ({AttendanceTranslationHelper.FormatMinutesFriendly(totalConfirmedMinutes)})").FontSize(10).Bold().FontColor("#166534");
-                        });
-                        kpiRow.ConstantItem(6);
-                        kpiRow.RelativeItem().Border(1).BorderColor("#fed7aa").Background("#fff7ed").Padding(5).Column(c =>
-                        {
-                            c.Item().Text("Retardo Total / 迟到总计").FontSize(6.5f).FontColor("#c2410c");
-                            c.Item().Text($"{totalLateMinutes} min").FontSize(11).Bold().FontColor("#c2410c");
-                        });
-                        kpiRow.ConstantItem(6);
-                        kpiRow.RelativeItem().Border(1).BorderColor("#e9d5ff").Background("#faf5ff").Padding(5).Column(c =>
-                        {
-                            c.Item().Text("Pendientes / 待核查").FontSize(6.5f).FontColor("#7e22ce");
-                            c.Item().Text($"{pendingReviewCount} (excluidas)").FontSize(10).Bold().FontColor("#7e22ce");
-                        });
-                    });
+                    col.Item().PaddingTop(4).PaddingBottom(6).LineHorizontal(0.8f).LineColor("#d0d7de");
                 });
 
                 // Exactly 9 Columns in the exact specified order:

@@ -34,8 +34,15 @@ export const EmployeesPage: React.FC = () => {
   const [positions, setPositions] = useState<any[]>([]);
   const [schedules, setSchedules] = useState<any[]>([]);
 
-  // View mode: 'grid' (cards) or 'table' (compact)
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  // View mode: 'grid' (cards) or 'table' (compact) with localStorage persistence
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>(() => {
+    return (localStorage.getItem('employees_view_mode') as 'grid' | 'table') || 'grid';
+  });
+
+  const handleSetViewMode = (mode: 'grid' | 'table') => {
+    setViewMode(mode);
+    localStorage.setItem('employees_view_mode', mode);
+  };
 
   // Filters
   const [selectedBranch, setSelectedBranch] = useState('');
@@ -165,8 +172,12 @@ export const EmployeesPage: React.FC = () => {
   };
 
   const handleOpenCreateModal = () => {
-    const nextNum = totalRecords + 1;
-    const suggestedCode = `HL-${String(nextNum).padStart(3, '0')}`;
+    // Find highest numeric code in existing employees
+    const numericCodes = employees
+      .map(e => parseInt(e.employeeCode, 10))
+      .filter(n => !isNaN(n) && n > 0);
+    const nextNum = numericCodes.length > 0 ? Math.max(...numericCodes) + 1 : totalRecords + 1;
+    const suggestedCode = String(nextNum);
 
     setFormCode(suggestedCode);
     setFormFirstName('');
@@ -195,7 +206,8 @@ export const EmployeesPage: React.FC = () => {
     // Find matching schedule
     const matchingSched = schedules.find(s => s.name === emp.currentScheduleName);
     setEditScheduleId(matchingSched ? matchingSched.id : (schedules.length > 0 ? schedules[0].id : ''));
-    setEditBiometricId(emp.biometricExternalId || emp.employeeCode || '');
+    // Strict numeric parity: BiometricExternalId matches employeeCode
+    setEditBiometricId(emp.employeeCode || emp.biometricExternalId || '');
     setEditStatus(emp.status || 'Active');
     setEditEmail(emp.email || '');
     setEditPhone(emp.phone || '');
@@ -234,18 +246,30 @@ export const EmployeesPage: React.FC = () => {
         return;
       }
 
+      // Numeric validation for EmployeeCode and FA200 ID
+      const cleanCode = formCode.trim();
+      if (!cleanCode || !/^\d+$/.test(cleanCode) || parseInt(cleanCode, 10) <= 0 || parseInt(cleanCode, 10) > 99999999) {
+        setCreateError(
+          isZh
+            ? '员工编号必须为 1 至 99999999 的正整数（纯数字，例如 1, 2, 4）'
+            : 'El código de empleado e ID en Checador FA200 debe ser un número entero positivo (solo dígitos, 1 a 99999999)'
+        );
+        setCreating(false);
+        return;
+      }
+
       const payload = {
         branchId: Number(formBranchId),
         departmentId: formDepartmentId ? Number(formDepartmentId) : null,
         positionId: formPositionId ? Number(formPositionId) : null,
         scheduleId: formScheduleId ? Number(formScheduleId) : null,
-        employeeCode: formCode.trim().toUpperCase(),
+        employeeCode: cleanCode,
         firstName: formFirstName.trim(),
         lastName: formLastName.trim(),
         email: formEmail.trim() || null,
         phone: formPhone.trim() || null,
         hireDate: new Date(formHireDate).toISOString(),
-        biometricExternalId: formBiometricId.trim() || formCode.trim().toUpperCase()
+        biometricExternalId: cleanCode // Source of truth: identical numeric ID
       };
 
       await api.post('/v1/employees', payload);
@@ -254,7 +278,7 @@ export const EmployeesPage: React.FC = () => {
       setToastMessage(
         isZh
           ? `员工 ${payload.employeeCode} - ${payload.firstName} ${payload.lastName} 已成功录入`
-          : `Empleado ${payload.employeeCode} - ${payload.firstName} registrado con éxito`
+          : `Empleado #${payload.employeeCode} - ${payload.firstName} registrado con éxito`
       );
       setTimeout(() => setToastMessage(null), 5000);
       fetchEmployees();
@@ -283,7 +307,7 @@ export const EmployeesPage: React.FC = () => {
         email: editEmail.trim() || null,
         phone: editPhone.trim() || null,
         terminationDate: null,
-        biometricExternalId: editBiometricId.trim() || editingEmployee.employeeCode,
+        biometricExternalId: editingEmployee.employeeCode, // Inmutable numeric identity
         status: editStatus
       };
 
@@ -354,30 +378,30 @@ export const EmployeesPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          {/* View Mode Toggle: Grid vs Table */}
-          <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
+          {/* View Mode Toggle: Grid vs Table with localStorage persistence */}
+          <div className="flex items-center bg-white p-1 rounded-xl border border-[#DFE7EB] shadow-2xs">
             <button
               type="button"
-              onClick={() => setViewMode('grid')}
+              onClick={() => handleSetViewMode('grid')}
               className={`p-2 rounded-lg transition cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center ${
                 viewMode === 'grid'
-                  ? 'bg-indigo-600 text-white shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                  ? 'bg-[#00695F] text-white shadow-2xs'
+                  : 'text-[#60727E] hover:text-[#203441] hover:bg-slate-50'
               }`}
-              title={isZh ? '网格卡片视图' : 'Vista en cuadrícula de tarjetas'}
+              title={isZh ? '网格卡片视图' : 'Vista en cuadrícula de tarjetas (Mosaico)'}
               aria-label={isZh ? '网格卡片视图' : 'Vista en cuadrícula'}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
               type="button"
-              onClick={() => setViewMode('table')}
+              onClick={() => handleSetViewMode('table')}
               className={`p-2 rounded-lg transition cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center ${
                 viewMode === 'table'
-                  ? 'bg-indigo-600 text-white shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                  ? 'bg-[#00695F] text-white shadow-2xs'
+                  : 'text-[#60727E] hover:text-[#203441] hover:bg-slate-50'
               }`}
-              title={isZh ? '表格视图' : 'Vista en tabla compacta'}
+              title={isZh ? '表格视图' : 'Vista en tabla compacta (Lista)'}
               aria-label={isZh ? '表格视图' : 'Vista en tabla'}
             >
               <TableIcon className="w-4 h-4" />
@@ -387,7 +411,7 @@ export const EmployeesPage: React.FC = () => {
           {/* Create Button */}
           <button
             onClick={handleOpenCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-semibold shadow-xs transition cursor-pointer min-h-[42px]"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#00695F] hover:bg-[#005149] active:bg-[#003d37] text-white text-xs font-semibold shadow-xs transition cursor-pointer min-h-[42px]"
           >
             <UserPlus className="w-4 h-4" />
             <span>{isZh ? '添加新员工' : 'Dar de Alta Empleado'}</span>
@@ -838,21 +862,25 @@ export const EmployeesPage: React.FC = () => {
                   {/* Code */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '员工编号 *' : 'Código de Empleado *'}
+                      {isZh ? '员工编号 (纯数字) *' : 'Código de Empleado (Solo dígitos) *'}
                     </label>
                     <input
                       type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       required
                       value={formCode}
                       onChange={(e) => {
-                        setFormCode(e.target.value);
-                        if (!formBiometricId || formBiometricId === formCode) {
-                          setFormBiometricId(e.target.value);
-                        }
+                        const numericOnly = e.target.value.replace(/\D/g, '');
+                        setFormCode(numericOnly);
+                        setFormBiometricId(numericOnly);
                       }}
-                      placeholder="HL-061"
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono font-semibold focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px]"
+                      placeholder="1, 2, 4..."
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:bg-white focus:border-[#00695F] focus:outline-none min-h-[42px]"
                     />
+                    <span className="text-[10px] text-slate-500 mt-1 block">
+                      {isZh ? '正整数，与考勤机 ID 严格一致' : 'Entero positivo. Fuente única de verdad.'}
+                    </span>
                   </div>
 
                   {/* First Name */}
@@ -967,13 +995,13 @@ export const EmployeesPage: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      value={formBiometricId}
-                      onChange={(e) => setFormBiometricId(e.target.value)}
-                      placeholder="HL-061"
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px]"
+                      readOnly
+                      disabled
+                      value={formCode}
+                      className="w-full px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-[#00695F] font-mono font-bold cursor-not-allowed min-h-[42px]"
                     />
-                    <span className="text-[10px] text-slate-400 mt-1 block">
-                      {isZh ? '与 FA200 硬件面部/指纹机中录入的员工号对应' : 'ID con el que se enrolará su huella/rostro en el FA200.'}
+                    <span className="text-[10px] text-slate-500 mt-1 block">
+                      {isZh ? '自动镜像员工编号（同一正整数）' : 'Espejo automático del Código de Empleado (Mismo ID en FA200)'}
                     </span>
                   </div>
 
@@ -1211,10 +1239,14 @@ export const EmployeesPage: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      value={editBiometricId}
-                      onChange={(e) => setEditBiometricId(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px]"
+                      readOnly
+                      disabled
+                      value={editingEmployee.employeeCode}
+                      className="w-full px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-[#00695F] font-mono font-bold cursor-not-allowed min-h-[42px]"
                     />
+                    <span className="text-[10px] text-slate-500 mt-1 block">
+                      {isZh ? '受保护的硬件编码：与员工编号保持一致' : 'Identidad protegida: idéntica al Código de Empleado'}
+                    </span>
                   </div>
                 </div>
 

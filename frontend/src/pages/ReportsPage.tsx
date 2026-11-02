@@ -600,65 +600,9 @@ export const ReportsPage: React.FC = () => {
         </div>
       )}
 
-      {/* 4. KPI Summary Cards (5 Cards) */}
-      {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <div className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-2xs">
-            <span className="text-[11px] text-slate-500 font-semibold block">
-              {language === 'zh-CN' ? '员工人数 (Empleados)' : 'Empleados Únicos'}
-            </span>
-            <span className="text-xl font-bold text-slate-900 mt-1 block font-mono">
-              {stats.uniqueEmployees || 0}
-            </span>
-          </div>
-
-          <div className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-2xs">
-            <span className="text-[11px] text-slate-500 font-semibold block">
-              {language === 'zh-CN' ? '考勤班次 (Jornadas)' : 'Jornadas Totales'}
-            </span>
-            <span className="text-xl font-bold text-slate-900 mt-1 block font-mono">
-              {stats.totalRecords}
-            </span>
-          </div>
-
-          <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl shadow-2xs">
-            <span className="text-[11px] text-emerald-800 font-semibold block">
-              {language === 'zh-CN' ? '确认总工时 (Horas Confirmadas)' : 'Total Horas Confirmadas'}
-            </span>
-            <span className="text-xl font-bold text-emerald-800 mt-1 block font-mono">
-              {stats.totalConfirmedFormatted}
-            </span>
-            <span className="text-[10px] text-emerald-600 block mt-0.5">
-              ({stats.totalConfirmedHours.toFixed(1)} h decimales)
-            </span>
-          </div>
-
-          <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl shadow-2xs">
-            <span className="text-[11px] text-amber-800 font-semibold block">
-              {language === 'zh-CN' ? '迟到总计 (Retardo Total)' : 'Total Minutos Retardo'}
-            </span>
-            <span className="text-xl font-bold text-amber-800 mt-1 block font-mono">
-              {stats.totalLateMinutes} m
-            </span>
-          </div>
-
-          <div className="bg-purple-50 border border-purple-200 p-3.5 rounded-xl shadow-2xs">
-            <span className="text-[11px] text-purple-800 font-semibold block">
-              {language === 'zh-CN' ? '待核查班次 (Pendientes)' : 'Jornadas Pendientes'}
-            </span>
-            <span className="text-xl font-bold text-purple-800 mt-1 block font-mono">
-              {stats.pendingReviewCount}
-            </span>
-            <span className="text-[10px] text-purple-600 block mt-0.5">
-              *Excluidas del total de horas
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* 5. Main Attendance Table (Exactly 9 Columns in Specified Order) */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-        <div className="px-4 py-3 bg-emerald-900 text-white flex flex-wrap items-center justify-between gap-2">
+      {/* 4. Main Attendance Table (Exactly 9 Columns in Specified Order) */}
+      <div className="bg-white border border-[#DFE7EB] rounded-xl overflow-hidden shadow-2xs">
+        <div className="px-4 py-3 bg-[#00695F] text-white flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-emerald-300" />
             <span className="text-xs font-bold uppercase tracking-wider">
