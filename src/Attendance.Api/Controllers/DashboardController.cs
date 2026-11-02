@@ -128,8 +128,10 @@ public class DashboardController : ControllerBase
             .Select(e => new
             {
                 e.Id,
-                employeeName = e.Employee != null ? $"{e.Employee.FirstName} {e.Employee.LastName}" : $"Sin vincular (ID Reloj: {e.UserClockId})",
-                employeeCode = e.Employee != null ? e.Employee.EmployeeCode : (e.UserClockId ?? "PENDIENTE"),
+                employeeId = e.EmployeeId,
+                userClockId = e.UserClockId,
+                employeeName = e.Employee != null ? $"{e.Employee.FirstName} {e.Employee.LastName}" : null,
+                employeeCode = e.Employee != null ? e.Employee.EmployeeCode : e.UserClockId,
                 branchName = e.Device.Branch.Name,
                 time = e.DeviceTimestamp.ToString("HH:mm:ss"),
                 date = e.DeviceTimestamp.ToString("yyyy-MM-dd"),

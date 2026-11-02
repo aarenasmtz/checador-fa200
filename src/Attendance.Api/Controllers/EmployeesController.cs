@@ -1,5 +1,6 @@
 using Attendance.Application.DTOs;
 using Attendance.Application.Interfaces;
+using Attendance.Application.Services;
 using Attendance.Domain.Entities;
 using Attendance.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -14,10 +15,12 @@ namespace Attendance.Api.Controllers;
 public class EmployeesController : ControllerBase
 {
     private readonly IAppDbContext _context;
+    private readonly IBiometricIngestionService _ingestionService;
 
-    public EmployeesController(IAppDbContext context)
+    public EmployeesController(IAppDbContext context, IBiometricIngestionService ingestionService)
     {
         _context = context;
+        _ingestionService = ingestionService;
     }
 
     [HttpGet]
@@ -213,6 +216,16 @@ public class EmployeesController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
+        // Automatically link any pending unlinked punches from FA200 matching this employee
+        try
+        {
+            await _ingestionService.ReprocessUnlinkedEventsAsync();
+        }
+        catch
+        {
+            // Non-blocking
+        }
+
         return CreatedAtAction(nameof(GetEmployee), new { id = emp.Id }, new
         {
             id = emp.Id,
@@ -264,6 +277,16 @@ public class EmployeesController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+
+        try
+        {
+            await _ingestionService.ReprocessUnlinkedEventsAsync();
+        }
+        catch
+        {
+            // Non-blocking
+        }
+
         return Ok(new
         {
             id = emp.Id,
