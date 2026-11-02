@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import api from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
+import { EmptyState, ErrorState, LoadingState } from '../components/AsyncState';
+import { useAuth } from '../context/AuthContext';
 
 interface Incident {
   id: number;
@@ -58,6 +60,8 @@ interface Employee {
 
 export const IncidentsPage: React.FC = () => {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
+  const canManage = user?.permissions?.includes('incidents.manage') || user?.roles?.some(role => ['SUPERADMIN','ADMIN','ADMIN_SUCURSAL','RH'].includes(role));
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [branchFilter, setBranchFilter] = useState<string>('');
@@ -125,7 +129,7 @@ export const IncidentsPage: React.FC = () => {
       setTotalRecords(res.data.totalRecords || 0);
     } catch (err: any) {
       console.error('Failed to load incidents:', err);
-      setErrorMsg(err.response?.data?.message || 'Error al cargar las incidencias');
+      setErrorMsg(err.response?.data?.message || t('incidents.loadError'));
     } finally {
       setLoading(false);
     }
@@ -138,7 +142,7 @@ export const IncidentsPage: React.FC = () => {
   const handleApprove = async (id: number) => {
     try {
       await api.put(`/v1/incidents/${id}/approve`);
-      setActionMsg(language === 'zh-CN' ? '已批准并重新核算该日考勤' : 'Incidencia aprobada y asistencia recalculada exitosamente');
+      setActionMsg(t('incidents.ui_incidencia_aprobada_y_asistencia_recalculada_exitosamente'));
       fetchIncidents();
       setTimeout(() => setActionMsg(null), 4000);
     } catch (err: any) {
@@ -151,7 +155,7 @@ export const IncidentsPage: React.FC = () => {
   const handleReject = async (id: number) => {
     try {
       await api.put(`/v1/incidents/${id}/reject`);
-      setActionMsg(language === 'zh-CN' ? '已驳回该异常申请' : 'Incidencia rechazada');
+      setActionMsg(t('incidents.ui_incidencia_rechazada'));
       fetchIncidents();
       setTimeout(() => setActionMsg(null), 4000);
     } catch (err: any) {
@@ -178,11 +182,11 @@ export const IncidentsPage: React.FC = () => {
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formEmployeeId) {
-      alert(language === 'zh-CN' ? '请选择员工' : 'Por favor seleccione un empleado.');
+      alert(t('incidents.ui_por_favor_seleccione_un_empleado'));
       return;
     }
     if (!formDescription.trim()) {
-      alert(language === 'zh-CN' ? '请输入原因或说明' : 'Por favor ingrese el motivo de la incidencia.');
+      alert(t('incidents.ui_por_favor_ingrese_el_motivo_de'));
       return;
     }
 
@@ -199,7 +203,7 @@ export const IncidentsPage: React.FC = () => {
       });
 
       setShowCreateModal(false);
-      setActionMsg(language === 'zh-CN' ? '新申请提交成功' : 'Incidencia registrada exitosamente.');
+      setActionMsg(t('incidents.ui_incidencia_registrada_exitosamente'));
       fetchIncidents();
       setTimeout(() => setActionMsg(null), 4000);
     } catch (err: any) {
@@ -234,7 +238,7 @@ export const IncidentsPage: React.FC = () => {
       });
 
       setSelectedIncidentForEdit(null);
-      setActionMsg(language === 'zh-CN' ? '申请修改成功' : 'Incidencia actualizada exitosamente.');
+      setActionMsg(t('incidents.ui_incidencia_actualizada_exitosamente'));
       fetchIncidents();
       setTimeout(() => setActionMsg(null), 4000);
     } catch (err: any) {
@@ -249,7 +253,7 @@ export const IncidentsPage: React.FC = () => {
     e.preventDefault();
     if (!selectedIncidentForCancel) return;
     if (!cancelReason.trim()) {
-      alert(language === 'zh-CN' ? '请输入取消原因' : 'Ingrese el motivo de cancelación.');
+      alert(t('incidents.ui_ingrese_el_motivo_de_cancelacion'));
       return;
     }
 
@@ -261,7 +265,7 @@ export const IncidentsPage: React.FC = () => {
 
       setSelectedIncidentForCancel(null);
       setCancelReason('');
-      setActionMsg(language === 'zh-CN' ? '申请已成功取消' : 'Incidencia cancelada exitosamente.');
+      setActionMsg(t('incidents.ui_incidencia_cancelada_exitosamente'));
       fetchIncidents();
       setTimeout(() => setActionMsg(null), 4000);
     } catch (err: any) {
@@ -278,45 +282,44 @@ export const IncidentsPage: React.FC = () => {
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
             <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-            {bilingualStatus || t('incidents.approved')}
+            {t('incidents.approved')}
           </span>
         );
       case 'Rejected':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
             <XCircle className="w-3.5 h-3.5 text-rose-600" />
-            {bilingualStatus || t('incidents.rejected')}
+            {t('incidents.rejected')}
           </span>
         );
       case 'Cancelled':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
             <Ban className="w-3.5 h-3.5 text-slate-500" />
-            {bilingualStatus || (language === 'zh-CN' ? '已取消' : 'Cancelada')}
+            {t('incidents.cancelled')}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
             <Clock className="w-3.5 h-3.5 text-amber-600" />
-            {bilingualStatus || t('incidents.pending')}
+            {t('incidents.pending')}
           </span>
         );
     }
   };
 
   const renderTypeLabel = (type: string, bilingualType?: string) => {
-    if (bilingualType) return bilingualType;
     switch (type) {
-      case 'PunchMiss': return language === 'zh-CN' ? '补卡 (Omisión)' : 'Omisión de checada';
-      case 'JustifiedLate': return language === 'zh-CN' ? '迟到报备 (Retardo)' : 'Retardo justificado';
-      case 'JustifiedAbsence': return language === 'zh-CN' ? '事假 (Falta)' : 'Falta justificada';
-      case 'Permission': return language === 'zh-CN' ? '请假 (Permiso)' : 'Permiso laboral';
-      case 'Vacation': return language === 'zh-CN' ? '年假 (Vacaciones)' : 'Vacaciones';
-      case 'Disability': return language === 'zh-CN' ? '病假 (Incapacidad)' : 'Incapacidad médica';
-      case 'HomeOffice': return language === 'zh-CN' ? '居家办公 (Home Office)' : 'Home Office';
-      case 'FieldWork': return language === 'zh-CN' ? '外勤 (Campo)' : 'Trabajo en campo';
-      case 'ScheduleCorrection': return language === 'zh-CN' ? '班次调整 (Horario)' : 'Corrección de horario';
+      case 'PunchMiss': return t('incidents.ui_omision_de_checada');
+      case 'JustifiedLate': return t('incidents.ui_retardo_justificado');
+      case 'JustifiedAbsence': return t('incidents.ui_falta_justificada');
+      case 'Permission': return t('incidents.ui_permiso_laboral');
+      case 'Vacation': return t('incidents.ui_vacaciones');
+      case 'Disability': return t('incidents.ui_incapacidad_medica');
+      case 'HomeOffice': return t('incidents.ui_home_office');
+      case 'FieldWork': return t('incidents.ui_trabajo_en_campo');
+      case 'ScheduleCorrection': return t('incidents.ui_correccion_de_horario');
       default: return type;
     }
   };
@@ -335,9 +338,7 @@ export const IncidentsPage: React.FC = () => {
             {t('incidents.title')}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            {language === 'zh-CN'
-              ? '支持补卡申请、迟到报备、事假/病假审批与取消，批准后自动触发工时与打卡复算'
-              : 'Aprobación de incidencias, omisiones de checada, permisos y recálculo automático'}
+            {t('incidents.ui_aprobacion_de_incidencias_omisiones_de_checada')}
           </p>
         </div>
 
@@ -348,7 +349,7 @@ export const IncidentsPage: React.FC = () => {
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition"
           >
             <Plus className="w-4 h-4" />
-            <span>{language === 'zh-CN' ? '新建异常申请' : 'Nueva Incidencia'}</span>
+            <span>{t('incidents.ui_nueva_incidencia')}</span>
           </button>
 
           {/* Branch Filter */}
@@ -357,7 +358,7 @@ export const IncidentsPage: React.FC = () => {
             onChange={(e) => { setBranchFilter(e.target.value); setPage(1); }}
             className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 shadow-2xs focus:outline-none focus:border-indigo-500"
           >
-            <option value="">{language === 'zh-CN' ? '全部分店' : 'Todas las sucursales'}</option>
+            <option value="">{t('incidents.ui_todas_las_sucursales')}</option>
             {branches.map(b => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
@@ -369,17 +370,17 @@ export const IncidentsPage: React.FC = () => {
             onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
             className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-800 shadow-2xs focus:outline-none focus:border-indigo-500"
           >
-            <option value="">{language === 'zh-CN' ? '全部审批状态' : 'Todos los estados'}</option>
+            <option value="">{t('incidents.ui_todos_los_estados')}</option>
             <option value="Pending">{t('incidents.pending')}</option>
             <option value="Approved">{t('incidents.approved')}</option>
             <option value="Rejected">{t('incidents.rejected')}</option>
-            <option value="Cancelled">{language === 'zh-CN' ? '已取消' : 'Canceladas'}</option>
+            <option value="Cancelled">{t('incidents.ui_canceladas')}</option>
           </select>
 
           <button
             onClick={fetchIncidents}
             className="p-2 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs transition"
-            title="Refrescar listado"
+            title={t('common.refresh')}
           >
             <RefreshCw className="w-4 h-4 text-indigo-600" />
           </button>
@@ -402,7 +403,15 @@ export const IncidentsPage: React.FC = () => {
 
       {/* Incidents Table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
+        <div className="wpc-mobile-list p-3">
+          {loading ? <LoadingState /> : errorMsg ? <ErrorState onRetry={fetchIncidents} message={errorMsg} /> : !incidents.length ? <EmptyState /> : incidents.map(inc => <article key={inc.id} className="wpc-list-card">
+            <div className="flex items-start justify-between gap-2"><div><h3>{inc.employeeName}</h3><p className="wpc-card-meta">#{inc.employeeCode} · {inc.date}<br />{inc.branchName}</p></div><button className="wpc-icon-button" aria-label={`${t('incidents.viewDetail')}: ${inc.employeeName}`} onClick={() => setSelectedIncidentForDetail(inc)}><Eye size={20} /></button></div>
+            <p className="mt-3 text-sm font-semibold">{renderTypeLabel(inc.type)}</p><p className="mt-1 text-sm text-[#60727E]">{inc.punchTime || (inc.minutes ? `${inc.minutes} ${t('detail.minuteUnit')}` : '—')}</p>
+            <details className="wpc-disclosure mt-3"><summary>{t('incidents.reason')}</summary><p className="wpc-disclosure-body">{inc.description}</p></details>
+            <div className="wpc-card-footer flex-wrap">{getStatusBadge(inc.status)}{canManage && inc.status === 'Pending' && <div className="flex flex-wrap gap-1"><button className="wpc-icon-button" aria-label={t('incidents.edit')} onClick={() => handleOpenEdit(inc)}><Edit2 size={18} /></button><button className="wpc-icon-button" aria-label={t('incidents.cancel')} onClick={() => setSelectedIncidentForCancel(inc)}><Ban size={18} /></button><button className="wpc-icon-button" aria-label={t('incidents.approve')} onClick={() => handleApprove(inc.id)}><Check size={18} /></button><button className="wpc-icon-button" aria-label={t('incidents.reject')} onClick={() => handleReject(inc.id)}><X size={18} /></button></div>}</div>
+          </article>)}
+        </div>
+        <div className="wpc-desktop-list overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50/80 uppercase text-slate-600 font-semibold border-b border-slate-200">
               <tr>
@@ -410,7 +419,7 @@ export const IncidentsPage: React.FC = () => {
                 <th className="px-4 py-3">{t('common.name')}</th>
                 <th className="px-4 py-3">{t('common.branch')}</th>
                 <th className="px-4 py-3">{t('incidents.type')}</th>
-                <th className="px-4 py-3">Detalle / Checada</th>
+                <th className="px-4 py-3">{t('incidents.detailPunch')}</th>
                 <th className="px-4 py-3">{t('incidents.reason')}</th>
                 <th className="px-4 py-3">{t('incidents.status')}</th>
                 <th className="px-4 py-3 text-right">{t('common.actions')}</th>
@@ -423,10 +432,19 @@ export const IncidentsPage: React.FC = () => {
                     {t('common.loading')}
                   </td>
                 </tr>
+              ) : errorMsg ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center">
+                    <p className="font-semibold text-rose-700">{errorMsg}</p>
+                    <button type="button" onClick={fetchIncidents} className="mt-3 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700">
+                      {t('common.retry')}
+                    </button>
+                  </td>
+                </tr>
               ) : incidents.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-8 text-slate-400">
-                    {language === 'zh-CN' ? '暂无异常待处理记录' : 'No hay incidencias registradas con este filtro'}
+                    {t('incidents.ui_no_hay_incidencias_registradas_con_este')}
                   </td>
                 </tr>
               ) : (
@@ -468,25 +486,25 @@ export const IncidentsPage: React.FC = () => {
                         <button
                           onClick={() => setSelectedIncidentForDetail(inc)}
                           className="p-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 transition border border-slate-200 shadow-2xs"
-                          title="Ver detalle"
+                          title={t('incidents.viewDetail')}
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
 
                         {/* Actions for Pending Incidents */}
-                        {inc.status === 'Pending' && (
+                        {canManage && inc.status === 'Pending' && (
                           <>
                             <button
                               onClick={() => handleOpenEdit(inc)}
                               className="p-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white transition border border-blue-200 shadow-2xs"
-                              title="Editar solicitud pendiente"
+                              title={t('incidents.editPending')}
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => setSelectedIncidentForCancel(inc)}
                               className="p-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white transition border border-amber-200 shadow-2xs"
-                              title="Cancelar solicitud pendiente"
+                              title={t('incidents.cancelPending')}
                             >
                               <Ban className="w-3.5 h-3.5" />
                             </button>
@@ -532,7 +550,7 @@ export const IncidentsPage: React.FC = () => {
         {/* Pagination Footer */}
         <div className="px-4 py-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500">
           <div>
-            Mostrando página <span className="font-semibold text-slate-800">{page}</span> de <span className="font-semibold text-slate-800">{totalPages}</span> ({totalRecords} registros en total)
+            {t('catalog.page')} <span className="font-semibold text-slate-800">{page} / {totalPages}</span> · {totalRecords} {t('dashboard.records')}
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -560,7 +578,7 @@ export const IncidentsPage: React.FC = () => {
           <div className="bg-white rounded-2xl w-full max-w-lg p-6 relative border border-slate-200 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-base font-bold text-slate-900">
-                {language === 'zh-CN' ? '新建考勤异常与补卡申请' : 'Registrar Nueva Incidencia o Justificación'}
+                {t('incidents.ui_registrar_nueva_incidencia_o_justificacion')}
               </h2>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -574,7 +592,7 @@ export const IncidentsPage: React.FC = () => {
               {/* Branch Selection */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {language === 'zh-CN' ? '选择门店 (Sucursal)' : 'Sucursal'}
+                  {t('incidents.ui_sucursal')}
                 </label>
                 <select
                   value={formBranchId}
@@ -595,7 +613,7 @@ export const IncidentsPage: React.FC = () => {
               {/* Employee Selection */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {language === 'zh-CN' ? '选择员工 (Empleado)' : 'Empleado'}
+                  {t('incidents.ui_empleado')}
                 </label>
                 <select
                   value={formEmployeeId}
@@ -603,7 +621,7 @@ export const IncidentsPage: React.FC = () => {
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-none"
                   required
                 >
-                  <option value="">{language === 'zh-CN' ? '-- 请选择员工 --' : '-- Seleccionar Empleado --'}</option>
+                  <option value="">{t('incidents.ui_seleccionar_empleado')}</option>
                   {filteredEmployeesForBranch.map(e => (
                     <option key={e.id} value={e.id}>
                       {e.employeeCode} - {e.firstName} {e.lastName}
@@ -616,7 +634,7 @@ export const IncidentsPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    {language === 'zh-CN' ? '考勤日期 (Fecha)' : 'Fecha de Incidencia'}
+                    {t('incidents.ui_fecha_de_incidencia')}
                   </label>
                   <input
                     type="date"
@@ -629,22 +647,22 @@ export const IncidentsPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    {language === 'zh-CN' ? '异常类别 (Tipo)' : 'Tipo de Incidencia'}
+                    {t('incidents.ui_tipo_de_incidencia')}
                   </label>
                   <select
                     value={formType}
                     onChange={(e) => setFormType(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-none"
                   >
-                    <option value="JustifiedLate">{language === 'zh-CN' ? '迟到报备 (Retardo Justificado)' : 'Retardo Justificado'}</option>
-                    <option value="PunchMiss">{language === 'zh-CN' ? '补卡申请 (Omisión de Checada)' : 'Omisión de Checada'}</option>
-                    <option value="JustifiedAbsence">{language === 'zh-CN' ? '事假审批 (Falta Justificada)' : 'Falta Justificada'}</option>
-                    <option value="Permission">{language === 'zh-CN' ? '常规请假 (Permiso Laboral)' : 'Permiso Laboral'}</option>
-                    <option value="Vacation">{language === 'zh-CN' ? '年假登记 (Vacaciones)' : 'Vacaciones'}</option>
-                    <option value="Disability">{language === 'zh-CN' ? '病假医疗 (Incapacidad)' : 'Incapacidad Médica'}</option>
-                    <option value="HomeOffice">{language === 'zh-CN' ? '居家办公 (Home Office)' : 'Home Office'}</option>
-                    <option value="FieldWork">{language === 'zh-CN' ? '外勤业务 (Trabajo en Campo)' : 'Trabajo en Campo'}</option>
-                    <option value="ScheduleCorrection">{language === 'zh-CN' ? '班次更正 (Corrección Horario)' : 'Corrección de Horario'}</option>
+                    <option value="JustifiedLate">{t('incidents.ui_retardo_justificado_2')}</option>
+                    <option value="PunchMiss">{t('incidents.ui_omision_de_checada_2')}</option>
+                    <option value="JustifiedAbsence">{t('incidents.ui_falta_justificada_2')}</option>
+                    <option value="Permission">{t('incidents.ui_permiso_laboral_2')}</option>
+                    <option value="Vacation">{t('incidents.ui_vacaciones_2')}</option>
+                    <option value="Disability">{t('incidents.ui_incapacidad_medica_2')}</option>
+                    <option value="HomeOffice">{t('incidents.ui_home_office')}</option>
+                    <option value="FieldWork">{t('incidents.ui_trabajo_en_campo_2')}</option>
+                    <option value="ScheduleCorrection">{t('incidents.ui_correccion_de_horario_2')}</option>
                   </select>
                 </div>
               </div>
@@ -654,22 +672,22 @@ export const IncidentsPage: React.FC = () => {
                 <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-200 grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-indigo-900 mb-1">
-                      {language === 'zh-CN' ? '补卡类型 (Movimiento)' : 'Movimiento a Justificar'}
+                      {t('incidents.ui_movimiento_a_justificar')}
                     </label>
                     <select
                       value={formPunchMovementType}
                       onChange={(e) => setFormPunchMovementType(e.target.value)}
                       className="w-full bg-white border border-indigo-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:outline-none"
                     >
-                      <option value="Entry">{language === 'zh-CN' ? '上班打卡 (Entrada)' : 'Entrada'}</option>
-                      <option value="MealExit">{language === 'zh-CN' ? '午休开始 (Salida Comida)' : 'Salida a Comida'}</option>
-                      <option value="MealReturn">{language === 'zh-CN' ? '午休结束 (Regreso Comida)' : 'Regreso de Comida'}</option>
-                      <option value="Exit">{language === 'zh-CN' ? '下班打卡 (Salida)' : 'Salida'}</option>
+                      <option value="Entry">{t('incidents.ui_entrada')}</option>
+                      <option value="MealExit">{t('incidents.ui_salida_a_comida')}</option>
+                      <option value="MealReturn">{t('incidents.ui_regreso_de_comida')}</option>
+                      <option value="Exit">{t('incidents.ui_salida')}</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-indigo-900 mb-1">
-                      {language === 'zh-CN' ? '补卡时间 (Hora)' : 'Hora de Checada'}
+                      {t('incidents.ui_hora_de_checada')}
                     </label>
                     <input
                       type="time"
@@ -685,7 +703,7 @@ export const IncidentsPage: React.FC = () => {
               {(formType === 'JustifiedLate' || formType === 'Permission') && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    {language === 'zh-CN' ? '豁免/批准分钟数 (Minutos)' : 'Minutos a Justificar o Exonerar'}
+                    {t('incidents.ui_minutos_a_justificar_o_exonerar')}
                   </label>
                   <input
                     type="number"
@@ -702,13 +720,13 @@ export const IncidentsPage: React.FC = () => {
               {/* Description */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {language === 'zh-CN' ? '说明与事由 (Motivo / Justificación)' : 'Motivo / Justificación'}
+                  {t('incidents.ui_motivo_justificacion')}
                 </label>
                 <textarea
                   rows={3}
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  placeholder="Explique el motivo de la justificación, folio médico, permiso gerencial, etc."
+                  placeholder={t('incidents.reasonPlaceholder')}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-none"
                   required
                 />
@@ -744,7 +762,7 @@ export const IncidentsPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Info className="w-5 h-5 text-indigo-600" />
                 <h2 className="text-base font-bold text-slate-900">
-                  {language === 'zh-CN' ? '申请详情' : 'Detalle de la Incidencia'}
+                  {t('incidents.ui_detalle_de_la_incidencia')}
                 </h2>
               </div>
               <button
@@ -763,30 +781,30 @@ export const IncidentsPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-2 text-slate-600">
                 <div>
-                  <span className="text-slate-400 block text-[11px]">Fecha:</span>
+                  <span className="text-slate-400 block text-[11px]">{t('common.date')}:</span>
                   <span className="font-mono font-semibold">{selectedIncidentForDetail.date}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[11px]">Tipo:</span>
+                  <span className="text-slate-400 block text-[11px]">{t('incidents.type')}:</span>
                   <span className="font-semibold text-slate-800">{renderTypeLabel(selectedIncidentForDetail.type, selectedIncidentForDetail.bilingualType)}</span>
                 </div>
               </div>
 
               {selectedIncidentForDetail.punchTime && (
                 <div className="p-2.5 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-900">
-                  <strong>Checada omitida:</strong> {selectedIncidentForDetail.punchMovementType || 'Punch'} a las {selectedIncidentForDetail.punchTime}
+                  <strong>{t('incidents.missingPunch')}:</strong> {selectedIncidentForDetail.punchMovementType || 'Punch'} · {selectedIncidentForDetail.punchTime}
                 </div>
               )}
 
               {selectedIncidentForDetail.minutes > 0 && (
                 <div>
-                  <span className="text-slate-400 block text-[11px]">Minutos exonerados:</span>
+                  <span className="text-slate-400 block text-[11px]">{t('incidents.excusedMinutes')}:</span>
                   <span className="font-semibold text-amber-700">{selectedIncidentForDetail.minutes} minutos</span>
                 </div>
               )}
 
               <div>
-                <span className="text-slate-400 block text-[11px]">Motivo / Justificación:</span>
+                <span className="text-slate-400 block text-[11px]">{t('incidents.reason')}:</span>
                 <p className="mt-1 p-2 bg-slate-50 rounded-lg border border-slate-200 text-slate-800 leading-relaxed">
                   {selectedIncidentForDetail.description}
                 </p>
@@ -794,18 +812,18 @@ export const IncidentsPage: React.FC = () => {
 
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                 <div>
-                  <span className="text-slate-400 block text-[11px]">Estado:</span>
+                  <span className="text-slate-400 block text-[11px]">{t('incidents.status')}:</span>
                   {getStatusBadge(selectedIncidentForDetail.status, selectedIncidentForDetail.bilingualStatus)}
                 </div>
                 {selectedIncidentForDetail.approvedBy && (
                   <div className="text-right text-[11px] text-slate-500">
-                    <div>Aprobado por: <strong>{selectedIncidentForDetail.approvedBy}</strong></div>
+                    <div>{t('incidents.approvedBy')}: <strong>{selectedIncidentForDetail.approvedBy}</strong></div>
                     <div className="font-mono text-[10px]">{selectedIncidentForDetail.approvedAt}</div>
                   </div>
                 )}
                 {selectedIncidentForDetail.cancellationReason && (
                   <div className="text-right text-[11px] text-rose-600">
-                    <div>Cancelado por: <strong>{selectedIncidentForDetail.cancelledBy}</strong></div>
+                    <div>{t('incidents.cancelledBy')}: <strong>{selectedIncidentForDetail.cancelledBy}</strong></div>
                     <div>Motivo: {selectedIncidentForDetail.cancellationReason}</div>
                   </div>
                 )}
@@ -830,7 +848,7 @@ export const IncidentsPage: React.FC = () => {
           <div className="bg-white rounded-2xl w-full max-w-lg p-6 relative border border-slate-200 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-base font-bold text-slate-900">
-                {language === 'zh-CN' ? '编辑待审批申请' : 'Editar Incidencia Pendiente'}
+                {t('incidents.ui_editar_incidencia_pendiente')}
               </h2>
               <button
                 onClick={() => setSelectedIncidentForEdit(null)}
@@ -847,41 +865,41 @@ export const IncidentsPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Tipo de Incidencia</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('incidents.type')}</label>
                 <select
                   value={formType}
                   onChange={(e) => setFormType(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-none"
                 >
-                  <option value="JustifiedLate">Retardo Justificado</option>
-                  <option value="PunchMiss">Omisión de Checada</option>
-                  <option value="JustifiedAbsence">Falta Justificada</option>
-                  <option value="Permission">Permiso Laboral</option>
-                  <option value="Vacation">Vacaciones</option>
-                  <option value="Disability">Incapacidad Médica</option>
-                  <option value="HomeOffice">Home Office</option>
-                  <option value="FieldWork">Trabajo en Campo</option>
-                  <option value="ScheduleCorrection">Corrección de Horario</option>
+                  <option value="JustifiedLate">{t('incidents.justifiedLate')}</option>
+                  <option value="PunchMiss">{t('incidents.punchMiss')}</option>
+                  <option value="JustifiedAbsence">{t('incidents.justifiedAbsence')}</option>
+                  <option value="Permission">{t('incidents.permission')}</option>
+                  <option value="Vacation">{t('status.vacation')}</option>
+                  <option value="Disability">{t('status.disability')}</option>
+                  <option value="HomeOffice">{t('incidents.homeOffice')}</option>
+                  <option value="FieldWork">{t('incidents.fieldWork')}</option>
+                  <option value="ScheduleCorrection">{t('incidents.scheduleCorrection')}</option>
                 </select>
               </div>
 
               {formType === 'PunchMiss' && (
                 <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-200 grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Movimiento</label>
+                    <label className="block text-xs font-semibold text-indigo-900 mb-1">{t('incidents.movement')}</label>
                     <select
                       value={formPunchMovementType}
                       onChange={(e) => setFormPunchMovementType(e.target.value)}
                       className="w-full bg-white border border-indigo-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:outline-none"
                     >
-                      <option value="Entry">Entrada</option>
-                      <option value="MealExit">Salida a Comida</option>
-                      <option value="MealReturn">Regreso de Comida</option>
-                      <option value="Exit">Salida</option>
+                      <option value="Entry">{t('common.entry')}</option>
+                      <option value="MealExit">{t('incidents.mealExit')}</option>
+                      <option value="MealReturn">{t('incidents.mealReturn')}</option>
+                      <option value="Exit">{t('common.exit')}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Hora</label>
+                    <label className="block text-xs font-semibold text-indigo-900 mb-1">{t('common.time')}</label>
                     <input
                       type="time"
                       value={formPunchTime}
@@ -895,7 +913,7 @@ export const IncidentsPage: React.FC = () => {
 
               {(formType === 'JustifiedLate' || formType === 'Permission') && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Minutos a Justificar</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">{t('incidents.minutesToJustify')}</label>
                   <input
                     type="number"
                     min="1"
@@ -909,7 +927,7 @@ export const IncidentsPage: React.FC = () => {
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Motivo / Justificación</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('incidents.reason')}</label>
                 <textarea
                   rows={3}
                   value={formDescription}
@@ -947,7 +965,7 @@ export const IncidentsPage: React.FC = () => {
             <div className="flex items-center gap-2 text-amber-600">
               <Ban className="w-5 h-5" />
               <h2 className="text-base font-bold text-slate-900">
-                {language === 'zh-CN' ? '取消申请' : 'Cancelar Incidencia'}
+                {t('incidents.ui_cancelar_incidencia')}
               </h2>
             </div>
             <p className="text-xs text-slate-600">
@@ -957,11 +975,11 @@ export const IncidentsPage: React.FC = () => {
             <form onSubmit={handleCancelSubmit} className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {language === 'zh-CN' ? '取消原因 (Motivo Obligatorio)' : 'Motivo de Cancelación'}
+                  {t('incidents.ui_motivo_de_cancelacion')}
                 </label>
                 <input
                   type="text"
-                  placeholder="Ej. Solicitud duplicada, error de fecha, desistimiento..."
+                  placeholder={t('incidents.cancelPlaceholder')}
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-none"

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { History, RefreshCw, Eye, X, Shield, Cpu, Globe, Search } from 'lucide-react';
 import api from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
+import { ErrorState, LoadingState } from '../components/AsyncState';
+import { AuditChanges } from '../components/AuditChanges';
 
 interface AuditItem {
   id: number;
@@ -20,6 +22,7 @@ export const AuditPage: React.FC = () => {
   const { t, language } = useLanguage();
   const [logs, setLogs] = useState<AuditItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [moduleFilter, setModuleFilter] = useState('');
   const [actionFilter, setActionFilter] = useState('');
   const [selectedLog, setSelectedLog] = useState<AuditItem | null>(null);
@@ -27,6 +30,7 @@ export const AuditPage: React.FC = () => {
   const fetchLogs = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const res = await api.get('/v1/audit', {
         params: {
           module: moduleFilter || undefined,
@@ -34,8 +38,9 @@ export const AuditPage: React.FC = () => {
         },
       });
       setLogs(res.data.items || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load audit logs:', err);
+      setLoadError(err.response?.data?.message || t('common.loadErrorDescription'));
     } finally {
       setLoading(false);
     }
@@ -66,54 +71,15 @@ export const AuditPage: React.FC = () => {
 
   // Requirement 6: Device IP & Origin presentation logic
   const renderOriginBadge = (log: AuditItem) => {
-    const isDeviceEvent =
-      log.module === 'Biometric' ||
-      log.entity === 'BiometricDevice' ||
-      log.action?.toLowerCase().includes('sync') ||
-      log.action?.toLowerCase().includes('punch');
-
-    if (isDeviceEvent) {
-      if (log.ipAddress && log.ipAddress !== '127.0.0.1' && log.ipAddress !== '::1' && log.ipAddress !== 'No registrada') {
-        return (
-          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#E6F2F0] text-[#00695F] border border-[#00695F]/30 font-mono text-[11px] font-semibold">
-            <Cpu className="w-3 h-3 text-[#00695F]" />
-            <span>{log.ipAddress}</span>
-            <span className="text-[10px] text-[#00695F]/80 uppercase tracking-wider font-sans font-normal">(FA200)</span>
-          </div>
-        );
-      }
-      return (
-        <span className="inline-block px-2 py-0.5 rounded text-[11px] bg-slate-100 text-slate-500 font-mono">
-          {language === 'zh-CN' ? '未记录' : 'No registrada'}
-        </span>
-      );
-    }
-
-    // Manual/Admin or system operations
-    if (log.ipAddress && log.ipAddress !== '127.0.0.1' && log.ipAddress !== '::1' && log.ipAddress !== 'No registrada') {
-      return (
-        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 text-[#203441] border border-[#DFE7EB] font-mono text-[11px]">
-          <Globe className="w-3 h-3 text-[#60727E]" />
-          <span>{log.ipAddress}</span>
-          <span className="text-[10px] text-[#60727E] uppercase font-sans">(Web)</span>
-        </div>
-      );
-    }
-
-    if (log.ipAddress === '127.0.0.1' || log.ipAddress === '::1') {
-      return (
-        <span className="inline-block px-2 py-0.5 rounded text-[11px] bg-slate-100 text-slate-600 font-mono" title="Transporte interno o Proxy local de VPS">
-          127.0.0.1 (Local)
-        </span>
-      );
-    }
-
-    // Operations without device association
-    return (
-      <span className="inline-block px-2 py-0.5 rounded text-[11px] bg-slate-100 text-slate-400 font-sans">
-        {language === 'zh-CN' ? '不适用' : 'No aplica'}
-      </span>
-    );
+    const payload = parseJsonData(log.newValues) || {};
+    const isDeviceEvent = log.module === 'Biometric' || log.entity === 'BiometricDevice';
+    const loopback = log.ipAddress === '127.0.0.1' || log.ipAddress === '::1';
+    const deviceIp = payload.deviceIp || (log.module === 'Biometric' && !loopback && log.ipAddress !== 'No registrada' ? log.ipAddress : null);
+    return <div className="space-y-1 text-xs">
+      <p><span className="text-[#60727E]">{t('audit.deviceIp')}: </span><span className="font-mono">{isDeviceEvent ? deviceIp || t('audit.notRecorded') : t('audit.notApplicable')}</span></p>
+      {loopback && <p className="font-mono text-[#60727E]" title={t('audit.internalTransport')}>{t('audit.transport')}: {log.ipAddress}</p>}
+      {!loopback && log.module !== 'Biometric' && log.ipAddress && <p className="font-mono text-[#60727E]">{t('audit.userIp')}: {log.ipAddress}</p>}
+    </div>;
   };
 
   return (
@@ -126,28 +92,36 @@ export const AuditPage: React.FC = () => {
             <span>{t('audit.title')}</span>
           </h1>
           <p className="text-xs text-[#60727E] mt-1">
-            {language === 'zh-CN'
-              ? '全方位记录系统操作员行为、FA200 考勤打卡来源、排班修改及权限变更轨迹'
-              : 'Trazabilidad de modificaciones de horarios, recálculos y eventos de reloj biométrico'}
+            {t('audit.ui_trazabilidad_de_modificaciones_de_horarios_recalculos')}
           </p>
         </div>
 
         {/* Filter Toolbar */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-[#60727E] absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder={language === 'zh-CN' ? '按模块筛选 (Attendance, Biometric)...' : 'Filtrar módulo...'}
+              placeholder={t('audit.moduleFilter')}
               value={moduleFilter}
               onChange={(e) => setModuleFilter(e.target.value)}
+              className="pl-8 bg-white border border-[#DFE7EB] rounded-lg px-3 py-1.5 text-xs text-[#203441] placeholder-slate-400 focus:outline-none focus:border-[#00695F] shadow-2xs"
+            />
+          </div>
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-[#60727E] absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder={t('audit.actionFilter')}
+              value={actionFilter}
+              onChange={(e) => setActionFilter(e.target.value)}
               className="pl-8 bg-white border border-[#DFE7EB] rounded-lg px-3 py-1.5 text-xs text-[#203441] placeholder-slate-400 focus:outline-none focus:border-[#00695F] shadow-2xs"
             />
           </div>
           <button
             onClick={fetchLogs}
             className="p-2 rounded-lg bg-white border border-[#DFE7EB] text-[#203441] hover:bg-slate-50 shadow-2xs transition"
-            title={language === 'zh-CN' ? '刷新审计日志' : 'Actualizar registros'}
+            title={t('audit.refresh')}
           >
             <RefreshCw className={`w-4 h-4 text-[#00695F] ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -161,11 +135,11 @@ export const AuditPage: React.FC = () => {
             <thead className="bg-[#F4F7F8] uppercase text-[#60727E] font-semibold border-b border-[#DFE7EB]">
               <tr>
                 <th className="px-4 py-3">{t('common.time')}</th>
-                <th className="px-4 py-3">{language === 'zh-CN' ? '操作账号' : 'Usuario'}</th>
+                <th className="px-4 py-3">{t('audit.ui_usuario')}</th>
                 <th className="px-4 py-3">{t('audit.module')}</th>
                 <th className="px-4 py-3">{t('audit.action')}</th>
-                <th className="px-4 py-3">{language === 'zh-CN' ? '变更实体' : 'Entidad'}</th>
-                <th className="px-4 py-3">{language === 'zh-CN' ? '来源 / IP' : 'Origen / IP'}</th>
+                <th className="px-4 py-3">{t('audit.ui_entidad')}</th>
+                <th className="px-4 py-3">{t('audit.ui_origen_ip')}</th>
                 <th className="px-4 py-3 text-right">{t('common.actions')}</th>
               </tr>
             </thead>
@@ -176,10 +150,19 @@ export const AuditPage: React.FC = () => {
                     {t('common.loading')}
                   </td>
                 </tr>
+              ) : loadError ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center">
+                    <p className="font-semibold text-rose-700">{loadError}</p>
+                    <button type="button" onClick={fetchLogs} className="mt-3 rounded-lg bg-rose-600 px-3 py-1.5 font-bold text-white hover:bg-rose-700">
+                      {t('common.retry')}
+                    </button>
+                  </td>
+                </tr>
               ) : logs.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-8 text-[#60727E]">
-                    {language === 'zh-CN' ? '暂无审计日志记录' : 'No hay registros de auditoría'}
+                    {t('audit.ui_no_hay_registros_de_auditoria')}
                   </td>
                 </tr>
               ) : (
@@ -209,7 +192,7 @@ export const AuditPage: React.FC = () => {
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-white hover:bg-[#E6F2F0] text-[#00695F] text-xs font-semibold transition border border-[#00695F]/30 shadow-2xs"
                         >
                           <Eye className="w-3 h-3" />
-                          <span>{language === 'zh-CN' ? '查看明细' : 'Ver Detalle'}</span>
+                          <span>{t('audit.ui_ver_detalle')}</span>
                         </button>
                       ) : (
                         <span className="text-slate-400">—</span>
@@ -226,12 +209,12 @@ export const AuditPage: React.FC = () => {
       {/* Mobile Card List (iPhone Responsive) */}
       <div className="md:hidden space-y-3">
         {loading ? (
-          <div className="bg-white border border-[#DFE7EB] rounded-xl p-6 text-center text-[#60727E] text-xs">
-            {t('common.loading')}
-          </div>
+          <LoadingState />
+        ) : loadError ? (
+          <ErrorState message={loadError} onRetry={fetchLogs} />
         ) : logs.length === 0 ? (
           <div className="bg-white border border-[#DFE7EB] rounded-xl p-6 text-center text-[#60727E] text-xs">
-            {language === 'zh-CN' ? '暂无审计日志记录' : 'No hay registros de auditoría'}
+            {t('audit.ui_no_hay_registros_de_auditoria')}
           </div>
         ) : (
           logs.map((log) => (
@@ -260,7 +243,7 @@ export const AuditPage: React.FC = () => {
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#E6F2F0] text-[#00695F] text-xs font-semibold"
                   >
                     <Eye className="w-3 h-3" />
-                    <span>{language === 'zh-CN' ? '明细' : 'Detalle'}</span>
+                    <span>{t('audit.ui_detalle')}</span>
                   </button>
                 ) : null}
               </div>
@@ -276,7 +259,7 @@ export const AuditPage: React.FC = () => {
             <div className="px-5 py-4 bg-[#F4F7F8] border-b border-[#DFE7EB] flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-[#203441] text-sm">
-                  {language === 'zh-CN' ? '审计溯源明细 (Before & After)' : 'Trazabilidad y Detalle de Auditoría'}
+                  {t('audit.ui_trazabilidad_y_detalle_de_auditoria')}
                 </h3>
                 <span className="text-xs text-[#00695F] font-mono font-medium">
                   {selectedLog.module} · {selectedLog.action} · {selectedLog.timestamp}
@@ -294,39 +277,20 @@ export const AuditPage: React.FC = () => {
               {/* Origin Snapshot Context */}
               <div className="bg-[#F4F7F8] border border-[#DFE7EB] rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div>
-                  <span className="text-[#60727E] block text-[11px]">{language === 'zh-CN' ? '来源设备 / IP' : 'Origen / IP:'}</span>
+                  <span className="text-[#60727E] block text-[11px]">{t('audit.ui_origen_ip_2')}</span>
                   <div className="mt-0.5">{renderOriginBadge(selectedLog)}</div>
                 </div>
                 <div>
-                  <span className="text-[#60727E] block text-[11px]">{language === 'zh-CN' ? '变更实体' : 'Entidad objetivo:'}</span>
+                  <span className="text-[#60727E] block text-[11px]">{t('audit.ui_entidad_objetivo')}</span>
                   <span className="font-mono font-bold text-[#203441]">{selectedLog.entity} {selectedLog.recordId ? `[#${selectedLog.recordId}]` : ''}</span>
                 </div>
                 <div>
-                  <span className="text-[#60727E] block text-[11px]">{language === 'zh-CN' ? '操作人' : 'Operador:'}</span>
+                  <span className="text-[#60727E] block text-[11px]">{t('audit.ui_operador')}</span>
                   <span className="font-semibold text-[#203441]">{selectedLog.username}</span>
                 </div>
               </div>
 
-              {/* Before / After Columns */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <span className="text-xs font-bold text-rose-700 block mb-2">
-                    {t('audit.oldValue')} (Before)
-                  </span>
-                  <pre className="bg-rose-50/70 border border-rose-200 p-3 rounded-lg text-xs font-mono text-rose-900 overflow-x-auto max-h-72 whitespace-pre-wrap">
-                    {formatJson(selectedLog.oldValues) || (language === 'zh-CN' ? '(无变更前数据)' : '(Sin valores previos)')}
-                  </pre>
-                </div>
-
-                <div>
-                  <span className="text-xs font-bold text-[#00695F] block mb-2">
-                    {t('audit.newValue')} (After)
-                  </span>
-                  <pre className="bg-[#E6F2F0]/70 border border-[#00695F]/30 p-3 rounded-lg text-xs font-mono text-[#00695F] overflow-x-auto max-h-72 whitespace-pre-wrap">
-                    {formatJson(selectedLog.newValues) || (language === 'zh-CN' ? '(无变更后数据)' : '(Sin valores nuevos)')}
-                  </pre>
-                </div>
-              </div>
+              <AuditChanges before={selectedLog.oldValues} after={selectedLog.newValues} />
             </div>
 
             <div className="p-4 bg-[#F4F7F8] border-t border-[#DFE7EB] flex justify-end">

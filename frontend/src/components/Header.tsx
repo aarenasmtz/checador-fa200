@@ -3,7 +3,7 @@ import { Menu, Globe, User as UserIcon } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 
-export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) => {
+export const Header: React.FC<{ onMenuClick: () => void; compact?: boolean }> = ({ onMenuClick, compact = false }) => {
   const { language, setLanguage, t } = useLanguage();
   const { user } = useAuth();
 
@@ -16,13 +16,14 @@ export const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) =
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
+          aria-label={compact ? t('navigation.openMenu') : undefined}
           className="p-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 lg:hidden transition"
         >
           <Menu className="w-5 h-5" />
         </button>
         <div className="flex items-center gap-2">
           <span className="font-bold text-base sm:text-lg text-slate-800 tracking-tight">
-            {t('app.title')}
+            {compact ? t('navigation.company') : t('app.title')}
           </span>
         </div>
       </div>

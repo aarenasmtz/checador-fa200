@@ -124,7 +124,9 @@ export const ReportsPage: React.FC = () => {
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [stats, setStats] = useState<ReportStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [exportError, setExportError] = useState(false);
 
   // Expanded row IDs for viewing punch audit and justification details
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
@@ -151,6 +153,7 @@ export const ReportsPage: React.FC = () => {
   const fetchReportData = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const res = await api.get('/v1/reports/attendance', {
         params: {
           startDate,
@@ -162,8 +165,9 @@ export const ReportsPage: React.FC = () => {
         },
       });
       setStats(res.data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load report data:', err);
+      setLoadError(err.response?.data?.message || t('reports.loadError'));
     } finally {
       setLoading(false);
     }
@@ -219,6 +223,7 @@ export const ReportsPage: React.FC = () => {
   const handleDownloadExcel = async () => {
     try {
       setDownloading(true);
+      setExportError(false);
       const res = await api.get('/v1/reports/export/excel', {
         params: buildExportParams(),
         responseType: 'blob',
@@ -230,8 +235,10 @@ export const ReportsPage: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     } catch (err) {
       console.error('Excel download failed:', err);
+      setExportError(true);
     } finally {
       setDownloading(false);
     }
@@ -240,6 +247,7 @@ export const ReportsPage: React.FC = () => {
   const handleDownloadPdf = async () => {
     try {
       setDownloading(true);
+      setExportError(false);
       const res = await api.get('/v1/reports/export/pdf', {
         params: buildExportParams(),
         responseType: 'blob',
@@ -251,8 +259,10 @@ export const ReportsPage: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     } catch (err) {
       console.error('PDF download failed:', err);
+      setExportError(true);
     } finally {
       setDownloading(false);
     }
@@ -261,6 +271,7 @@ export const ReportsPage: React.FC = () => {
   const handleDownloadCsv = async () => {
     try {
       setDownloading(true);
+      setExportError(false);
       const res = await api.get('/v1/reports/export/csv', {
         params: buildExportParams(),
         responseType: 'blob',
@@ -272,8 +283,10 @@ export const ReportsPage: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     } catch (err) {
       console.error('CSV download failed:', err);
+      setExportError(true);
     } finally {
       setDownloading(false);
     }
@@ -281,7 +294,7 @@ export const ReportsPage: React.FC = () => {
 
   const renderStatusBadge = (bilingualStatus: string) => {
     const s = bilingualStatus.toLowerCase();
-    if (s.includes('completo') || s.includes('完整') || s.includes('a tiempo') || s.includes('准时')) {
+    if ((!s.includes('incompleto') && !s.includes('不完整')) && (s.includes('completo') || s.includes('完整') || s.includes('a tiempo') || s.includes('准时'))) {
       return (
         <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-300 whitespace-nowrap inline-flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
@@ -305,7 +318,7 @@ export const ReportsPage: React.FC = () => {
         </span>
       );
     }
-    if (s.includes('incompleto') || s.includes('不全') || s.includes('pendiente') || s.includes('待核查')) {
+    if (s.includes('incompleto') || s.includes('不全') || s.includes('不完整') || s.includes('pendiente') || s.includes('待核查')) {
       return (
         <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-900 border border-purple-300 whitespace-nowrap inline-flex items-center gap-1">
           <AlertTriangle className="w-3 h-3 text-purple-600" />
@@ -355,17 +368,15 @@ export const ReportsPage: React.FC = () => {
               {stats?.companyName || 'Bai Fen Bai (百分百)'}
             </span>
             <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-              {language === 'zh-CN' ? '周薪结算报表' : 'Revisión Semanal de Nómina'}
+              {t('reports.ui_revision_semanal_de_nomina')}
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mt-1 flex items-center gap-2">
             <FileSpreadsheet className="w-6 h-6 text-emerald-700" />
-            <span>Reporte de Asistencia / 员工考勤报表</span>
+            <span>{t('reports.screenTitle')}</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            {language === 'zh-CN'
-              ? '为 Bai Fen Bai 百分百 餐厅提供清晰的每周考勤与打卡明细汇总，专供周一发薪核算使用'
-              : 'Resumen semanal unificado de 4 checadas, horas efectivas y justificaciones para la revisión de pago de los lunes de David Guan'}
+          <p className="wpc-secondary-copy text-xs text-slate-500 mt-1">
+            {t('reports.ui_resumen_semanal_unificado_de_4_checadas')}
           </p>
         </div>
 
@@ -375,27 +386,27 @@ export const ReportsPage: React.FC = () => {
             onClick={handleDownloadExcel}
             disabled={downloading}
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-xs font-semibold text-white shadow-xs transition disabled:opacity-50"
-            title="Descargar Excel oficial con 9 columnas y formato ClosedXML"
+            title={t('reports.excelTitle')}
           >
             <Download className="w-4 h-4" />
-            <span>{language === 'zh-CN' ? '导出 Excel (.xlsx)' : 'Exportar Excel'}</span>
+            <span>{t('reports.ui_exportar_excel')}</span>
           </button>
 
           <button
             onClick={handleDownloadPdf}
             disabled={downloading}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-rose-300 text-xs font-semibold text-rose-700 hover:bg-rose-50 shadow-2xs transition disabled:opacity-50"
-            title="Descargar reporte PDF horizontal con tipografía CJK bilingüe"
+            title={t('reports.pdfTitle')}
           >
             <FileText className="w-4 h-4 text-rose-600" />
-            <span>{language === 'zh-CN' ? '导出 PDF' : 'Exportar PDF'}</span>
+            <span>{t('reports.ui_exportar_pdf')}</span>
           </button>
 
           <button
             onClick={handleDownloadCsv}
             disabled={downloading}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition disabled:opacity-50"
-            title="Descargar CSV con UTF-8 BOM"
+            title={t('reports.csvTitle')}
           >
             <Download className="w-4 h-4 text-slate-600" />
             <span>CSV</span>
@@ -404,13 +415,15 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {/* 2. Weekly Navigation Toolbar (Monday to Sunday) */}
+      {exportError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800">{t('reports.exportError')}</p>}
+      {downloading && <p role="status" className="flex items-center gap-2 text-sm text-[#00695F]"><RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />{t('common.loading')}</p>}
       <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
           {/* Quick Week Select Buttons */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mr-1">
               <Calendar className="w-4 h-4 text-emerald-700" />
-              <span>{language === 'zh-CN' ? '周快捷选择:' : 'Periodo Semanal:'}</span>
+              <span>{t('reports.ui_periodo_semanal')}</span>
             </span>
 
             {/* Previous Week: Prominent 1-click button for Monday payroll review */}
@@ -418,36 +431,36 @@ export const ReportsPage: React.FC = () => {
               type="button"
               onClick={handleSelectPreviousWeek}
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition"
-              title="Semana anterior de Lunes a Domingo (Revisión de pago del lunes)"
+              title={t('reports.previousWeekTitle')}
             >
               <ChevronLeft className="w-3.5 h-3.5" />
-              <span>{language === 'zh-CN' ? '◀ 上周 (周一发薪核算)' : '◀ Semana anterior (Pago Lunes)'}</span>
+              <span>{t('reports.ui_semana_anterior_pago_lunes')}</span>
             </button>
 
             <button
               type="button"
               onClick={handleSelectCurrentWeek}
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition"
-              title="Semana actual en curso de Lunes a Domingo"
+              title={t('reports.currentWeekTitle')}
             >
-              <span>{language === 'zh-CN' ? '本周 (当前周期)' : 'Semana actual'}</span>
+              <span>{t('reports.ui_semana_actual')}</span>
             </button>
 
             <button
               type="button"
               onClick={handleSelectNextWeek}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition"
-              title="Semana siguiente"
+              title={t('reports.nextWeekTitle')}
             >
-              <span>{language === 'zh-CN' ? '下周 ▶' : 'Semana siguiente ▶'}</span>
+              <span>{t('reports.ui_semana_siguiente')}</span>
             </button>
           </div>
 
           {/* Active Period Full Dates Indicator */}
           <div className="text-xs font-mono font-bold bg-emerald-50 text-emerald-900 border border-emerald-300 px-3 py-1.5 rounded-lg">
-            <span>📅 {startDate} ({language === 'zh-CN' ? '周一' : 'Lunes'})</span>
+            <span>📅 {startDate} ({t('reports.ui_lunes')})</span>
             <span className="mx-2 text-emerald-500">➜</span>
-            <span>{endDate} ({language === 'zh-CN' ? '周日' : 'Domingo'})</span>
+            <span>{endDate} ({t('reports.ui_domingo')})</span>
           </div>
         </div>
 
@@ -456,7 +469,7 @@ export const ReportsPage: React.FC = () => {
           {/* Custom Date Pickers */}
           <div>
             <label className="text-[11px] text-slate-600 font-semibold block mb-1">
-              {language === 'zh-CN' ? '起始日期 (Inicio)' : 'Fecha de inicio:'}
+              {t('reports.ui_fecha_de_inicio')}
             </label>
             <input
               type="date"
@@ -468,7 +481,7 @@ export const ReportsPage: React.FC = () => {
 
           <div>
             <label className="text-[11px] text-slate-600 font-semibold block mb-1">
-              {language === 'zh-CN' ? '结束日期 (Fin)' : 'Fecha de fin:'}
+              {t('reports.ui_fecha_de_fin')}
             </label>
             <input
               type="date"
@@ -481,7 +494,7 @@ export const ReportsPage: React.FC = () => {
           {/* Branch Filter */}
           <div>
             <label className="text-[11px] text-slate-600 font-semibold block mb-1">
-              {language === 'zh-CN' ? '分店 (Sucursal)' : 'Sucursal:'}
+              {t('reports.ui_sucursal')}
             </label>
             <select
               value={branchId}
@@ -491,7 +504,7 @@ export const ReportsPage: React.FC = () => {
               }}
               className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:outline-none"
             >
-              <option value="">{language === 'zh-CN' ? '全部分店 (Todas)' : 'Todas las sucursales'}</option>
+              <option value="">{t('reports.ui_todas_las_sucursales')}</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
@@ -501,14 +514,14 @@ export const ReportsPage: React.FC = () => {
           {/* Employee Filter */}
           <div>
             <label className="text-[11px] text-slate-600 font-semibold block mb-1">
-              {language === 'zh-CN' ? '员工 (Empleado)' : 'Empleado:'}
+              {t('reports.ui_empleado')}
             </label>
             <select
               value={employeeId}
               onChange={(e) => setEmployeeId(e.target.value)}
               className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:outline-none"
             >
-              <option value="">{language === 'zh-CN' ? '全部员工 (Todos)' : 'Todos los empleados'}</option>
+              <option value="">{t('reports.ui_todos_los_empleados')}</option>
               {filteredEmployees.map((emp) => (
                 <option key={emp.id} value={emp.id}>
                   [{emp.employeeCode}] {emp.firstName} {emp.lastName}
@@ -520,22 +533,22 @@ export const ReportsPage: React.FC = () => {
           {/* Status Filter */}
           <div>
             <label className="text-[11px] text-slate-600 font-semibold block mb-1">
-              {language === 'zh-CN' ? '考勤状态 (Estado)' : 'Estado:'}
+              {t('reports.ui_estado')}
             </label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:border-emerald-600 focus:outline-none"
             >
-              <option value="">{language === 'zh-CN' ? '全部状态 (Todos)' : 'Todos los estados'}</option>
-              <option value="OnTime">{language === 'zh-CN' ? '完整 / 准时 (Completo)' : 'Completo (A tiempo)'}</option>
-              <option value="Late">{language === 'zh-CN' ? '迟到 (Retardo)' : 'Retardo'}</option>
-              <option value="Incomplete">{language === 'zh-CN' ? '打卡不全 (Incompleto)' : 'Incompleto'}</option>
-              <option value="EarlyExit">{language === 'zh-CN' ? '早退 / 批准提前下班' : 'Salida anticipada'}</option>
-              <option value="Absent">{language === 'zh-CN' ? '无打卡 / 缺勤 (Falta)' : 'Sin checadas / Falta'}</option>
-              <option value="Permission">{language === 'zh-CN' ? '请假 (Permiso)' : 'Permiso'}</option>
-              <option value="Vacation">{language === 'zh-CN' ? '年假 (Vacaciones)' : 'Vacaciones'}</option>
-              <option value="Disability">{language === 'zh-CN' ? '病假 (Incapacidad)' : 'Incapacidad'}</option>
+              <option value="">{t('reports.ui_todos_los_estados')}</option>
+              <option value="OnTime">{t('reports.ui_completo_a_tiempo')}</option>
+              <option value="Late">{t('reports.ui_retardo')}</option>
+              <option value="Incomplete">{t('reports.ui_incompleto')}</option>
+              <option value="EarlyExit">{t('reports.ui_salida_anticipada')}</option>
+              <option value="Absent">{t('reports.ui_sin_checadas_falta')}</option>
+              <option value="Permission">{t('reports.ui_permiso')}</option>
+              <option value="Vacation">{t('reports.ui_vacaciones')}</option>
+              <option value="Disability">{t('reports.ui_incapacidad')}</option>
             </select>
           </div>
         </div>
@@ -549,7 +562,7 @@ export const ReportsPage: React.FC = () => {
               onChange={(e) => setIncludeEmptyDays(e.target.checked)}
               className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-600 w-4 h-4"
             />
-            <span>{language === 'zh-CN' ? '包含未打卡排班 (休息日、未来排班与未打卡记录)' : 'Incluir días sin actividad (Descansos / Programados)'}</span>
+            <span>{t('reports.ui_incluir_dias_sin_actividad_descansos_programados')}</span>
           </label>
 
           <button
@@ -557,7 +570,7 @@ export const ReportsPage: React.FC = () => {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold transition"
           >
             <RefreshCw className="w-3.5 h-3.5 text-emerald-800" />
-            <span>{language === 'zh-CN' ? '刷新数据' : 'Actualizar'}</span>
+            <span>{t('reports.ui_actualizar')}</span>
           </button>
         </div>
       </div>
@@ -585,15 +598,15 @@ export const ReportsPage: React.FC = () => {
           </div>
           <div className="flex items-center gap-4 text-xs">
             <div className="text-right">
-              <span className="text-slate-500 block text-[11px]">{language === 'zh-CN' ? '本周确认工时' : 'Horas confirmadas:'}</span>
+              <span className="text-slate-500 block text-[11px]">{t('reports.ui_horas_confirmadas')}</span>
               <span className="font-bold text-emerald-800 text-sm font-mono">{stats.totalConfirmedFormatted}</span>
             </div>
             <div className="text-right">
-              <span className="text-slate-500 block text-[11px]">{language === 'zh-CN' ? '累计迟到' : 'Retardo total:'}</span>
+              <span className="text-slate-500 block text-[11px]">{t('reports.ui_retardo_total')}</span>
               <span className="font-bold text-amber-700 text-sm font-mono">{stats.totalLateMinutes} min</span>
             </div>
             <div className="text-right">
-              <span className="text-slate-500 block text-[11px]">{language === 'zh-CN' ? '待核查班次' : 'Jornadas pendientes:'}</span>
+              <span className="text-slate-500 block text-[11px]">{t('reports.ui_jornadas_pendientes')}</span>
               <span className="font-bold text-purple-700 text-sm font-mono">{stats.pendingReviewCount}</span>
             </div>
           </div>
@@ -606,11 +619,11 @@ export const ReportsPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-emerald-300" />
             <span className="text-xs font-bold uppercase tracking-wider">
-              {language === 'zh-CN' ? '考勤明细列表 (9列标准核算视图)' : 'Detalle de Asistencia por Jornada (9 Columnas Oficiales)'}
+              {t('reports.ui_detalle_de_asistencia_por_jornada_9')}
             </span>
           </div>
           <span className="text-[11px] text-emerald-200">
-            {language === 'zh-CN' ? '点击行可展开原始打卡与考勤说明' : 'Clic en cualquier fila para ver checadas biométricas y justificaciones'}
+            {t('reports.ui_clic_en_cualquier_fila_para_ver')}
           </span>
         </div>
 
@@ -669,10 +682,19 @@ export const ReportsPage: React.FC = () => {
                     </div>
                   </td>
                 </tr>
+              ) : loadError ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-10 text-center">
+                    <p className="font-semibold text-rose-700">{loadError}</p>
+                    <button type="button" onClick={fetchReportData} className="mt-3 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700">
+                      {t('common.retry')}
+                    </button>
+                  </td>
+                </tr>
               ) : !stats || stats.data.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center py-12 text-slate-400">
-                    {language === 'zh-CN' ? '所选周期范围内暂无考勤数据' : 'No hay registros de asistencia en el periodo seleccionado'}
+                    {t('reports.ui_no_hay_registros_de_asistencia_en')}
                   </td>
                 </tr>
               ) : (
@@ -766,7 +788,7 @@ export const ReportsPage: React.FC = () => {
                                 toggleRowExpansion(rowKey);
                               }}
                               className="p-1 rounded hover:bg-slate-200 text-slate-500 transition"
-                              title="Ver checadas originales y justificaciones"
+                              title={t('reports.viewPunchesTitle')}
                             >
                               {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                             </button>
@@ -847,9 +869,16 @@ export const ReportsPage: React.FC = () => {
               <RefreshCw className="w-6 h-6 animate-spin mx-auto text-emerald-700 mb-2" />
               <span>{t('common.loading')}</span>
             </div>
+          ) : loadError ? (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-center text-xs text-rose-700">
+              <p className="font-semibold">{loadError}</p>
+              <button type="button" onClick={fetchReportData} className="mt-3 rounded-lg bg-rose-600 px-3 py-1.5 font-bold text-white hover:bg-rose-700">
+                {t('common.retry')}
+              </button>
+            </div>
           ) : !stats || stats.data.length === 0 ? (
             <div className="text-center py-8 text-slate-400 text-xs">
-              {language === 'zh-CN' ? '暂无数据' : 'Sin datos'}
+              {t('reports.ui_sin_datos')}
             </div>
           ) : (
             stats.data.map((row: ReportItem, idx: number) => {
@@ -932,7 +961,7 @@ export const ReportsPage: React.FC = () => {
                       )}
                       {row.rawPunches && row.rawPunches.length > 0 && (
                         <div className="space-y-1 font-mono text-[10px] bg-slate-50 p-2 rounded">
-                          <div className="font-bold text-slate-700">Checadas registradas:</div>
+                          <div className="font-bold text-slate-700">{t('reports.registeredPunches')}:</div>
                           {row.rawPunches.map((p, i) => (
                             <div key={i} className="flex justify-between text-slate-600">
                               <span>{p.time} ({p.method})</span>

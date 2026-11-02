@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import api from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
+import { ErrorState, LoadingState } from '../components/AsyncState';
 
 interface Branch {
   id: number;
@@ -59,6 +60,7 @@ interface Device {
   vpnSubnet?: string;
   vpnClientIp?: string;
   punchesToday?: number;
+  latencyMs?: number;
 }
 
 export const DevicesPage: React.FC = () => {
@@ -66,6 +68,7 @@ export const DevicesPage: React.FC = () => {
   const [devices, setDevices] = useState<Device[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Modal State
@@ -90,6 +93,7 @@ export const DevicesPage: React.FC = () => {
 
   // Testing & Sync states
   const [testingId, setTestingId] = useState<number | null>(null);
+  const [latencies, setLatencies] = useState<Record<number, number | null>>({});
   const [syncingId, setSyncingId] = useState<number | null>(null);
 
   // Diagnostics collapsible state
@@ -107,6 +111,7 @@ export const DevicesPage: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const [devRes, branchRes] = await Promise.all([
         api.get('/v1/devices'),
         api.get('/v1/branches')
@@ -115,6 +120,7 @@ export const DevicesPage: React.FC = () => {
       setBranches(branchRes.data || []);
     } catch (err: any) {
       console.error('Failed to load devices/branches:', err);
+      setLoadError(err.response?.data?.message || t('common.loadErrorDescription'));
     } finally {
       setLoading(false);
     }
@@ -174,11 +180,11 @@ export const DevicesPage: React.FC = () => {
   const handleSaveDevice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.branchId) {
-      setFormError(language === 'zh-CN' ? '请选择所属分店' : 'Debe seleccionar una sucursal.');
+      setFormError(t('devices.ui_debe_seleccionar_una_sucursal'));
       return;
     }
     if (!formData.code.trim()) {
-      setFormError(language === 'zh-CN' ? '请输入设备编号' : 'El código del dispositivo es obligatorio.');
+      setFormError(t('devices.ui_el_codigo_del_dispositivo_es_obligatorio'));
       return;
     }
 
@@ -187,10 +193,10 @@ export const DevicesPage: React.FC = () => {
     try {
       if (editingDevice) {
         await api.put(`/v1/devices/${editingDevice.id}`, formData);
-        showNotification(language === 'zh-CN' ? '设备更新成功' : 'Dispositivo reloj checador actualizado exitosamente.');
+        showNotification(t('devices.ui_dispositivo_reloj_checador_actualizado_exitosamente'));
       } else {
         await api.post('/v1/devices', formData);
-        showNotification(language === 'zh-CN' ? '新考勤机登记成功' : 'Nuevo reloj checador registrado exitosamente.');
+        showNotification(t('devices.ui_nuevo_reloj_checador_registrado_exitosamente'));
       }
       setIsModalOpen(false);
       fetchData();
@@ -206,7 +212,7 @@ export const DevicesPage: React.FC = () => {
     setDeleting(true);
     try {
       await api.delete(`/v1/devices/${deletingDevice.id}`);
-      showNotification(language === 'zh-CN' ? '设备已删除' : 'Reloj checador eliminado exitosamente.');
+      showNotification(t('devices.ui_reloj_checador_eliminado_exitosamente'));
       setDeletingDevice(null);
       fetchData();
     } catch (err: any) {
@@ -220,6 +226,7 @@ export const DevicesPage: React.FC = () => {
     try {
       setTestingId(id);
       const res = await api.post(`/v1/devices/${id}/test-connection`);
+      setLatencies(current => ({ ...current, [id]: res.data.success && Number.isFinite(res.data.latencyMs) ? res.data.latencyMs : null }));
       if (res.data.success) {
         showNotification(`[${name}] ${res.data.message || 'Conexión verificada exitosamente'}`);
       } else {
@@ -251,12 +258,12 @@ export const DevicesPage: React.FC = () => {
   };
 
   const formatTimeAgo = (isoDate?: string): string => {
-    if (!isoDate) return language === 'zh-CN' ? '从未' : 'Nunca';
+    if (!isoDate) return t('devices.ui_nunca');
     const date = new Date(isoDate);
     const now = new Date();
     const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (diffSec < 60) return language === 'zh-CN' ? '刚刚' : 'Hace un momento';
+    if (diffSec < 60) return t('devices.ui_hace_un_momento');
     if (diffSec < 3600) {
       const min = Math.floor(diffSec / 60);
       return language === 'zh-CN' ? `${min}分钟前` : `Hace ${min} min`;
@@ -287,10 +294,8 @@ export const DevicesPage: React.FC = () => {
               VPN Mango WireGuard
             </span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            {language === 'zh-CN'
-              ? '通过各分店 GL.iNet GL-MT300N-V2 (Mango) 路由器 WireGuard VPN 隧道集中管理 FA200 考勤机，无需各店留守电脑。'
-              : 'Gestión centralizada de checadores biométricos FA200 mediante túnel VPN WireGuard con router GL.iNet Mango, eliminando la necesidad de PC encendida en sucursal.'}
+          <p className="wpc-secondary-copy text-xs text-slate-500 mt-1">
+            {t('devices.ui_gestion_centralizada_de_checadores_biometricos_fa200')}
           </p>
         </div>
 
@@ -300,7 +305,7 @@ export const DevicesPage: React.FC = () => {
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition"
           >
             <RefreshCw className={`w-4 h-4 text-emerald-700 ${loading ? 'animate-spin' : ''}`} />
-            <span>{language === 'zh-CN' ? '刷新' : 'Actualizar'}</span>
+            <span>{t('devices.ui_actualizar')}</span>
           </button>
 
           <button
@@ -308,36 +313,34 @@ export const DevicesPage: React.FC = () => {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-xs font-semibold text-white shadow-xs transition"
           >
             <Plus className="w-4 h-4" />
-            <span>{language === 'zh-CN' ? '登记新考勤机' : 'Registrar Checador VPN'}</span>
+            <span>{t('devices.ui_registrar_checador_vpn')}</span>
           </button>
         </div>
       </div>
 
       {/* Architecture Alert / Banner */}
-      <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-slate-50 border border-emerald-200/80 rounded-xl p-4 text-xs text-slate-700 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-2xs">
+      <div className="wpc-technical-banner bg-gradient-to-r from-emerald-50 via-teal-50 to-slate-50 border border-emerald-200/80 rounded-xl p-4 text-xs text-slate-700 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-2xs">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-xs">
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
             <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
-              <span>{language === 'zh-CN' ? 'GL.iNet Mango 专用 VPN 架构' : 'Arquitectura VPN GL.iNet Mango Activa'}</span>
+              <span>{t('devices.ui_arquitectura_vpn_gl_inet_mango_activa')}</span>
               <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-white border border-emerald-300 text-emerald-800">
                 <Radio className="w-3 h-3 text-emerald-600 animate-pulse" />
                 WireGuard 10.10.0.0/24
               </span>
             </div>
             <p className="text-slate-600 mt-0.5">
-              {language === 'zh-CN'
-                ? '服务器集中通过 10.10.x.10 端口 4370 TCP 读取各店打卡，双向数据自动去重且绝不删减考勤机记录。'
-                : 'El servidor central sondea directamente cada FA200 en su IP privada 10.10.x.10:4370. Las marcas se preservan intactas en el reloj con deduplicación SHA-256.'}
+              {t('devices.ui_el_servidor_central_sondea_directamente_cada')}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-4 text-[11px] font-medium text-slate-600 self-end md:self-auto shrink-0 bg-white/70 px-3 py-1.5 rounded-lg border border-emerald-100">
           <div>
-            <span className="text-slate-400">Total Equipos: </span>
+            <span className="text-slate-400">{t('devices.totalDevices')}: </span>
             <span className="font-bold text-slate-900">{devices.length}</span>
           </div>
           <span className="text-slate-300">|</span>
@@ -370,9 +373,9 @@ export const DevicesPage: React.FC = () => {
 
       {/* Device List */}
       {loading ? (
-        <div className="text-center py-12 text-slate-400 animate-pulse text-xs">
-          {t('common.loading')}
-        </div>
+        <LoadingState />
+      ) : loadError ? (
+        <ErrorState message={loadError} onRetry={fetchData} />
       ) : devices.length === 0 ? (
         <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center space-y-4">
           <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 mx-auto">
@@ -380,12 +383,10 @@ export const DevicesPage: React.FC = () => {
           </div>
           <div>
             <h3 className="text-sm font-bold text-slate-800">
-              {language === 'zh-CN' ? '暂未登记考勤机' : 'No hay relojes checadores registrados'}
+              {t('devices.ui_no_hay_relojes_checadores_registrados')}
             </h3>
             <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-              {language === 'zh-CN'
-                ? '点击上方“登记新考勤机”按钮，添加你的第一个 FA200 生物识别设备并通过 Mango VPN 连接。'
-                : 'Haga clic en "+ Registrar Checador VPN" para dar de alta su equipo biométrico FA200 y asociarlo a la red del router Mango.'}
+              {t('devices.ui_haga_clic_en_registrar_checador_vpn')}
             </p>
           </div>
           <button
@@ -393,7 +394,7 @@ export const DevicesPage: React.FC = () => {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-xs font-semibold text-white shadow-xs transition"
           >
             <Plus className="w-4 h-4" />
-            <span>{language === 'zh-CN' ? '立即登记设备' : 'Registrar Checador Ahora'}</span>
+            <span>{t('devices.ui_registrar_checador_ahora')}</span>
           </button>
         </div>
       ) : (
@@ -410,7 +411,7 @@ export const DevicesPage: React.FC = () => {
               >
                 {/* Header Card: Name, Branch, Status and Actions */}
                 <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="wpc-device-header flex items-start justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-bold text-[#203441] text-base">{d.name}</h3>
@@ -436,23 +437,25 @@ export const DevicesPage: React.FC = () => {
                       {isSyncing ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
                           <RefreshCw className="w-3 h-3 text-sky-600 animate-spin" />
-                          <span>{language === 'zh-CN' ? '正在同步' : 'Sincronizando'}</span>
+                          <span>{t('devices.ui_sincronizando')}</span>
                         </span>
                       ) : isOffline ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
                           <AlertCircle className="w-3 h-3 text-rose-600" />
-                          <span>{language === 'zh-CN' ? '通信异常' : 'Fuera de Línea'}</span>
+                          <span>{t('devices.ui_fuera_de_linea')}</span>
                         </span>
-                      ) : (
+                      ) : d.status === 'Online' ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <Activity className="w-3 h-3 text-emerald-600 animate-pulse" />
-                          <span>{language === 'zh-CN' ? '正常通信' : 'Accesible'}</span>
+                          <span>{t('devices.ui_accesible')}</span>
                         </span>
+                      ) : (
+                        <span className="wpc-status">{t('settings.unknown')}</span>
                       )}
 
                       <button
                         onClick={() => handleOpenEditModal(d)}
-                        title="Editar dispositivo"
+                        title={t('devices.editDevice')}
                         className="p-1.5 rounded-lg text-[#60727E] hover:text-[#00695F] hover:bg-[#E6F2F0] transition"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -460,7 +463,7 @@ export const DevicesPage: React.FC = () => {
 
                       <button
                         onClick={() => setDeletingDevice(d)}
-                        title="Eliminar dispositivo"
+                        title={t('devices.deleteDevice')}
                         className="p-1.5 rounded-lg text-[#60727E] hover:text-rose-600 hover:bg-rose-50 transition"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -471,19 +474,19 @@ export const DevicesPage: React.FC = () => {
                   {/* Primary Metrics: Last Sync, Latency, Punches Today */}
                   <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 border border-[#DFE7EB] rounded-xl text-xs">
                     <div>
-                      <span className="text-[10px] text-[#60727E] block">Última Sincronización</span>
+                      <span className="text-[10px] text-[#60727E] block">{t(d.lastSuccessfulSyncAt || d.lastSyncAt ? 'devices.lastSync' : 'devices.lastAttempt')}</span>
                       <strong className="text-[#203441] font-semibold text-xs block truncate mt-0.5">
-                        {formatTimeAgo(d.lastSuccessfulSyncAt || d.lastSyncAt)}
+                        {formatTimeAgo(d.lastSuccessfulSyncAt || d.lastSyncAt || d.lastSyncAttemptAt)}
                       </strong>
                     </div>
                     <div>
-                      <span className="text-[10px] text-[#60727E] block">Tiempo de Respuesta</span>
+                      <span className="text-[10px] text-[#60727E] block">{t('devices.responseTime')}</span>
                       <strong className="text-emerald-700 font-mono text-xs block mt-0.5">
-                        &lt; 25 ms
+                        {latencies[d.id] != null ? `${latencies[d.id]} ms` : d.latencyMs != null ? `${d.latencyMs} ms` : '—'}
                       </strong>
                     </div>
                     <div>
-                      <span className="text-[10px] text-[#60727E] block">Checadas Hoy</span>
+                      <span className="text-[10px] text-[#60727E] block">{t('devices.punchesToday')}</span>
                       <strong className="text-[#00695F] font-bold text-xs block mt-0.5">
                         {d.punchesToday || 0} marcas
                       </strong>
@@ -507,7 +510,7 @@ export const DevicesPage: React.FC = () => {
                       className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[#00695F] hover:bg-[#005149] text-xs font-semibold text-white transition shadow-xs disabled:opacity-50 min-h-[40px]"
                     >
                       <ArrowRightLeft className={`w-4 h-4 ${syncingId === d.id ? 'animate-spin' : ''}`} />
-                      <span>{syncingId === d.id ? 'Sincronizando...' : (language === 'zh-CN' ? '立即同步' : 'Sincronizar Ahora')}</span>
+                      <span>{syncingId === d.id ? 'Sincronizando...' : (t('devices.ui_sincronizar_ahora'))}</span>
                     </button>
                   </div>
                 </div>
@@ -521,7 +524,7 @@ export const DevicesPage: React.FC = () => {
                   >
                     <span className="flex items-center gap-1.5">
                       <Terminal className="w-3.5 h-3.5 text-[#00695F]" />
-                      <span>Datos Técnicos y Diagnóstico</span>
+                      <span>{t('devices.technicalDiagnostics')}</span>
                     </span>
                     {isDiagOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </button>
@@ -530,33 +533,33 @@ export const DevicesPage: React.FC = () => {
                     <div className="mt-2.5 p-3 rounded-xl bg-slate-50 border border-[#DFE7EB] space-y-2 text-xs font-mono">
                       <div className="grid grid-cols-2 gap-2 text-[11px]">
                         <div>
-                          <span className="text-[#60727E] block text-[10px] font-sans">IP y Puerto FA200:</span>
-                          <span className="font-bold text-[#00695F]">{d.ipAddress || '10.10.1.10'}:{d.port || 4370}</span>
+                          <span className="text-[#60727E] block text-[10px] font-sans">{t('devices.ip')} / {t('devices.port')}:</span>
+                          <span className="font-bold text-[#00695F]">{d.ipAddress || '—'}:{d.port ?? '—'}</span>
                         </div>
                         <div>
-                          <span className="text-[#60727E] block text-[10px] font-sans">Número de Serie:</span>
-                          <span className="text-[#203441]">{d.serialNumber || 'SN-FA200-CENTRO-01'}</span>
+                          <span className="text-[#60727E] block text-[10px] font-sans">{t('devices.serial')}:</span>
+                          <span className="text-[#203441]">{d.serialNumber || t('common.notAvailable')}</span>
                         </div>
                         <div>
-                          <span className="text-[#60727E] block text-[10px] font-sans">Firmware:</span>
-                          <span className="text-[#203441]">{d.firmwareVersion || 'Ver 6.60 (Homologado)'}</span>
+                          <span className="text-[#60727E] block text-[10px] font-sans">{t('devices.firmware')}:</span>
+                          <span className="text-[#203441]">{d.firmwareVersion || t('common.notAvailable')}</span>
                         </div>
                         <div>
-                          <span className="text-[#60727E] block text-[10px] font-sans">Protocolo:</span>
-                          <span className="text-[#203441]">TCP 4370 Standalone</span>
+                          <span className="text-[#60727E] block text-[10px] font-sans">{t('devices.protocol')}:</span>
+                          <span className="text-[#203441]">{d.connectionMode || t('common.notAvailable')}</span>
                         </div>
                       </div>
 
                       <div className="pt-2 border-t border-[#DFE7EB]/60 text-[11px]">
-                        <span className="text-[#60727E] block text-[10px] font-sans">VPN WireGuard Mango:</span>
+                        <span className="text-[#60727E] block text-[10px] font-sans">{t('devices.vpnMango')}:</span>
                         <span className="text-[#203441]">
-                          Subred: {d.vpnSubnet || '10.10.1.0/24'} · IP Túnel: {d.vpnClientIp || '10.10.0.2'}
+                          {t('devices.subnet')}: {d.vpnSubnet || '—'} · {t('devices.tunnelIp')}: {d.vpnClientIp || '—'}
                         </span>
                       </div>
 
                       {d.lastErrorMessage && (
                         <div className="pt-2 border-t border-[#DFE7EB]/60 text-[11px] text-rose-700 bg-rose-50 p-2 rounded-lg border border-rose-200">
-                          <strong className="font-sans block text-[10px] text-rose-800">Diagnóstico de error:</strong>
+                          <strong className="font-sans block text-[10px] text-rose-800">{t('devices.errorDiagnosis')}:</strong>
                           <span className="break-all">{d.lastErrorMessage}</span>
                         </div>
                       )}
@@ -578,8 +581,8 @@ export const DevicesPage: React.FC = () => {
                 <Cpu className="w-5 h-5 text-emerald-700" />
                 <span>
                   {editingDevice
-                    ? (language === 'zh-CN' ? '编辑考勤机 VPN 配置' : 'Editar Reloj Checador VPN')
-                    : (language === 'zh-CN' ? '登记新考勤机 (Mango VPN)' : 'Registrar Nuevo Checador VPN (Mango)')}
+                    ? (t('devices.ui_editar_reloj_checador_vpn'))
+                    : (t('devices.ui_registrar_nuevo_checador_vpn_mango'))}
                 </span>
               </h3>
               <button
@@ -600,7 +603,7 @@ export const DevicesPage: React.FC = () => {
             <form onSubmit={handleSaveDevice} className="mt-4 space-y-4 text-xs">
               <div>
                 <label className="block text-slate-700 font-semibold mb-1">
-                  {language === 'zh-CN' ? '所属分店 *' : 'Sucursal a la que Pertenece *'}
+                  {t('devices.ui_sucursal_a_la_que_pertenece')}
                 </label>
                 <select
                   value={formData.branchId}
@@ -621,7 +624,7 @@ export const DevicesPage: React.FC = () => {
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:border-emerald-500 focus:outline-none"
                 >
                   <option value={0} disabled>
-                    {language === 'zh-CN' ? '-- 请选择所属分店 --' : '-- Seleccionar Sucursal --'}
+                    {t('devices.ui_seleccionar_sucursal')}
                   </option>
                   {branches.map((b) => (
                     <option key={b.id} value={b.id}>
@@ -634,7 +637,7 @@ export const DevicesPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">
-                    {language === 'zh-CN' ? '设备编号 (Code) *' : 'Código de Dispositivo *'}
+                    {t('devices.ui_codigo_de_dispositivo')}
                   </label>
                   <input
                     type="text"
@@ -648,7 +651,7 @@ export const DevicesPage: React.FC = () => {
 
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">
-                    {language === 'zh-CN' ? '设备型号' : 'Modelo'}
+                    {t('devices.ui_modelo')}
                   </label>
                   <input
                     type="text"
@@ -663,13 +666,13 @@ export const DevicesPage: React.FC = () => {
 
               <div>
                 <label className="block text-slate-700 font-semibold mb-1">
-                  {language === 'zh-CN' ? '设备名称 / 描述 *' : 'Nombre / Ubicación *'}
+                  {t('devices.ui_nombre_ubicacion')}
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Reloj Checador Entrada Principal"
+                  placeholder={t('devices.namePlaceholder')}
                   required
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:border-emerald-500 focus:outline-none"
                 />
@@ -679,13 +682,13 @@ export const DevicesPage: React.FC = () => {
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                 <div className="font-bold text-slate-800 flex items-center gap-1.5 text-[11px]">
                   <Network className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>{language === 'zh-CN' ? '网络与 VPN WireGuard 参数' : 'Parámetros de Red y VPN WireGuard'}</span>
+                  <span>{t('devices.ui_parametros_de_red_y_vpn_wireguard')}</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-slate-600 mb-1">
-                      {language === 'zh-CN' ? 'FA200 私有 IP (LAN)' : 'IP Privada FA200 (LAN)'}
+                      {t('devices.ui_ip_privada_fa200_lan')}
                     </label>
                     <input
                       type="text"
@@ -699,7 +702,7 @@ export const DevicesPage: React.FC = () => {
 
                   <div>
                     <label className="block text-slate-600 mb-1">
-                      {language === 'zh-CN' ? '通信端口 (TCP)' : 'Puerto TCP'}
+                      {t('devices.ui_puerto_tcp')}
                     </label>
                     <input
                       type="number"
@@ -715,7 +718,7 @@ export const DevicesPage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-slate-600 mb-1">
-                      {language === 'zh-CN' ? 'Mango 局域网网段' : 'Subred LAN Mango'}
+                      {t('devices.ui_subred_lan_mango')}
                     </label>
                     <input
                       type="text"
@@ -728,7 +731,7 @@ export const DevicesPage: React.FC = () => {
 
                   <div>
                     <label className="block text-slate-600 mb-1">
-                      {language === 'zh-CN' ? 'WireGuard 隧道 IP' : 'IP Túnel WireGuard'}
+                      {t('devices.ui_ip_tunel_wireguard')}
                     </label>
                     <input
                       type="text"
@@ -745,7 +748,7 @@ export const DevicesPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">
-                    {language === 'zh-CN' ? '时区' : 'Zona Horaria'}
+                    {t('devices.ui_zona_horaria')}
                   </label>
                   <input
                     type="text"
@@ -759,7 +762,7 @@ export const DevicesPage: React.FC = () => {
 
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">
-                    {language === 'zh-CN' ? '同步间隔 (秒)' : 'Intervalo de Sondeo (segundos)'}
+                    {t('devices.ui_intervalo_de_sondeo_segundos')}
                   </label>
                   <input
                     type="number"
@@ -784,7 +787,7 @@ export const DevicesPage: React.FC = () => {
                   className="rounded text-emerald-700 focus:ring-emerald-500 w-4 h-4"
                 />
                 <label htmlFor="isEnabled" className="text-slate-700 font-semibold cursor-pointer">
-                  {language === 'zh-CN' ? '启用自动同步' : 'Habilitar sondeo y sincronización automática'}
+                  {t('devices.ui_habilitar_sondeo_y_sincronizacion_automatica')}
                 </label>
               </div>
 
@@ -819,7 +822,7 @@ export const DevicesPage: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-bold text-slate-900 text-sm">
-                  {language === 'zh-CN' ? '确认删除此考勤机？' : '¿Eliminar Reloj Checador?'}
+                  {t('devices.ui_eliminar_reloj_checador')}
                 </h3>
                 <p className="text-xs text-slate-500">
                   {language === 'zh-CN'
@@ -830,9 +833,7 @@ export const DevicesPage: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-200">
-              {language === 'zh-CN'
-                ? '确认后该考勤机将不再接收同步。'
-                : 'Esta acción desvinculará este reloj biométrico del sistema.'}
+              {t('devices.ui_esta_accion_desvinculara_este_reloj_biometrico')}
             </p>
 
             <div className="flex justify-end gap-2 pt-2">

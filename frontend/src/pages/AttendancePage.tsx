@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
 import { AttendanceMatrixView } from '../components/AttendanceMatrixView';
-import { DailyAttendanceDetailModal } from '../components/DailyAttendanceDetailModal';
+import { AttendanceSummary } from '../components/AttendanceSummary';
+import { ErrorState } from '../components/AsyncState';
+import { ClearAttendanceDetailModal as DailyAttendanceDetailModal } from '../components/ClearAttendanceDetailModal';
 import {
   CalendarCheck,
   RefreshCw,
@@ -60,6 +62,7 @@ export const AttendancePage: React.FC = () => {
   const [expandedRowIds, setExpandedRowIds] = useState<Set<number>>(new Set());
 
   const [loading, setLoading] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [reprocessing, setReprocessing] = useState(false);
   const [reprocessMsg, setReprocessMsg] = useState<string | null>(null);
 
@@ -115,6 +118,7 @@ export const AttendancePage: React.FC = () => {
 
   const fetchDaily = async () => {
     setLoading(true);
+    setLoadFailed(false);
     try {
       let url = `/v1/attendance?page=${page}&pageSize=20`;
       if (selectedBranch) url += `&branchId=${selectedBranch}`;
@@ -128,6 +132,7 @@ export const AttendancePage: React.FC = () => {
       setTotalRecords(res.data.totalRecords || 0);
     } catch (err) {
       console.error(err);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -135,6 +140,7 @@ export const AttendancePage: React.FC = () => {
 
   const fetchRaw = async () => {
     setLoading(true);
+    setLoadFailed(false);
     try {
       const res = await api.get(`/v1/attendance/raw-events?page=${page}&pageSize=20`);
       setRawEvents(res.data.items || []);
@@ -142,6 +148,7 @@ export const AttendancePage: React.FC = () => {
       setTotalRecords(res.data.totalRecords || 0);
     } catch (err) {
       console.error(err);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -317,7 +324,7 @@ export const AttendancePage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5 w-full max-w-full min-w-0">
+    <div className={activeTab === 'matrix' ? 'space-y-5 w-full max-w-full min-w-0' : 'wpc-design wpc-page wpc-attendance-summary space-y-5 w-full max-w-full min-w-0'}>
       {/* Top Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
         <div>
@@ -524,394 +531,10 @@ export const AttendancePage: React.FC = () => {
                 <RefreshCw className="w-6 h-6 animate-spin text-indigo-600" />
                 <span>{isZh ? '正在载入考勤数据...' : t('common.loading')}</span>
               </div>
+            ) : loadFailed ? (
+              <ErrorState onRetry={activeTab === 'daily' ? fetchDaily : fetchRaw} />
             ) : activeTab === 'daily' ? (
-              <>
-                {/* 1. DESKTOP VIEW (Visible on lg+ screens: 1024px, 1366px, 1920px) */}
-                <div className="hidden lg:block overflow-x-hidden">
-                  <table className="w-full text-left text-sm table-fixed border-collapse border border-slate-200">
-                    <thead className="bg-slate-100/90 text-slate-700 border-b-2 border-slate-200 font-semibold text-xs">
-                      <tr>
-                        <th className="py-3 px-3.5 w-[20%] border-r border-slate-200">{isZh ? '员工姓名 / 门店' : 'Empleado y Sucursal'}</th>
-                        <th className="py-3 px-3 w-[9%] border-r border-slate-200 text-center">{isZh ? '日期' : 'Fecha'}</th>
-                        <th className="py-3 px-3.5 w-[13%] border-r border-slate-200 bg-emerald-50/60">
-                          <span className="block text-emerald-800 font-bold">{isZh ? '1. 上班进' : '1. Entrada'}</span>
-                          <span className="text-[11px] text-slate-500 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
-                        </th>
-                        <th className="py-3 px-3.5 w-[13%] border-r border-slate-200 bg-amber-50/60">
-                          <span className="block text-amber-800 font-bold">{isZh ? '2. 就餐出' : '2. Salida Comida'}</span>
-                          <span className="text-[11px] text-slate-500 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
-                        </th>
-                        <th className="py-3 px-3.5 w-[13%] border-r border-slate-200 bg-indigo-50/60">
-                          <span className="block text-indigo-800 font-bold">{isZh ? '3. 就餐归' : '3. Regreso Comida'}</span>
-                          <span className="text-[11px] text-slate-500 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
-                        </th>
-                        <th className="py-3 px-3.5 w-[13%] border-r border-slate-200 bg-slate-100/80">
-                          <span className="block text-slate-900 font-bold">{isZh ? '4. 下班退' : '4. Salida Turno'}</span>
-                          <span className="text-[11px] text-slate-500 font-normal">{isZh ? '实际 / 预计' : 'Real / Esp'}</span>
-                        </th>
-                        <th className="py-3 px-3.5 w-[19%] text-center">{isZh ? '状态与操作' : 'Estado / Acción'}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {items.length > 0 ? (
-                        items.map((row, idx) => {
-                          const isExpanded = expandedRowIds.has(row.id);
-                          const isEven = idx % 2 === 0;
-                          return (
-                            <React.Fragment key={row.id}>
-                              <tr className={`border-b border-slate-200 transition ${isExpanded ? 'bg-indigo-50/40' : isEven ? 'bg-white' : 'bg-slate-50/60'} hover:bg-indigo-50/50`}>
-                                {/* Empleado */}
-                                <td className="py-3 px-3.5 align-middle border-r border-slate-200">
-                                  <div className="font-bold text-slate-900 text-sm leading-snug">
-                                    {row.employeeName}
-                                  </div>
-                                  <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5 mt-0.5">
-                                    <span className="font-mono text-indigo-700 bg-indigo-50 px-1 py-0.5 rounded border border-indigo-100">#{row.employeeCode}</span>
-                                    <span>·</span>
-                                    <span className="truncate">{row.branchName}</span>
-                                  </div>
-                                </td>
-
-                                {/* Fecha */}
-                                <td className="py-3 px-3 align-middle text-center font-mono text-xs text-slate-700 font-semibold border-r border-slate-200">
-                                  {row.date}
-                                </td>
-
-                                {/* 1. Entrada */}
-                                <td className="py-3 px-3.5 align-middle border-r border-slate-200 bg-emerald-50/20">
-                                  {renderPunchCell(row.firstEntry, row.expectedEntry, 'text-emerald-700')}
-                                </td>
-
-                                {/* 2. Salida Comida */}
-                                <td className="py-3 px-3.5 align-middle border-r border-slate-200 bg-amber-50/20">
-                                  {renderPunchCell(row.mealExit, row.expectedMealStart, 'text-amber-800')}
-                                </td>
-
-                                {/* 3. Regreso Comida */}
-                                <td className="py-3 px-3.5 align-middle border-r border-slate-200 bg-indigo-50/20">
-                                  {renderPunchCell(row.mealReturn, row.expectedMealEnd, 'text-indigo-800')}
-                                </td>
-
-                                {/* 4. Salida Turno */}
-                                <td className="py-3 px-3.5 align-middle border-r border-slate-200 bg-slate-100/30">
-                                  {renderPunchCell(row.lastExit, row.expectedExit, 'text-slate-900')}
-                                </td>
-
-                                {/* Estado y Acciones */}
-                                <td className="py-3 px-3.5 align-middle text-center space-y-1.5">
-                                  <div className="flex justify-center">{getStatusBadge(row.status, true)}</div>
-
-                                  <div className="flex items-center justify-center gap-1.5 pt-0.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => setSelectedDetailRecord(row)}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#E6F2F0] text-[#00695F] hover:bg-[#00695F] hover:text-white transition cursor-pointer min-h-[32px] border border-[#B2DFDB]"
-                                      title={isZh ? '查看四次打卡卡片明细' : 'Ver detalle de la jornada (4 checadas)'}
-                                    >
-                                      <Eye className="w-3.5 h-3.5" />
-                                      <span>{isZh ? '详情' : 'Detalle'}</span>
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => openAuditModal(row)}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-[#203441] hover:bg-[#F4F7F8] transition cursor-pointer min-h-[32px] border border-[#DFE7EB]"
-                                      title={isZh ? '人工审核修正' : 'Auditar o corregir marcación'}
-                                    >
-                                      <Edit3 className="w-3.5 h-3.5 text-[#60727E]" />
-                                      <span>{isZh ? '修正' : 'Auditar'}</span>
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-
-                              {/* Accordion Expandable Row */}
-                              {isExpanded && (
-                                <tr className="bg-slate-50/70 border-b border-indigo-100">
-                                  <td colSpan={7} className="p-4">
-                                    <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
-                                      {/* Metric Cards Grid */}
-                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-                                          <span className="text-slate-500 font-medium block text-xs">{isZh ? '有效工时' : 'Horas Trabajadas'}</span>
-                                          <span className="text-lg font-bold font-mono text-slate-900 block mt-0.5">
-                                            {Math.round((row.minutesWorked / 60) * 10) / 10} hrs
-                                          </span>
-                                          <span className="text-[11px] text-slate-400">
-                                            {isZh ? '（扣除就餐净时长）' : 'Neto sin comida'}
-                                          </span>
-                                        </div>
-
-                                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-                                          <span className="text-slate-500 font-medium block text-xs">{isZh ? '就餐休息' : 'Duración Comida'}</span>
-                                          <span className="text-lg font-bold font-mono text-slate-900 block mt-0.5">
-                                            {row.mealDurationMinutes > 0 ? `${row.mealDurationMinutes} min` : '--'}
-                                          </span>
-                                          {row.mealMinutesLate > 0 ? (
-                                            <span className="text-[11px] font-semibold text-rose-600 block">
-                                              +{row.mealMinutesLate} min {isZh ? '超额' : 'exceso'}
-                                            </span>
-                                          ) : (
-                                            <span className="text-[11px] text-slate-400">{isZh ? '规定时长内' : 'Dentro del rango'}</span>
-                                          )}
-                                        </div>
-
-                                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-                                          <span className="text-slate-500 font-medium block text-xs">{isZh ? '迟到罚时' : 'Retardo Entrada'}</span>
-                                          <span className={`text-lg font-bold font-mono block mt-0.5 ${row.minutesLate > 0 ? 'text-amber-700' : 'text-slate-800'}`}>
-                                            {row.minutesLate > 0 ? `${row.minutesLate} min` : '0 min'}
-                                          </span>
-                                          <span className="text-[11px] text-slate-400">
-                                            {row.minutesLate > 0 ? (isZh ? '超出容差' : 'Fuera de tolerancia') : (isZh ? '按时到岗' : 'Puntual')}
-                                          </span>
-                                        </div>
-
-                                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-                                          <span className="text-slate-500 font-medium block text-xs">{isZh ? '加班时长' : 'Horas Extra'}</span>
-                                          <span className={`text-lg font-bold font-mono block mt-0.5 ${row.overtimeMinutes > 0 ? 'text-indigo-700' : 'text-slate-800'}`}>
-                                            {row.overtimeMinutes > 0 ? `${row.overtimeMinutes} min` : '0 min'}
-                                          </span>
-                                          <span className="text-[11px] text-slate-400">
-                                            {row.overtimeMinutes > 0 ? (isZh ? '超出排班' : 'Autorizable') : (isZh ? '无加班' : 'Sin excedente')}
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      {/* Classification, Incident Alerts & Audit Notes */}
-                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                          <span className="text-slate-500 font-medium">{isZh ? '数据来源:' : 'Origen:'}</span>
-                                          {getOriginBadge(row.classificationOrigin, row.isManualOverride)}
-
-                                          {row.requiresReview && (
-                                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-rose-50 text-rose-800 border border-rose-200 font-medium">
-                                              <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                                              <span>{row.reviewNotes || (isZh ? '打卡存在缺失或异常' : 'Revisión pendiente')}</span>
-                                            </div>
-                                          )}
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                          {row.isManualOverride && (
-                                            <span className="text-xs text-sky-800 font-medium italic">
-                                              {isZh ? `由 ${row.modifiedBy} 于 ${row.modifiedAt} 修改` : `Modificado por ${row.modifiedBy} (${row.modifiedAt})`}
-                                            </span>
-                                          )}
-
-                                          <button
-                                            type="button"
-                                            onClick={() => openAuditModal(row)}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition cursor-pointer min-h-[36px]"
-                                          >
-                                            <Edit3 className="w-3.5 h-3.5" />
-                                            <span>{isZh ? '人工更正打卡' : 'Corregir esta Jornada'}</span>
-                                          </button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </React.Fragment>
-                          );
-                        })
-                      ) : (
-                        <tr>
-                          <td colSpan={7} className="py-12 text-center text-slate-400">
-                            <Info className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                            <p className="text-sm font-semibold text-slate-600">
-                              {isZh ? '未检索到考勤记录' : 'No se encontraron registros de asistencia'}
-                            </p>
-                            <p className="text-xs text-slate-400 mt-1">
-                              {isZh ? '请尝试切换日期或分店筛选' : 'Intente ajustar las fechas o la sucursal seleccionada.'}
-                            </p>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* 2. MOBILE & TABLET CARDS VIEW (Visible on screens < 1024px) */}
-                <div className="block lg:hidden divide-y divide-slate-100 p-3 sm:p-4 space-y-4">
-                  {items.length > 0 ? (
-                    items.map((row) => {
-                      const isExpanded = expandedRowIds.has(row.id);
-                      return (
-                        <div
-                          key={row.id}
-                          className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3.5 hover:border-indigo-200 transition"
-                        >
-                          {/* Card Header: Employee + Status */}
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <h3 className="font-bold text-slate-900 text-base leading-snug">
-                                {row.employeeName}
-                              </h3>
-                              <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5 mt-0.5">
-                                <span className="font-mono text-indigo-700 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded">
-                                  #{row.employeeCode}
-                                </span>
-                                <span>·</span>
-                                <span className="truncate">{row.branchName}</span>
-                                <span>·</span>
-                                <span className="font-mono text-slate-700 font-semibold">{row.date}</span>
-                              </div>
-                            </div>
-
-                            <div className="shrink-0">
-                              {getStatusBadge(row.status)}
-                            </div>
-                          </div>
-
-                          {/* 4 Punches 2x2 Grid */}
-                          <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                            {/* 1. Entrada */}
-                            <div className="bg-white p-2.5 rounded-lg border border-slate-200/70 space-y-0.5">
-                              <span className="text-[11px] uppercase font-bold text-emerald-800 flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                {isZh ? '1. 上班进' : '1. Entrada'}
-                              </span>
-                              <div className={`font-mono text-base font-bold ${row.firstEntry ? 'text-emerald-700' : 'text-slate-400 font-normal'}`}>
-                                {row.firstEntry || '--:--'}
-                              </div>
-                              <div className="text-[11px] text-slate-500 font-medium">
-                                {isZh ? `预计: ${row.expectedEntry || '--:--'}` : `Esp: ${row.expectedEntry || '--:--'}`}
-                              </div>
-                            </div>
-
-                            {/* 2. Salida Comida */}
-                            <div className="bg-white p-2.5 rounded-lg border border-slate-200/70 space-y-0.5">
-                              <span className="text-[11px] uppercase font-bold text-amber-800 flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                                {isZh ? '2. 就餐出' : '2. Salida Com.'}
-                              </span>
-                              <div className={`font-mono text-base font-bold ${row.mealExit ? 'text-amber-800' : 'text-slate-400 font-normal'}`}>
-                                {row.mealExit || '--:--'}
-                              </div>
-                              <div className="text-[11px] text-slate-500 font-medium">
-                                {isZh ? `预计: ${row.expectedMealStart || '--:--'}` : `Esp: ${row.expectedMealStart || '--:--'}`}
-                              </div>
-                            </div>
-
-                            {/* 3. Regreso Comida */}
-                            <div className="bg-white p-2.5 rounded-lg border border-slate-200/70 space-y-0.5">
-                              <span className="text-[11px] uppercase font-bold text-indigo-800 flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-                                {isZh ? '3. 就餐归' : '3. Reg. Com.'}
-                              </span>
-                              <div className={`font-mono text-base font-bold ${row.mealReturn ? 'text-indigo-800' : 'text-slate-400 font-normal'}`}>
-                                {row.mealReturn || '--:--'}
-                              </div>
-                              <div className="text-[11px] text-slate-500 font-medium">
-                                {isZh ? `预计: ${row.expectedMealEnd || '--:--'}` : `Esp: ${row.expectedMealEnd || '--:--'}`}
-                              </div>
-                            </div>
-
-                            {/* 4. Salida Turno */}
-                            <div className="bg-white p-2.5 rounded-lg border border-slate-200/70 space-y-0.5">
-                              <span className="text-[11px] uppercase font-bold text-slate-900 flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-slate-700"></span>
-                                {isZh ? '4. 下班退' : '4. Salida'}
-                              </span>
-                              <div className={`font-mono text-base font-bold ${row.lastExit ? 'text-slate-900' : 'text-slate-400 font-normal'}`}>
-                                {row.lastExit || '--:--'}
-                              </div>
-                              <div className="text-[11px] text-slate-500 font-medium">
-                                {isZh ? `预计: ${row.expectedExit || '--:--'}` : `Esp: ${row.expectedExit || '--:--'}`}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Quick Incident Badges on Card */}
-                          {(row.minutesLate > 0 || row.mealMinutesLate > 0 || row.requiresReview) && (
-                            <div className="flex flex-wrap gap-1.5 text-xs">
-                              {row.minutesLate > 0 && (
-                                <span className="px-2 py-1 rounded-md font-semibold bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1">
-                                  <Clock className="w-3.5 h-3.5 text-amber-600" />
-                                  {isZh ? `迟到 ${row.minutesLate} 分钟` : `Retardo entrada: ${row.minutesLate} min`}
-                                </span>
-                              )}
-                              {row.mealMinutesLate > 0 && (
-                                <span className="px-2 py-1 rounded-md font-semibold bg-rose-50 text-rose-800 border border-rose-200 flex items-center gap-1">
-                                  <UtensilsCrossed className="w-3.5 h-3.5 text-rose-600" />
-                                  {isZh ? `就餐超额 ${row.mealMinutesLate} 分钟` : `Exceso comida: ${row.mealMinutesLate} min`}
-                                </span>
-                              )}
-                              {row.requiresReview && (
-                                <span className="px-2 py-1 rounded-md font-semibold bg-rose-50 text-rose-800 border border-rose-200 flex items-center gap-1">
-                                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-                                  <span className="truncate max-w-[200px]">{row.reviewNotes || (isZh ? '打卡待核验' : 'Revisar')}</span>
-                                </span>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Expanded Details on Mobile */}
-                          {isExpanded && (
-                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5 text-xs animate-fadeIn">
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="bg-white p-2 rounded-lg border border-slate-100">
-                                  <span className="text-slate-500 text-[11px] block">{isZh ? '净工时' : 'Horas Netas'}</span>
-                                  <span className="font-mono font-bold text-slate-800 text-sm">
-                                    {Math.round((row.minutesWorked / 60) * 10) / 10} hrs
-                                  </span>
-                                </div>
-                                <div className="bg-white p-2 rounded-lg border border-slate-100">
-                                  <span className="text-slate-500 text-[11px] block">{isZh ? '就餐时长' : 'Tiempo Comida'}</span>
-                                  <span className="font-mono font-bold text-slate-800 text-sm">
-                                    {row.mealDurationMinutes > 0 ? `${row.mealDurationMinutes} min` : '--'}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
-                                <span className="text-slate-500">{isZh ? '分类来源:' : 'Origen:'}</span>
-                                {getOriginBadge(row.classificationOrigin, row.isManualOverride)}
-                              </div>
-
-                              {row.isManualOverride && (
-                                <div className="p-2 bg-sky-50 rounded-lg text-sky-900 border border-sky-100 text-[11px]">
-                                  <span className="font-bold">{isZh ? '修改记录:' : 'Auditado por:'}</span> {row.modifiedBy} ({row.modifiedAt})
-                                  <p className="italic text-slate-600 mt-0.5">"{row.modificationReason}"</p>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Card Action Buttons (Touch Target >= 44px) */}
-                          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#DFE7EB]">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedDetailRecord(row)}
-                              className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-[#B2DFDB] text-[#00695F] bg-[#E6F2F0] hover:bg-[#00695F] hover:text-white text-xs font-semibold min-h-[44px] cursor-pointer transition shadow-2xs"
-                            >
-                              <Eye className="w-4 h-4" />
-                              <span>{isZh ? '查看四卡' : 'Ver Detalle'}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => openAuditModal(row)}
-                              className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-[#00695F] hover:bg-[#00524A] text-white text-xs font-semibold min-h-[44px] cursor-pointer shadow-xs transition"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                              <span>{isZh ? '人工审核' : 'Auditar'}</span>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="py-12 text-center text-slate-400">
-                      <Info className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                      <p className="text-sm font-semibold text-slate-600">
-                        {isZh ? '未检索到考勤记录' : 'No se encontraron registros de asistencia'}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </>
+              <AttendanceSummary items={items} onDetail={setSelectedDetailRecord} />
             ) : (
               /* Raw Events Table */
               <div className="overflow-x-auto">

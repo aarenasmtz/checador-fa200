@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
+import { ErrorState, LoadingState } from '../components/AsyncState';
+import { useCatalogView } from '../hooks/useCatalogView';
+import { CatalogCollection } from '../components/CatalogCollection';
 import {
   Users,
   Search,
@@ -35,14 +38,7 @@ export const EmployeesPage: React.FC = () => {
   const [schedules, setSchedules] = useState<any[]>([]);
 
   // View mode: 'grid' (cards) or 'table' (compact) with localStorage persistence
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>(() => {
-    return (localStorage.getItem('employees_view_mode') as 'grid' | 'table') || 'grid';
-  });
-
-  const handleSetViewMode = (mode: 'grid' | 'table') => {
-    setViewMode(mode);
-    localStorage.setItem('employees_view_mode', mode);
-  };
+  const { viewMode, handleSetViewMode } = useCatalogView('employees');
 
   // Filters
   const [selectedBranch, setSelectedBranch] = useState('');
@@ -52,6 +48,7 @@ export const EmployeesPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Active action menu popover
@@ -115,6 +112,7 @@ export const EmployeesPage: React.FC = () => {
 
   const fetchEmployees = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       let url = `/v1/employees?page=${page}&pageSize=16`;
       if (selectedBranch) url += `&branchId=${selectedBranch}`;
@@ -125,8 +123,9 @@ export const EmployeesPage: React.FC = () => {
       setEmployees(res.data.items || []);
       setTotalPages(res.data.totalPages || 1);
       setTotalRecords(res.data.totalRecords || 0);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setLoadError(err.response?.data?.message || t('common.loadErrorDescription'));
     } finally {
       setLoading(false);
     }
@@ -241,7 +240,7 @@ export const EmployeesPage: React.FC = () => {
 
     try {
       if (!formBranchId) {
-        setCreateError(isZh ? '请选择所属分店' : 'Por favor seleccione una sucursal');
+        setCreateError(t('employees.ui_por_favor_seleccione_una_sucursal'));
         setCreating(false);
         return;
       }
@@ -250,9 +249,7 @@ export const EmployeesPage: React.FC = () => {
       const cleanCode = formCode.trim();
       if (!cleanCode || !/^\d+$/.test(cleanCode) || parseInt(cleanCode, 10) <= 0 || parseInt(cleanCode, 10) > 99999999) {
         setCreateError(
-          isZh
-            ? '员工编号必须为 1 至 99999999 的正整数（纯数字，例如 1, 2, 4）'
-            : 'El código de empleado e ID en Checador FA200 debe ser un número entero positivo (solo dígitos, 1 a 99999999)'
+          t('employees.ui_el_codigo_de_empleado_e_id')
         );
         setCreating(false);
         return;
@@ -283,7 +280,7 @@ export const EmployeesPage: React.FC = () => {
       setTimeout(() => setToastMessage(null), 5000);
       fetchEmployees();
     } catch (err: any) {
-      setCreateError(err.response?.data?.message || (isZh ? '录入员工失败' : 'Error al registrar el empleado'));
+      setCreateError(err.response?.data?.message || (t('employees.ui_error_al_registrar_el_empleado')));
     } finally {
       setCreating(false);
     }
@@ -322,7 +319,7 @@ export const EmployeesPage: React.FC = () => {
       setTimeout(() => setToastMessage(null), 5000);
       fetchEmployees();
     } catch (err: any) {
-      setEditError(err.response?.data?.message || (isZh ? '更新失败' : 'Error al actualizar el empleado'));
+      setEditError(err.response?.data?.message || (t('employees.ui_error_al_actualizar_el_empleado')));
     } finally {
       setUpdating(false);
     }
@@ -371,9 +368,7 @@ export const EmployeesPage: React.FC = () => {
             <span>{t('menu.employees')}</span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            {isZh
-              ? '华龙商业集团员工花名册 · 门店 adscripción 与 FA200 生物识别工号'
-              : 'Padrón general de colaboradores, turnos asignados y vinculación biométrica FA200'}
+            {t('employees.ui_padron_general_de_colaboradores_turnos_asignados')}
           </p>
         </div>
 
@@ -383,26 +378,28 @@ export const EmployeesPage: React.FC = () => {
             <button
               type="button"
               onClick={() => handleSetViewMode('grid')}
+              aria-pressed={viewMode === 'grid'}
               className={`p-2 rounded-lg transition cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center ${
                 viewMode === 'grid'
                   ? 'bg-[#00695F] text-white shadow-2xs'
                   : 'text-[#60727E] hover:text-[#203441] hover:bg-slate-50'
               }`}
-              title={isZh ? '网格卡片视图' : 'Vista en cuadrícula de tarjetas (Mosaico)'}
-              aria-label={isZh ? '网格卡片视图' : 'Vista en cuadrícula'}
+              title={t('employees.ui_vista_en_cuadricula_de_tarjetas_mosaico')}
+              aria-label={t('employees.ui_vista_en_cuadricula')}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
               type="button"
               onClick={() => handleSetViewMode('table')}
+              aria-pressed={viewMode === 'table'}
               className={`p-2 rounded-lg transition cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center ${
                 viewMode === 'table'
                   ? 'bg-[#00695F] text-white shadow-2xs'
                   : 'text-[#60727E] hover:text-[#203441] hover:bg-slate-50'
               }`}
-              title={isZh ? '表格视图' : 'Vista en tabla compacta (Lista)'}
-              aria-label={isZh ? '表格视图' : 'Vista en tabla'}
+              title={t('employees.ui_vista_en_tabla_compacta_lista')}
+              aria-label={t('employees.ui_vista_en_tabla')}
             >
               <TableIcon className="w-4 h-4" />
             </button>
@@ -414,7 +411,7 @@ export const EmployeesPage: React.FC = () => {
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#00695F] hover:bg-[#005149] active:bg-[#003d37] text-white text-xs font-semibold shadow-xs transition cursor-pointer min-h-[42px]"
           >
             <UserPlus className="w-4 h-4" />
-            <span>{isZh ? '添加新员工' : 'Dar de Alta Empleado'}</span>
+            <span>{t('employees.ui_dar_de_alta_empleado')}</span>
           </button>
         </div>
       </div>
@@ -429,7 +426,7 @@ export const EmployeesPage: React.FC = () => {
             className="flex items-center gap-2 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl min-h-[42px] cursor-pointer"
           >
             <Filter className="w-4 h-4 text-indigo-600" />
-            <span>{isZh ? '筛选与搜索' : 'Filtros y Búsqueda'}</span>
+            <span>{t('employees.ui_filtros_y_busqueda')}</span>
             {activeFiltersCount > 0 && (
               <span className="ml-1 px-1.5 py-0.5 rounded-full bg-indigo-600 text-white text-[11px] font-bold">
                 {activeFiltersCount}
@@ -444,7 +441,7 @@ export const EmployeesPage: React.FC = () => {
               onClick={() => { setSelectedBranch(''); setSelectedStatus(''); setSearchTerm(''); setPage(1); }}
               className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold underline p-2"
             >
-              {isZh ? '重置' : 'Limpiar'}
+              {t('employees.ui_limpiar')}
             </button>
           )}
         </div>
@@ -456,7 +453,7 @@ export const EmployeesPage: React.FC = () => {
             <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
             <input
               type="text"
-              placeholder={isZh ? '搜索员工姓名、编号或邮箱...' : 'Buscar por nombre, código o correo...'}
+              placeholder={t('employees.ui_buscar_por_nombre_codigo_o_correo')}
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
               className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px] text-xs font-medium"
@@ -485,8 +482,8 @@ export const EmployeesPage: React.FC = () => {
               className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px] text-xs font-medium"
             >
               <option value="">{t('common.allStatuses')}</option>
-              <option value="Active">{isZh ? '在职 (Activo)' : 'Activo'}</option>
-              <option value="Inactive">{isZh ? '离职 (Inactivo)' : 'Inactivo'}</option>
+              <option value="Active">{t('employees.ui_activo')}</option>
+              <option value="Inactive">{t('employees.ui_inactivo')}</option>
             </select>
           </div>
         </div>
@@ -494,299 +491,25 @@ export const EmployeesPage: React.FC = () => {
 
       {/* Main Content Area */}
       {loading ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center text-slate-400 text-sm animate-pulse flex flex-col items-center justify-center gap-2 shadow-xs">
-          <Users className="w-8 h-8 animate-bounce text-indigo-600" />
-          <span>{isZh ? '正在载入员工花名册...' : t('common.loading')}</span>
-        </div>
+        <LoadingState />
+      ) : loadError ? (
+        <ErrorState message={loadError} onRetry={fetchEmployees} />
       ) : employees.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 shadow-xs">
           <Users className="w-10 h-10 text-slate-300 mx-auto mb-2" />
           <p className="text-sm font-semibold text-slate-700">
-            {isZh ? '未找到符合条件的员工记录' : 'No se encontraron empleados con los filtros seleccionados'}
+            {t('employees.ui_no_se_encontraron_empleados_con_los')}
           </p>
           <p className="text-xs text-slate-400 mt-1">
-            {isZh ? '请尝试修改搜索词或筛选条件' : 'Intenta ajustar los términos de búsqueda o cambiar de sucursal'}
+            {t('employees.ui_intenta_ajustar_los_terminos_de_busqueda')}
           </p>
         </div>
-      ) : viewMode === 'grid' ? (
-        /* ============================================================== */
-        /* 1. ADAPTIVE GRID VIEW (1 col mobile, 2 tablet, 3-4 desktop)     */
-        /* ============================================================== */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {employees.map((emp) => {
-            const fullName = `${emp.firstName} ${emp.lastName}`.trim();
-            const initials = `${emp.firstName?.charAt(0) || ''}${emp.lastName?.charAt(0) || ''}`.toUpperCase() || 'HL';
-            const isActive = emp.status === 'Active';
-            const isMenuOpen = activeMenuEmployeeId === emp.id;
-
-            return (
-              <div
-                key={emp.id}
-                className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all flex flex-col justify-between relative group"
-              >
-                {/* Card Top: Avatar, Name, Code and Status */}
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                      {/* Gradient Avatar */}
-                      <div
-                        className={`w-11 h-11 rounded-xl bg-gradient-to-tr ${getAvatarGradient(
-                          fullName
-                        )} flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0`}
-                      >
-                        {initials}
-                      </div>
-
-                      {/* Name and Code */}
-                      <div className="min-w-0 flex-1">
-                        <h2 className="font-bold text-slate-900 text-sm sm:text-base leading-snug break-words">
-                          {fullName}
-                        </h2>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="font-mono text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md text-[11px] font-bold border border-indigo-100">
-                            #{emp.employeeCode}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Status Badge */}
-                    <div className="shrink-0">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                          isActive
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-slate-100 text-slate-600 border-slate-200'
-                        }`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-                        {isActive ? (isZh ? '在职' : t('common.active')) : (isZh ? '离职' : t('common.inactive'))}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Card Body: Relevant Metadata */}
-                  <div className="mt-4 pt-3.5 border-t border-slate-100 space-y-2.5 text-xs">
-                    {/* Branch */}
-                    <div className="flex items-start gap-2 text-slate-700">
-                      <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                      <span className="font-medium break-words leading-tight flex-1">{emp.branchName}</span>
-                    </div>
-
-                    {/* Department & Position (Salto de línea entre puesto y departamento para legibilidad completa) */}
-                    {(emp.departmentName || emp.positionName) && (
-                      <div className="flex items-start gap-2 text-slate-600">
-                        <Briefcase className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                        <div className="min-w-0 flex-1 leading-snug break-words">
-                          {emp.positionName && (
-                            <div className="font-semibold text-slate-800 break-words">
-                              {emp.positionName}
-                            </div>
-                          )}
-                          {emp.departmentName && (
-                            <div className="text-slate-500 text-[11px] break-words mt-0.5">
-                              {emp.departmentName}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Assigned Schedule (Envolvente y sin truncate para mostrar el horario completo) */}
-                    <div className="flex items-start gap-2">
-                      <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                      <span className="font-semibold text-emerald-800 bg-emerald-50/70 border border-emerald-200/60 px-2 py-1 rounded-md text-[11px] break-words leading-tight flex-1">
-                        {emp.currentScheduleName || (isZh ? '标准排班' : 'Turno Estándar')}
-                      </span>
-                    </div>
-
-                    {/* FA200 Biometric Device ID */}
-                    <div className="flex items-center gap-2 text-slate-600 pt-0.5">
-                      <Fingerprint className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      <span className="text-[11px] break-words">
-                        {isZh ? '考勤机工号: ' : 'ID FA200: '}
-                        <strong className="font-mono text-amber-800 font-bold">
-                          {emp.biometricExternalId || emp.employeeCode}
-                        </strong>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card Footer: Icon Actions (Touch targets >= 44x44 px) */}
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-1">
-                    {/* 1. View Detail / Metrics (Eye Icon) */}
-                    <button
-                      type="button"
-                      onClick={() => viewEmployeeDetail(emp.id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 transition cursor-pointer min-h-[44px] text-xs font-semibold"
-                      title={isZh ? '查看个人打卡月历与工时统计' : 'Consultar expediente y checadas del mes'}
-                      aria-label={isZh ? '查看考勤明细' : 'Ver detalle'}
-                    >
-                      <Eye className="w-4 h-4 text-indigo-600 shrink-0" />
-                      <span>{isZh ? '详情' : 'Detalle'}</span>
-                    </button>
-
-                    {/* 2. Edit Employee (Edit3 Icon) */}
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditModal(emp)}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white transition cursor-pointer min-h-[44px] text-xs font-semibold"
-                      title={isZh ? '修改员工信息与所属排班' : 'Editar empleado y horario'}
-                      aria-label={isZh ? '编辑' : 'Editar'}
-                    >
-                      <Edit3 className="w-4 h-4 shrink-0" />
-                      <span>{isZh ? '编辑' : 'Editar'}</span>
-                    </button>
-                  </div>
-
-                  {/* 3. Three dots options dropdown */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setActiveMenuEmployeeId(isMenuOpen ? null : emp.id)}
-                      className="w-[44px] h-[44px] flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition cursor-pointer"
-                      title={isZh ? '更多操作' : 'Más opciones'}
-                      aria-label={isZh ? '更多操作' : 'Más opciones'}
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-
-                    {/* Popover Menu */}
-                    {isMenuOpen && (
-                      <div
-                        ref={actionMenuRef}
-                        className="absolute right-0 bottom-full mb-1.5 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-20 py-1 text-xs animate-scaleUp overflow-hidden"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => handleToggleStatus(emp)}
-                          className="w-full text-left px-3.5 py-2.5 flex items-center gap-2 hover:bg-slate-50 text-slate-700 transition cursor-pointer font-medium"
-                        >
-                          <Power className={`w-3.5 h-3.5 ${isActive ? 'text-rose-500' : 'text-emerald-500'}`} />
-                          <span>
-                            {isActive
-                              ? (isZh ? '设为离职 (Inactivo)' : 'Marcar Inactivo')
-                              : (isZh ? '恢复在职 (Activo)' : 'Reactivar Empleado')}
-                          </span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       ) : (
-        /* ============================================================== */
-        /* 2. COMPACT TABLE VIEW (Responsive without horizontal overflow) */
-        /* ============================================================== */
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-          <div className="w-full">
-            <table className="w-full text-left text-xs border-collapse border border-slate-200 table-fixed">
-              <thead className="bg-slate-100/90 text-slate-700 border-b-2 border-slate-200 font-semibold text-xs">
-                <tr>
-                  <th className="py-3 px-3.5 w-[28%] border-r border-slate-200">{isZh ? '员工 / 编号' : 'Empleado y Código'}</th>
-                  <th className="py-3 px-3 w-[22%] border-r border-slate-200 hidden sm:table-cell">{isZh ? '门店与岗位' : 'Sucursal y Puesto'}</th>
-                  <th className="py-3 px-3 w-[22%] border-r border-slate-200 hidden md:table-cell">{isZh ? '排班与考勤机ID' : 'Horario y FA200'}</th>
-                  <th className="py-3 px-3 w-[12%] border-r border-slate-200 text-center">{t('common.status')}</th>
-                  <th className="py-3 px-3.5 w-[16%] text-center">{t('common.actions')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {employees.map((emp, idx) => {
-                  const isEven = idx % 2 === 0;
-                  const isActive = emp.status === 'Active';
-                  return (
-                    <tr
-                      key={emp.id}
-                      className={`border-b border-slate-200 transition ${isEven ? 'bg-white' : 'bg-slate-50/50'} hover:bg-indigo-50/40`}
-                    >
-                      {/* Name & Code */}
-                      <td className="py-3 px-3.5 align-middle border-r border-slate-200">
-                        <div className="font-bold text-slate-900 text-sm leading-snug break-words">
-                          {emp.firstName} {emp.lastName}
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="font-mono text-indigo-700 font-bold bg-indigo-50 px-1 py-0.5 rounded border border-indigo-100 text-[11px]">
-                            #{emp.employeeCode}
-                          </span>
-                          <span className="sm:hidden text-slate-400">·</span>
-                          <span className="sm:hidden text-slate-600 truncate">{emp.branchName}</span>
-                        </div>
-                      </td>
-
-                      {/* Branch & Position (Visible on sm+) */}
-                      <td className="py-3 px-3 align-middle border-r border-slate-200 hidden sm:table-cell">
-                        <div className="font-semibold text-slate-800 break-words leading-tight">{emp.branchName}</div>
-                        <div className="text-[11px] break-words mt-0.5 space-y-0.5">
-                          {emp.positionName && (
-                            <div className="font-medium text-slate-700 break-words">{emp.positionName}</div>
-                          )}
-                          {emp.departmentName && (
-                            <div className="text-slate-500 break-words">{emp.departmentName}</div>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Schedule & FA200 (Visible on md+) */}
-                      <td className="py-3 px-3 align-middle border-r border-slate-200 hidden md:table-cell">
-                        <div className="font-semibold text-emerald-800 text-[11px] break-words leading-tight">
-                          {emp.currentScheduleName || (isZh ? '标准班次' : 'Turno Estándar')}
-                        </div>
-                        <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                          ID FA200: <strong className="text-amber-800">{emp.biometricExternalId || emp.employeeCode}</strong>
-                        </div>
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3 px-3 align-middle text-center border-r border-slate-200">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                            isActive
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-slate-100 text-slate-600 border-slate-200'
-                          }`}
-                        >
-                          {isActive ? (isZh ? '在职' : t('common.active')) : (isZh ? '离职' : t('common.inactive'))}
-                        </span>
-                      </td>
-
-                      {/* Actions with Lucide Icons */}
-                      <td className="py-3 px-3.5 align-middle text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {/* Eye: View Detail */}
-                          <button
-                            type="button"
-                            onClick={() => viewEmployeeDetail(emp.id)}
-                            className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 transition cursor-pointer"
-                            title={isZh ? '查看考勤月历与指标' : 'Consultar checadas del mes'}
-                            aria-label={isZh ? '查看详情' : 'Ver detalle'}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-
-                          {/* Edit: Open Edit Modal */}
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditModal(emp)}
-                            className="w-[38px] h-[38px] flex items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white border border-indigo-200 transition cursor-pointer"
-                            title={isZh ? '修改员工与排班' : 'Editar empleado'}
-                            aria-label={isZh ? '编辑' : 'Editar'}
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <CatalogCollection mode={viewMode} permission="employees.manage" onView={emp => viewEmployeeDetail(emp.id)} onEdit={handleOpenEditModal} onToggle={handleToggleStatus}
+          rows={employees.map(emp => ({ id: emp.id, name: emp.fullName || [emp.firstName, emp.lastName].filter(Boolean).join(' '), code: String(emp.employeeCode || '—'), status: emp.status, source: emp,
+            fields: [{ label: t('common.branch'), value: emp.branchName }, { label: t('common.position'), value: emp.positionName }, { label: t('common.schedule'), value: emp.currentScheduleName }, { label: t('common.deviceId'), value: emp.biometricExternalId || emp.employeeCode }],
+            secondary: [{ label: t('common.department'), value: emp.departmentName }, { label: t('catalog.email'), value: emp.email }, { label: t('branches.phone'), value: emp.phone }]
+          }))} />
       )}
 
       {/* Pagination Bar */}
@@ -795,7 +518,7 @@ export const EmployeesPage: React.FC = () => {
           {isZh ? (
             <>共 <strong className="text-slate-900 font-bold">{totalRecords}</strong> 名员工 · 第 {page} / {totalPages} 页</>
           ) : (
-            <>Total: <strong className="text-slate-900 font-bold">{totalRecords}</strong> empleados · Pág. {page} de {totalPages}</>
+            <>{t('employees.total')}: <strong className="text-slate-900 font-bold">{totalRecords}</strong> {t('employees.people')} · {t('employees.page')} {page} {t('employees.of')} {totalPages} {t('employees.pages')}</>
           )}
         </span>
         <div className="flex gap-2">
@@ -830,12 +553,10 @@ export const EmployeesPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-slate-900 leading-tight">
-                    {isZh ? '录入新员工' : 'Dar de Alta Nuevo Empleado'}
+                    {t('employees.ui_dar_de_alta_nuevo_empleado')}
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {isZh
-                      ? '登记基本信息并分配 FA200 硬件生物识别编码'
-                      : 'Registro en el padrón y vinculación con checador biométrico FA200'}
+                    {t('employees.ui_registro_en_el_padron_y_vinculacion')}
                   </p>
                 </div>
               </div>
@@ -862,7 +583,7 @@ export const EmployeesPage: React.FC = () => {
                   {/* Code */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '员工编号 (纯数字) *' : 'Código de Empleado (Solo dígitos) *'}
+                      {t('employees.ui_codigo_de_empleado_solo_digitos')}
                     </label>
                     <input
                       type="text"
@@ -879,21 +600,21 @@ export const EmployeesPage: React.FC = () => {
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:bg-white focus:border-[#00695F] focus:outline-none min-h-[42px]"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 block">
-                      {isZh ? '正整数，与考勤机 ID 严格一致' : 'Entero positivo. Fuente única de verdad.'}
+                      {t('employees.ui_entero_positivo_fuente_unica_de_verdad')}
                     </span>
                   </div>
 
                   {/* First Name */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '名字 (First Name) *' : 'Nombre(s) *'}
+                      {t('employees.ui_nombre_s')}
                     </label>
                     <input
                       type="text"
                       required
                       value={formFirstName}
                       onChange={(e) => setFormFirstName(e.target.value)}
-                      placeholder={isZh ? '例如: 芳 / Carlos' : 'Juan Carlos'}
+                      placeholder={t('employees.ui_juan_carlos')}
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px]"
                     />
                   </div>
@@ -901,14 +622,14 @@ export const EmployeesPage: React.FC = () => {
                   {/* Last Name */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '姓氏 (Last Name) *' : 'Apellidos *'}
+                      {t('employees.ui_apellidos')}
                     </label>
                     <input
                       type="text"
                       required
                       value={formLastName}
                       onChange={(e) => setFormLastName(e.target.value)}
-                      placeholder={isZh ? '例如: 李 / García' : 'García López'}
+                      placeholder={t('employees.ui_garcia_lopez')}
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px]"
                     />
                   </div>
@@ -918,7 +639,7 @@ export const EmployeesPage: React.FC = () => {
                   {/* Branch */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '所属分店 *' : 'Sucursal de Adscripción *'}
+                      {t('employees.ui_sucursal_de_adscripcion')}
                     </label>
                     <select
                       required
@@ -926,7 +647,7 @@ export const EmployeesPage: React.FC = () => {
                       onChange={(e) => setFormBranchId(Number(e.target.value))}
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px]"
                     >
-                      <option value="">{isZh ? '请选择分店...' : 'Seleccione sucursal...'}</option>
+                      <option value="">{t('employees.ui_seleccione_sucursal')}</option>
                       {branches.map((b) => (
                         <option key={b.id} value={b.id}>{b.name} ({b.code})</option>
                       ))}
@@ -936,14 +657,14 @@ export const EmployeesPage: React.FC = () => {
                   {/* Schedule */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '分配排班班次' : 'Turno / Horario Asignado'}
+                      {t('employees.ui_turno_horario_asignado')}
                     </label>
                     <select
                       value={formScheduleId}
                       onChange={(e) => setFormScheduleId(e.target.value ? Number(e.target.value) : '')}
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px]"
                     >
-                      <option value="">{isZh ? '请选择排班...' : 'Seleccione horario...'}</option>
+                      <option value="">{t('employees.ui_seleccione_horario')}</option>
                       {schedules.map((s) => (
                         <option key={s.id} value={s.id}>{s.name} ({s.startTime.slice(0, 5)} - {s.endTime.slice(0, 5)})</option>
                       ))}
@@ -962,7 +683,7 @@ export const EmployeesPage: React.FC = () => {
                       onChange={(e) => setFormDepartmentId(e.target.value ? Number(e.target.value) : '')}
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px]"
                     >
-                      <option value="">{isZh ? '未指定部门 / 综合' : 'Sin departamento / General'}</option>
+                      <option value="">{t('employees.ui_sin_departamento_general')}</option>
                       {departments.map((d) => (
                         <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
@@ -979,7 +700,7 @@ export const EmployeesPage: React.FC = () => {
                       onChange={(e) => setFormPositionId(e.target.value ? Number(e.target.value) : '')}
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px]"
                     >
-                      <option value="">{isZh ? '未指定特定职位' : 'Sin puesto específico'}</option>
+                      <option value="">{t('employees.ui_sin_puesto_especifico')}</option>
                       {positions.map((p) => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
@@ -991,7 +712,7 @@ export const EmployeesPage: React.FC = () => {
                   {/* Biometric ID */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '考勤机识别编码 (FA200 ID)' : 'ID en Checador Biométrico'}
+                      {t('employees.ui_id_en_checador_biometrico')}
                     </label>
                     <input
                       type="text"
@@ -1001,14 +722,14 @@ export const EmployeesPage: React.FC = () => {
                       className="w-full px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-[#00695F] font-mono font-bold cursor-not-allowed min-h-[42px]"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 block">
-                      {isZh ? '自动镜像员工编号（同一正整数）' : 'Espejo automático del Código de Empleado (Mismo ID en FA200)'}
+                      {t('employees.ui_espejo_automatico_del_codigo_de_empleado')}
                     </span>
                   </div>
 
                   {/* Hire Date */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '入职日期 *' : 'Fecha de Ingreso *'}
+                      {t('employees.ui_fecha_de_ingreso')}
                     </label>
                     <input
                       type="date"
@@ -1024,7 +745,7 @@ export const EmployeesPage: React.FC = () => {
                   {/* Email */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '电子邮箱 (选填)' : 'Correo Electrónico (Opcional)'}
+                      {t('employees.ui_correo_electronico_opcional')}
                     </label>
                     <input
                       type="email"
@@ -1038,7 +759,7 @@ export const EmployeesPage: React.FC = () => {
                   {/* Phone */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '联系电话 (选填)' : 'Teléfono (Opcional)'}
+                      {t('employees.ui_telefono_opcional')}
                     </label>
                     <input
                       type="tel"
@@ -1067,7 +788,7 @@ export const EmployeesPage: React.FC = () => {
                 disabled={creating}
                 className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm shadow-xs disabled:opacity-50 min-h-[44px] cursor-pointer"
               >
-                {creating ? (isZh ? '正在录入...' : 'Registrando...') : (isZh ? '确认录入员工' : 'Registrar Empleado')}
+                {creating ? (t('employees.ui_registrando')) : (t('employees.ui_registrar_empleado'))}
               </button>
             </div>
           </div>
@@ -1088,7 +809,7 @@ export const EmployeesPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-slate-900 leading-tight">
-                    {isZh ? '修改员工资料' : 'Editar Datos de Empleado'}
+                    {t('employees.ui_editar_datos_de_empleado')}
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
                     #{editingEmployee.employeeCode} · {editingEmployee.firstName} {editingEmployee.lastName}
@@ -1118,7 +839,7 @@ export const EmployeesPage: React.FC = () => {
                   {/* First Name */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '名字 (First Name) *' : 'Nombre(s) *'}
+                      {t('employees.ui_nombre_s')}
                     </label>
                     <input
                       type="text"
@@ -1132,7 +853,7 @@ export const EmployeesPage: React.FC = () => {
                   {/* Last Name */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '姓氏 (Last Name) *' : 'Apellidos *'}
+                      {t('employees.ui_apellidos')}
                     </label>
                     <input
                       type="text"
@@ -1148,7 +869,7 @@ export const EmployeesPage: React.FC = () => {
                   {/* Branch */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '所属分店 *' : 'Sucursal de Adscripción *'}
+                      {t('employees.ui_sucursal_de_adscripcion')}
                     </label>
                     <select
                       required
@@ -1165,14 +886,14 @@ export const EmployeesPage: React.FC = () => {
                   {/* Schedule */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '分配排班班次' : 'Turno / Horario Asignado'}
+                      {t('employees.ui_turno_horario_asignado')}
                     </label>
                     <select
                       value={editScheduleId}
                       onChange={(e) => setEditScheduleId(e.target.value ? Number(e.target.value) : '')}
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px]"
                     >
-                      <option value="">{isZh ? '请选择排班...' : 'Seleccione horario...'}</option>
+                      <option value="">{t('employees.ui_seleccione_horario')}</option>
                       {schedules.map((s) => (
                         <option key={s.id} value={s.id}>{s.name} ({s.startTime.slice(0, 5)} - {s.endTime.slice(0, 5)})</option>
                       ))}
@@ -1191,7 +912,7 @@ export const EmployeesPage: React.FC = () => {
                       onChange={(e) => setEditDepartmentId(e.target.value ? Number(e.target.value) : '')}
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px]"
                     >
-                      <option value="">{isZh ? '未指定部门 / 综合' : 'Sin departamento / General'}</option>
+                      <option value="">{t('employees.ui_sin_departamento_general')}</option>
                       {departments.map((d) => (
                         <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
@@ -1208,7 +929,7 @@ export const EmployeesPage: React.FC = () => {
                       onChange={(e) => setEditPositionId(e.target.value ? Number(e.target.value) : '')}
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px]"
                     >
-                      <option value="">{isZh ? '未指定特定职位' : 'Sin puesto específico'}</option>
+                      <option value="">{t('employees.ui_sin_puesto_especifico')}</option>
                       {positions.map((p) => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
@@ -1220,22 +941,22 @@ export const EmployeesPage: React.FC = () => {
                   {/* Status */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '在职状态' : 'Estado de Empleado'}
+                      {t('employees.ui_estado_de_empleado')}
                     </label>
                     <select
                       value={editStatus}
                       onChange={(e) => setEditStatus(e.target.value)}
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:border-indigo-500 focus:outline-none min-h-[42px]"
                     >
-                      <option value="Active">{isZh ? '在职 (Active)' : 'Activo (Active)'}</option>
-                      <option value="Inactive">{isZh ? '离职 / 停用 (Inactive)' : 'Inactivo / Baja (Inactive)'}</option>
+                      <option value="Active">{t('employees.ui_activo_active')}</option>
+                      <option value="Inactive">{t('employees.ui_inactivo_baja_inactive')}</option>
                     </select>
                   </div>
 
                   {/* Biometric ID */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '考勤机识别编码 (FA200 ID)' : 'ID en Checador Biométrico'}
+                      {t('employees.ui_id_en_checador_biometrico')}
                     </label>
                     <input
                       type="text"
@@ -1245,7 +966,7 @@ export const EmployeesPage: React.FC = () => {
                       className="w-full px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-[#00695F] font-mono font-bold cursor-not-allowed min-h-[42px]"
                     />
                     <span className="text-[10px] text-slate-500 mt-1 block">
-                      {isZh ? '受保护的硬件编码：与员工编号保持一致' : 'Identidad protegida: idéntica al Código de Empleado'}
+                      {t('employees.ui_identidad_protegida_identica_al_codigo_de')}
                     </span>
                   </div>
                 </div>
@@ -1254,7 +975,7 @@ export const EmployeesPage: React.FC = () => {
                   {/* Email */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '电子邮箱' : 'Correo Electrónico'}
+                      {t('employees.ui_correo_electronico')}
                     </label>
                     <input
                       type="email"
@@ -1267,7 +988,7 @@ export const EmployeesPage: React.FC = () => {
                   {/* Phone */}
                   <div>
                     <label className="block text-slate-700 font-semibold mb-1 text-xs">
-                      {isZh ? '联系电话' : 'Teléfono'}
+                      {t('employees.ui_telefono')}
                     </label>
                     <input
                       type="tel"
@@ -1295,7 +1016,7 @@ export const EmployeesPage: React.FC = () => {
                 disabled={updating}
                 className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm shadow-xs disabled:opacity-50 min-h-[44px] cursor-pointer"
               >
-                {updating ? (isZh ? '正在保存...' : 'Guardando...') : (isZh ? '保存修改' : 'Guardar Cambios')}
+                {updating ? (t('employees.ui_guardando')) : (t('employees.ui_guardar_cambios'))}
               </button>
             </div>
           </div>
@@ -1316,10 +1037,10 @@ export const EmployeesPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-slate-900 leading-tight">
-                    {isZh ? '员工考勤档案与月度指标' : 'Expediente y Métricas de Asistencia'}
+                    {t('employees.ui_expediente_y_metricas_de_asistencia')}
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {selectedEmployeeDetail?.fullName || (isZh ? '考勤详情' : 'Detalle')}
+                    {selectedEmployeeDetail?.fullName || (t('employees.ui_detalle_2'))}
                   </p>
                 </div>
               </div>
@@ -1366,8 +1087,8 @@ export const EmployeesPage: React.FC = () => {
                           }`}
                         >
                           {selectedEmployeeDetail.status === 'Active'
-                            ? (isZh ? '正常在职' : 'Activo')
-                            : (isZh ? '已离职' : 'Inactivo')}
+                            ? (t('employees.ui_activo_2'))
+                            : (t('employees.ui_inactivo_2'))}
                         </span>
                       </div>
                     </div>
@@ -1376,12 +1097,12 @@ export const EmployeesPage: React.FC = () => {
                   {/* Monthly Metrics Grid */}
                   <div>
                     <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5">
-                      {isZh ? '本月考勤实绩 (当月统计)' : 'Métricas del Mes en Curso'}
+                      {t('employees.ui_metricas_del_mes_en_curso')}
                     </h4>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                       <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
                         <span className="text-[11px] text-slate-500 font-medium block">
-                          {isZh ? '打卡次数' : 'Checadas'}
+                          {t('employees.ui_checadas')}
                         </span>
                         <p className="text-xl font-bold font-mono text-slate-900 mt-1">
                           {selectedEmployeeDetail.totalPunchesThisMonth}
@@ -1390,7 +1111,7 @@ export const EmployeesPage: React.FC = () => {
 
                       <div className="p-3.5 rounded-xl bg-emerald-50/50 border border-emerald-200/60">
                         <span className="text-[11px] text-emerald-800 font-medium block">
-                          {isZh ? '出勤天数' : 'Días Presente'}
+                          {t('employees.ui_dias_presente')}
                         </span>
                         <p className="text-xl font-bold font-mono text-emerald-700 mt-1">
                           {selectedEmployeeDetail.daysPresentThisMonth}
@@ -1399,7 +1120,7 @@ export const EmployeesPage: React.FC = () => {
 
                       <div className="p-3.5 rounded-xl bg-amber-50/50 border border-amber-200/60">
                         <span className="text-[11px] text-amber-800 font-medium block">
-                          {isZh ? '迟到天数' : 'Días Retardo'}
+                          {t('employees.ui_dias_retardo')}
                         </span>
                         <p className="text-xl font-bold font-mono text-amber-700 mt-1">
                           {selectedEmployeeDetail.daysLateThisMonth}
@@ -1408,7 +1129,7 @@ export const EmployeesPage: React.FC = () => {
 
                       <div className="p-3.5 rounded-xl bg-indigo-50/50 border border-indigo-200/60">
                         <span className="text-[11px] text-indigo-800 font-medium block">
-                          {isZh ? '累计工时' : 'Horas Netas'}
+                          {t('employees.ui_horas_netas')}
                         </span>
                         <p className="text-xl font-bold font-mono text-indigo-700 mt-1">
                           {Math.round((selectedEmployeeDetail.totalMinutesWorkedThisMonth / 60) * 10) / 10}h
@@ -1430,21 +1151,21 @@ export const EmployeesPage: React.FC = () => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-500">{t('common.schedule')}:</span>
-                        <span className="font-semibold text-emerald-700">{selectedEmployeeDetail.currentScheduleName || (isZh ? '标准班次' : 'Turno Estándar')}</span>
+                        <span className="font-semibold text-emerald-700">{selectedEmployeeDetail.currentScheduleName || (t('employees.ui_turno_estandar_2'))}</span>
                       </div>
                     </div>
 
                     <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-slate-500">{isZh ? '入职日期:' : 'Fecha Ingreso:'}</span>
+                        <span className="text-slate-500">{t('employees.ui_fecha_ingreso')}</span>
                         <span className="font-mono text-slate-800 font-medium">{selectedEmployeeDetail.hireDate?.slice(0, 10)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-500">{isZh ? 'FA200 硬件工号:' : 'ID en FA200:'}</span>
+                        <span className="text-slate-500">{t('employees.ui_id_en_fa200')}</span>
                         <span className="font-mono text-amber-800 font-bold">{selectedEmployeeDetail.biometricExternalId}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-500">{isZh ? '加班时长 (min):' : 'Horas Extra:'}</span>
+                        <span className="text-slate-500">{t('employees.ui_horas_extra')}</span>
                         <span className="font-mono text-indigo-700 font-semibold">{selectedEmployeeDetail.totalOvertimeMinutesThisMonth} min</span>
                       </div>
                     </div>

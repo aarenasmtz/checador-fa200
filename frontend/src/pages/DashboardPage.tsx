@@ -2,7 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
-import { DailyAttendanceDetailModal } from '../components/DailyAttendanceDetailModal';
+import { ClearAttendanceDetailModal as DailyAttendanceDetailModal } from '../components/ClearAttendanceDetailModal';
+import { ErrorState, LoadingState } from '../components/AsyncState';
+import { useAuth } from '../context/AuthContext';
+import { AttendanceSummary } from '../components/AttendanceSummary';
 import {
   Users,
   CheckCircle2,
@@ -30,8 +33,11 @@ import {
 
 export const DashboardPage: React.FC = () => {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
+  const canManageEmployees = user?.permissions?.includes('employees.manage') || user?.roles?.some(role => ['SUPERADMIN', 'ADMIN', 'ADMIN_SUCURSAL'].includes(role));
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Live Punches Sorting and Branch Filter state
   const [punchSortField, setPunchSortField] = useState<'dateTime' | 'name' | 'code' | 'branch' | 'status'>('dateTime');
@@ -75,10 +81,12 @@ export const DashboardPage: React.FC = () => {
 
   const fetchDashboard = async () => {
     try {
+      setLoadError(null);
       const res = await api.get('/v1/dashboard/summary');
       setData(res.data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching dashboard:', err);
+      setLoadError(err.response?.data?.message || t('common.loadErrorDescription'));
     } finally {
       setLoading(false);
     }
@@ -111,7 +119,7 @@ export const DashboardPage: React.FC = () => {
     } catch (err: any) {
       if (requestId === activeRequestIdRef.current) {
         console.error('Error fetching day detail:', err);
-        setDetailError(err.response?.data?.message || 'Error al cargar el detalle de asistencia');
+        setDetailError(err.response?.data?.message || t('dashboard.detailLoadError'));
         setDayDetail(null);
       }
     } finally {
@@ -138,7 +146,11 @@ export const DashboardPage: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-400">{t('common.loading')}</div>;
+    return <LoadingState />;
+  }
+
+  if (loadError && !data) {
+    return <ErrorState message={loadError} onRetry={() => { setLoading(true); fetchDashboard(); }} />;
   }
 
   const { metrics, trend, branches, recentActivity } = data || {};
@@ -149,6 +161,16 @@ export const DashboardPage: React.FC = () => {
       case 'fingerprint': return <Fingerprint className="w-4 h-4 text-emerald-600" />;
       case 'card': return <CreditCard className="w-4 h-4 text-amber-600" />;
       default: return <UserCheck className="w-4 h-4 text-violet-500" />;
+    }
+  };
+
+  const getMethodLabel = (method?: string) => {
+    switch ((method || '').toLowerCase()) {
+      case 'face': return t('dashboard.methodFace');
+      case 'fingerprint': return t('dashboard.methodFingerprint');
+      case 'card': return t('dashboard.methodCard');
+      case 'pin': return t('dashboard.methodPin');
+      default: return method || t('common.notAvailable');
     }
   };
 
@@ -228,6 +250,7 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <h1 className="font-bold">{t('menu.home')}</h1>
 
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -238,7 +261,7 @@ export const DashboardPage: React.FC = () => {
           </div>
           <div>
             <span className="text-xs text-slate-500 font-medium">{t('dashboard.totalEmployees')}</span>
-            <p className="text-2xl font-bold text-slate-900 mt-0.5">{metrics?.totalEmployees || 0}</p>
+            <p className="text-2xl font-bold text-slate-900 mt-0.5">{metrics?.totalEmployees ?? '—'}</p>
           </div>
         </div>
 
@@ -249,7 +272,7 @@ export const DashboardPage: React.FC = () => {
           </div>
           <div>
             <span className="text-xs text-slate-500 font-medium">{t('dashboard.presentToday')}</span>
-            <p className="text-2xl font-bold text-emerald-600 mt-0.5">{metrics?.presentToday || 0}</p>
+            <p className="text-2xl font-bold text-emerald-600 mt-0.5">{metrics?.presentToday ?? '—'}</p>
           </div>
         </div>
 
@@ -260,7 +283,7 @@ export const DashboardPage: React.FC = () => {
           </div>
           <div>
             <span className="text-xs text-slate-500 font-medium">{t('dashboard.lateToday')}</span>
-            <p className="text-2xl font-bold text-amber-600 mt-0.5">{metrics?.lateToday || 0}</p>
+            <p className="text-2xl font-bold text-amber-600 mt-0.5">{metrics?.lateToday ?? '—'}</p>
           </div>
         </div>
 
@@ -271,7 +294,7 @@ export const DashboardPage: React.FC = () => {
           </div>
           <div>
             <span className="text-xs text-slate-500 font-medium">{t('dashboard.absentToday')}</span>
-            <p className="text-2xl font-bold text-rose-600 mt-0.5">{metrics?.absentToday || 0}</p>
+            <p className="text-2xl font-bold text-rose-600 mt-0.5">{metrics?.absentToday ?? '—'}</p>
           </div>
         </div>
       </div>
@@ -285,7 +308,7 @@ export const DashboardPage: React.FC = () => {
               <TrendingUp className="w-4 h-4 text-indigo-600" />
               <h3 className="font-bold text-sm text-slate-800">{t('dashboard.trendTitle')}</h3>
               <span className="text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60 px-2 py-0.5 rounded-full">
-                {language === 'zh-CN' ? '点击查看明细' : 'Clic para ver detalle'}
+                {t('dashboard.clickForDetail')}
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs">
@@ -304,17 +327,21 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="h-52 flex items-end justify-between gap-3 pt-6 px-2">
+          <div className="h-52 flex items-end justify-between gap-1 sm:gap-3 pt-6 px-2">
             {(() => {
               const effectiveTrend = trend || [];
               const maxScale = Math.max(
-                10,
+                1,
                 ...effectiveTrend.map((d: any) => (d.onTime || 0) + (d.late || 0) + (d.absent || 0))
               );
 
+              if (effectiveTrend.length === 0) {
+                return <div className="flex h-full w-full items-center justify-center text-sm text-slate-400">{t('dashboard.noTrendData')}</div>;
+              }
+
               return effectiveTrend.map((day: any) => {
                 const total = (day.onTime || 0) + (day.late || 0) + (day.absent || 0);
-                const colHeight = Math.min(100, Math.max(total > 0 ? 30 : 6, Math.round((total / maxScale) * 100)));
+                const colHeight = total > 0 ? Math.max(1, Math.round((total / maxScale) * 88)) : 3;
                 const absentPct = total > 0 ? (day.absent / total) * 100 : 0;
                 const latePct = total > 0 ? (day.late / total) * 100 : 0;
                 const onTimePct = total > 0 ? (day.onTime / total) * 100 : 0;
@@ -324,18 +351,22 @@ export const DashboardPage: React.FC = () => {
                 return (
                   <div
                     key={day.date}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${t('dashboard.detail')}: ${day.date}`}
                     onClick={() => handleSelectDay(day.date, displayLabel)}
+                    onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); handleSelectDay(day.date, displayLabel); } }}
                     className="flex-1 flex flex-col items-center gap-2 h-full justify-end group relative cursor-pointer select-none"
                   >
                     {/* Floating Tooltip */}
                     <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col gap-1 bg-slate-900 text-white text-[11px] rounded-xl px-3 py-2 shadow-xl z-30 pointer-events-none whitespace-nowrap min-w-[140px]">
                       <span className="font-bold border-b border-slate-700 pb-1 text-slate-200">
-                        {displayLabel} ({day.date}) · Total: {total}
+                        {displayLabel} ({day.date}) · {t('dashboard.totalRecords')}: {total}
                       </span>
-                      <span className="text-emerald-400 font-medium">✓ Puntuales: {day.onTime}</span>
-                      <span className="text-amber-400 font-medium">⚠ Retardos: {day.late}</span>
-                      <span className="text-rose-400 font-medium">✕ Faltas: {day.absent}</span>
-                      <span className="text-[10px] text-indigo-300 pt-0.5">👉 Clic para ver lista</span>
+                      <span className="text-emerald-400 font-medium">✓ {t('dashboard.onTimeEntries')}: {day.onTime}</span>
+                      <span className="text-amber-400 font-medium">⚠ {t('dashboard.lateEntries')}: {day.late}</span>
+                      <span className="text-rose-400 font-medium">✕ {t('dashboard.absentEntries')}: {day.absent}</span>
+                      <span className="text-[10px] text-indigo-300 pt-0.5">👉 {t('dashboard.clickForList')}</span>
                     </div>
 
                     {/* Stacked Pillar */}
@@ -355,7 +386,7 @@ export const DashboardPage: React.FC = () => {
                         <div className="w-full h-full bg-slate-200/50" />
                       )}
                     </div>
-                    <span className={`text-[11px] font-mono font-medium transition-colors ${
+                    <span className={`whitespace-nowrap text-[11px] font-mono font-medium transition-colors ${
                       isSelected ? 'text-indigo-600 font-bold' : 'text-slate-500 group-hover:text-indigo-600'
                     }`}>
                       {displayLabel}
@@ -369,7 +400,7 @@ export const DashboardPage: React.FC = () => {
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span className="flex items-center gap-1.5">
               <span>💡</span>
-              <span>{language === 'zh-CN' ? '点击上方任意日期的柱状图，可立即展开当日迟到与按时打卡员工清单' : 'Haz clic en cualquier barra de la gráfica para ver la lista de retardos y entradas puntuales.'}</span>
+              <span>{t('dashboard.trendHint')}</span>
             </span>
           </div>
         </div>
@@ -382,7 +413,7 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           <div className="space-y-3.5">
-            {branches && branches.map((b: any) => {
+            {branches?.length ? branches.map((b: any) => {
               const pct = b.totalEmployees > 0 ? Math.round((b.present / b.totalEmployees) * 100) : 0;
               return (
                 <div key={b.branchId} className="space-y-1.5">
@@ -400,7 +431,7 @@ export const DashboardPage: React.FC = () => {
                   </div>
                 </div>
               );
-            })}
+            }) : <p className="py-10 text-center text-sm text-slate-400">{t('dashboard.noBranchData')}</p>}
           </div>
         </div>
       </div>
@@ -412,23 +443,23 @@ export const DashboardPage: React.FC = () => {
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
             <h3 className="font-bold text-sm text-[#203441]">{t('dashboard.livePunches')}</h3>
             <span className="text-[11px] font-mono font-semibold text-[#00695F] bg-[#E6F2F0] px-2 py-0.5 rounded-full">
-              {processedPunches.length} {language === 'zh-CN' ? '条打卡' : 'registros'}
+              {processedPunches.length} {t('dashboard.records')}
             </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Filter by Branch */}
-            <div className="flex items-center gap-1.5 bg-[#F4F7F8] border border-[#DFE7EB] rounded-lg px-2.5 py-1 text-xs">
+            <div className="wpc-punch-filter flex items-center gap-1.5 bg-[#F4F7F8] border border-[#DFE7EB] rounded-lg px-2.5 py-1 text-xs">
               <Filter className="w-3.5 h-3.5 text-[#00695F]" />
               <label className="text-[11px] font-medium text-[#60727E]">
-                {language === 'zh-CN' ? '分店:' : 'Sucursal:'}
+                {t('common.branch')}:
               </label>
               <select
                 value={punchBranchFilter}
                 onChange={(e) => setPunchBranchFilter(e.target.value)}
                 className="bg-transparent text-xs font-semibold text-[#203441] focus:outline-none cursor-pointer"
               >
-                <option value="">{language === 'zh-CN' ? '全部 (Todas)' : 'Todas las sucursales'}</option>
+                <option value="">{t('common.allBranches')}</option>
                 {uniquePunchBranches.map((bName) => (
                   <option key={bName} value={bName}>
                     {bName}
@@ -440,7 +471,7 @@ export const DashboardPage: React.FC = () => {
                   type="button"
                   onClick={() => setPunchBranchFilter('')}
                   className="text-slate-400 hover:text-slate-600 ml-1"
-                  title={language === 'zh-CN' ? '清除筛选' : 'Limpiar filtro'}
+                  title={t('common.clearFilter')}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -448,29 +479,37 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             <span className="text-xs text-[#60727E] hidden md:inline">
-              {language === 'zh-CN' ? '每10秒自动更新 · 实时同步' : 'Actualización cada 10s · Tiempo real'}
+              {t('dashboard.autoRefresh')}
             </span>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="wpc-mobile-list">
+          {processedPunches.map((punch: any) => <article key={punch.id} className="wpc-list-card">
+            <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3>{punch.employeeName || `${t('dashboard.unlinkedEmployee')} #${punch.userClockId || punch.employeeCode || '—'}`}</h3><p className="wpc-card-meta">{punch.branchName || '—'}</p></div><strong className="font-mono text-lg text-[#00695F]">{punch.time || '—'}</strong></div>
+            <p className="wpc-card-meta">{punch.date || '—'} · {punch.eventType === 'Entry' ? t('detail.entry') : punch.eventType === 'Exit' ? t('detail.exit') : t('dashboard.biometricPunch')} · {getMethodLabel(punch.method)}</p>
+            <div className="wpc-card-footer"><span className="text-sm text-[#60727E]">#{punch.employeeCode || punch.userClockId || '—'}</span>{punch.employeeId ? <button className="wpc-secondary" onClick={() => { handleSelectDay(punch.date); setSearchTerm(punch.employeeName || ''); }}><Eye size={18} />{t('dashboard.detail')}</button> : canManageEmployees && <button className="wpc-secondary" onClick={() => navigate('/employees')}><Link2 size={18} />{t('dashboard.linkEmployee')}</button>}</div>
+          </article>)}
+          {!processedPunches.length && <p className="py-8 text-center text-sm text-[#60727E]">{t('dashboard.noPunches')}</p>}
+        </div>
+        <div className="wpc-desktop-list overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-[#DFE7EB] text-[#60727E] bg-slate-50/60">
                 <th
                   onClick={() => handlePunchSort('dateTime')}
                   className="py-2.5 px-3 cursor-pointer select-none hover:bg-slate-100 transition group"
-                  title="Ordenar por Fecha y Hora"
+                  title={t('dashboard.sortDateTime')}
                 >
                   <div className="flex items-center gap-1">
-                    <span>{language === 'zh-CN' ? '打卡时间 (日期与时间)' : 'Fecha y Hora'}</span>
+                    <span>{t('dashboard.dateTime')}</span>
                     {renderSortIcon('dateTime')}
                   </div>
                 </th>
                 <th
                   onClick={() => handlePunchSort('name')}
                   className="py-2.5 px-3 cursor-pointer select-none hover:bg-slate-100 transition group"
-                  title="Ordenar por Nombre"
+                  title={t('dashboard.sortName')}
                 >
                   <div className="flex items-center gap-1">
                     <span>{t('common.name')}</span>
@@ -480,7 +519,7 @@ export const DashboardPage: React.FC = () => {
                 <th
                   onClick={() => handlePunchSort('code')}
                   className="py-2.5 px-3 cursor-pointer select-none hover:bg-slate-100 transition group"
-                  title="Ordenar por Código"
+                  title={t('dashboard.sortCode')}
                 >
                   <div className="flex items-center gap-1">
                     <span>{t('common.code')}</span>
@@ -490,17 +529,17 @@ export const DashboardPage: React.FC = () => {
                 <th
                   onClick={() => handlePunchSort('branch')}
                   className="py-2.5 px-3 cursor-pointer select-none hover:bg-slate-100 transition group"
-                  title="Ordenar por Sucursal"
+                  title={t('dashboard.sortBranch')}
                 >
                   <div className="flex items-center gap-1">
-                    <span>{language === 'zh-CN' ? '考勤机所在分店' : 'Sucursal Reloj (Origen)'}</span>
+                    <span>{t('dashboard.deviceBranch')}</span>
                     {renderSortIcon('branch')}
                   </div>
                 </th>
                 <th
                   onClick={() => handlePunchSort('status')}
                   className="py-2.5 px-3 cursor-pointer select-none hover:bg-slate-100 transition group"
-                  title="Ordenar por Estado"
+                  title={t('dashboard.sortStatus')}
                 >
                   <div className="flex items-center gap-1">
                     <span>{t('common.status')}</span>
@@ -508,7 +547,7 @@ export const DashboardPage: React.FC = () => {
                   </div>
                 </th>
                 <th className="py-2.5 px-3">{t('common.method')}</th>
-                <th className="py-2.5 px-3 text-right">{language === 'zh-CN' ? '操作' : 'Acción'}</th>
+                <th className="py-2.5 px-3 text-right">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#DFE7EB]/60">
@@ -520,13 +559,13 @@ export const DashboardPage: React.FC = () => {
                       <td className="py-2.5 px-3 font-mono text-[#00695F] font-semibold whitespace-nowrap">
                         <div className="flex flex-col">
                           <span className="font-bold text-[#203441]">{punch.time}</span>
-                          <span className="text-[11px] text-[#60727E] font-sans font-normal">{punch.date || new Date().toISOString().slice(0, 10)}</span>
+                          <span className="text-[11px] text-[#60727E] font-sans font-normal">{punch.date || '—'}</span>
                         </div>
                       </td>
                       <td className="py-2.5 px-3 whitespace-nowrap">
                         {isUnlinked ? (
                           <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full text-[11px] font-semibold border border-amber-200">
-                            {language === 'zh-CN' ? '未关联员工' : 'Sin vincular'} ({punch.userClockId ? `#${punch.userClockId}` : (punch.employeeCode ? `#${punch.employeeCode}` : 'ID ?')})
+                            {t('dashboard.unlinkedEmployee')} ({punch.userClockId ? `#${punch.userClockId}` : (punch.employeeCode ? `#${punch.employeeCode}` : 'ID ?')})
                           </span>
                         ) : (
                           <span className="font-semibold text-[#203441]">{punch.employeeName}</span>
@@ -543,29 +582,27 @@ export const DashboardPage: React.FC = () => {
                       </td>
                       <td className="py-2.5 px-3 whitespace-nowrap">
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          {punch.eventType === 'Entry' ? (language === 'zh-CN' ? '上班 (Entry)' : 'Entrada (Entry)') : punch.eventType === 'Exit' ? (language === 'zh-CN' ? '下班 (Exit)' : 'Salida (Exit)') : punch.eventType}
+                          {punch.eventType === 'Entry' ? (t('dashboard.ui_entrada_entry')) : punch.eventType === 'Exit' ? (t('dashboard.ui_salida_exit')) : punch.eventType}
                         </span>
                       </td>
                       <td className="py-2.5 px-3 whitespace-nowrap">
                         <div className="flex items-center gap-1.5 text-xs text-[#60727E]">
                           {getMethodIcon(punch.method)}
-                          <span>{punch.method}</span>
+                          <span>{getMethodLabel(punch.method)}</span>
                         </div>
                       </td>
                       <td className="py-2.5 px-3 whitespace-nowrap text-right">
-                        {isUnlinked ? (
+                        {isUnlinked && canManageEmployees ? (
                           <button
                             onClick={() => navigate('/employees')}
                             className="inline-flex items-center gap-1 text-[11px] font-bold text-[#00695F] hover:text-[#005149] bg-[#E6F2F0] hover:bg-[#d6e9e6] px-2.5 py-1 rounded-lg border border-[#00695F]/20 transition"
-                            title="Vincular a ficha de empleado"
+                            title={t('dashboard.linkEmployeeTitle')}
                           >
                             <Link2 className="w-3 h-3" />
-                            {language === 'zh-CN' ? '去关联' : 'Vincular'}
+                            {t('dashboard.linkEmployee')}
                           </button>
                         ) : (
-                          <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                            {language === 'zh-CN' ? '已关联' : 'Vinculado'}
-                          </span>
+                          !isUnlinked && <button type="button" className="wpc-icon-button" aria-label={`${t('dashboard.detail')}: ${punch.employeeName}`} onClick={() => { handleSelectDay(punch.date); setSearchTerm(punch.employeeName || ''); }}><Eye size={19} /></button>
                         )}
                       </td>
                     </tr>
@@ -574,7 +611,7 @@ export const DashboardPage: React.FC = () => {
               ) : (
                 <tr>
                   <td colSpan={7} className="py-6 text-center text-[#60727E]">
-                    {language === 'zh-CN' ? '暂无匹配打卡数据' : 'Sin checadas para el filtro seleccionado'}
+                    {t('dashboard.noPunches')}
                   </td>
                 </tr>
               )}
@@ -586,23 +623,21 @@ export const DashboardPage: React.FC = () => {
       {/* Day Attendance Detail Modal */}
       {selectedDate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl w-full max-w-5xl p-6 relative border border-slate-200 shadow-2xl flex flex-col max-h-[92vh]">
+          <div role="dialog" aria-modal="true" aria-label={t('dashboard.detailTitle')} className="bg-white rounded-2xl w-full max-w-5xl p-4 sm:p-6 relative border border-slate-200 shadow-2xl flex flex-col max-h-[92dvh]">
             
             {/* Modal Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 gap-3">
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-bold text-slate-900">
-                    {language === 'zh-CN' ? `考勤明细报告 · ${selectedDateLabel || selectedDate}` : `Detalle de Asistencia · ${selectedDateLabel || selectedDate}`}
+                    {t('dashboard.detailTitle')} · {selectedDateLabel || selectedDate}
                   </h2>
                   <span className="text-[11px] font-mono font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-0.5 rounded-full">
                     {selectedDate}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  {language === 'zh-CN'
-                    ? '按时到岗员工、迟到人员与缺勤名单详细分析 · 点击员工可展开原始生物识别打卡流水'
-                    : 'Desglose individual de entradas a tiempo, retardos con minutos y faltas. Clic en un empleado para ver sus checadas originales.'}
+                  {t('dashboard.detailDescription')}
                 </p>
               </div>
 
@@ -613,7 +648,7 @@ export const DashboardPage: React.FC = () => {
                   onChange={(e) => handleModalBranchChange(e.target.value)}
                   className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-medium focus:bg-white focus:border-indigo-500 focus:outline-none"
                 >
-                  <option value="">{language === 'zh-CN' ? '全部分店 (Todas)' : 'Todas las sucursales'}</option>
+                  <option value="">{t('common.allBranches')}</option>
                   {branches && branches.map((b: any) => (
                     <option key={b.branchId} value={b.branchId}>{b.branchName}</option>
                   ))}
@@ -622,7 +657,7 @@ export const DashboardPage: React.FC = () => {
                 <button
                   onClick={() => { setSelectedDate(null); setDayDetail(null); setDetailError(null); }}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
-                  title="Cerrar modal"
+                  title={t('common.close')}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -632,7 +667,7 @@ export const DashboardPage: React.FC = () => {
             {/* Quick KPI Summary Badges */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 py-3 border-b border-slate-100">
               <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] text-slate-500 font-medium block">Total Registros</span>
+                <span className="text-[10px] text-slate-500 font-medium block">{t('dashboard.totalRecords')}</span>
                 <span className="text-lg font-bold text-slate-900 mt-0.5 block font-mono">
                   {dayDetail?.summary?.total ?? (detailLoading ? '...' : 0)}
                 </span>
@@ -643,7 +678,7 @@ export const DashboardPage: React.FC = () => {
                   filterTab === 'OnTime' ? 'bg-emerald-100/70 border-emerald-300 ring-2 ring-emerald-500' : 'bg-emerald-50/70 border-emerald-200 hover:bg-emerald-100/50'
                 }`}
               >
-                <span className="text-[10px] text-emerald-800 font-medium block">✓ Entradas a Tiempo</span>
+                <span className="text-[10px] text-emerald-800 font-medium block">✓ {t('dashboard.onTimeEntries')}</span>
                 <span className="text-lg font-bold text-emerald-700 mt-0.5 block font-mono">
                   {dayDetail?.summary?.onTime ?? 0}
                 </span>
@@ -654,7 +689,7 @@ export const DashboardPage: React.FC = () => {
                   filterTab === 'Late' ? 'bg-amber-100/70 border-amber-300 ring-2 ring-amber-500' : 'bg-amber-50/70 border-amber-200 hover:bg-amber-100/50'
                 }`}
               >
-                <span className="text-[10px] text-amber-800 font-medium block">⚠ Retardos</span>
+                <span className="text-[10px] text-amber-800 font-medium block">⚠ {t('dashboard.lateEntries')}</span>
                 <span className="text-lg font-bold text-amber-700 mt-0.5 block font-mono">
                   {dayDetail?.summary?.late ?? 0}
                 </span>
@@ -665,7 +700,7 @@ export const DashboardPage: React.FC = () => {
                   filterTab === 'Absent' ? 'bg-rose-100/70 border-rose-300 ring-2 ring-rose-500' : 'bg-rose-50/70 border-rose-200 hover:bg-rose-100/50'
                 }`}
               >
-                <span className="text-[10px] text-rose-800 font-medium block">✕ Faltas</span>
+                <span className="text-[10px] text-rose-800 font-medium block">✕ {t('dashboard.absentEntries')}</span>
                 <span className="text-lg font-bold text-rose-700 mt-0.5 block font-mono">
                   {dayDetail?.summary?.absent ?? 0}
                 </span>
@@ -676,7 +711,7 @@ export const DashboardPage: React.FC = () => {
                   filterTab === 'Incomplete' ? 'bg-purple-100/70 border-purple-300 ring-2 ring-purple-500' : 'bg-purple-50/70 border-purple-200 hover:bg-purple-100/50'
                 }`}
               >
-                <span className="text-[10px] text-purple-800 font-medium block">⏱ Incompletos</span>
+                <span className="text-[10px] text-purple-800 font-medium block">⏱ {t('dashboard.incompleteEntries')}</span>
                 <span className="text-lg font-bold text-purple-700 mt-0.5 block font-mono">
                   {dayDetail?.summary?.incomplete ?? 0}
                 </span>
@@ -692,7 +727,7 @@ export const DashboardPage: React.FC = () => {
                     filterTab === 'ALL' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Todos ({dayDetail?.summary?.total ?? 0})
+                  {t('dashboard.allRecords')} ({dayDetail?.summary?.total ?? 0})
                 </button>
                 <button
                   onClick={() => setFilterTab('OnTime')}
@@ -700,7 +735,7 @@ export const DashboardPage: React.FC = () => {
                     filterTab === 'OnTime' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  A Tiempo ({dayDetail?.summary?.onTime ?? 0})
+                  {t('status.onTime')} ({dayDetail?.summary?.onTime ?? 0})
                 </button>
                 <button
                   onClick={() => setFilterTab('Late')}
@@ -708,7 +743,7 @@ export const DashboardPage: React.FC = () => {
                     filterTab === 'Late' ? 'bg-white text-amber-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Retardos ({dayDetail?.summary?.late ?? 0})
+                  {t('dashboard.lateEntries')} ({dayDetail?.summary?.late ?? 0})
                 </button>
                 <button
                   onClick={() => setFilterTab('Absent')}
@@ -716,7 +751,7 @@ export const DashboardPage: React.FC = () => {
                     filterTab === 'Absent' ? 'bg-white text-rose-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Faltas ({dayDetail?.summary?.absent ?? 0})
+                  {t('dashboard.absentEntries')} ({dayDetail?.summary?.absent ?? 0})
                 </button>
                 <button
                   onClick={() => setFilterTab('Incomplete')}
@@ -724,7 +759,7 @@ export const DashboardPage: React.FC = () => {
                     filterTab === 'Incomplete' ? 'bg-white text-purple-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Incompletos ({dayDetail?.summary?.incomplete ?? 0})
+                  {t('dashboard.incompleteEntries')} ({dayDetail?.summary?.incomplete ?? 0})
                 </button>
               </div>
 
@@ -733,7 +768,7 @@ export const DashboardPage: React.FC = () => {
                 <Search className="w-4 h-4 absolute left-3 top-2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Buscar empleado o sucursal..."
+                  placeholder={t('dashboard.searchEmployeeBranch')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:outline-none"
@@ -746,7 +781,7 @@ export const DashboardPage: React.FC = () => {
               {detailLoading ? (
                 <div className="py-16 text-center text-slate-500 text-xs flex flex-col items-center justify-center gap-2">
                   <RefreshCw className="w-6 h-6 text-indigo-600 animate-spin" />
-                  <span>Cargando detalle de asistencias y checadas biométricas...</span>
+                  <span>{t('dashboard.loadingDetail')}</span>
                 </div>
               ) : detailError ? (
                 <div className="py-16 text-center text-xs flex flex-col items-center justify-center gap-2 text-rose-600">
@@ -756,206 +791,28 @@ export const DashboardPage: React.FC = () => {
                     onClick={() => selectedDate && loadDayDetail(selectedDate, modalBranchId)}
                     className="mt-2 px-3 py-1 bg-white border border-rose-300 rounded-md text-rose-700 hover:bg-rose-50"
                   >
-                    Reintentar consulta
+                    {t('common.retry')}
                   </button>
                 </div>
               ) : filteredRecords.length === 0 ? (
                 <div className="py-16 text-center text-slate-400 text-xs">
                   {dayDetail?.records?.length === 0
-                    ? `No se encontraron registros de asistencia para el ${selectedDate} en la sucursal seleccionada.`
-                    : 'No se encontraron empleados que coincidan con el criterio de búsqueda o filtro.'}
+                    ? `${t('dashboard.noAttendanceForDate')} ${selectedDate}.`
+                    : t('dashboard.noMatchingEmployees')}
                 </div>
               ) : (
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50/90 sticky top-0 text-slate-600 font-semibold border-b border-slate-200">
-                    <tr>
-                      <th className="py-2.5 px-3 w-8"></th>
-                      <th className="py-2.5 px-3">Código</th>
-                      <th className="py-2.5 px-3">Empleado</th>
-                      <th className="py-2.5 px-3">Sucursal / Depto</th>
-                      <th className="py-2.5 px-3">Entrada</th>
-                      <th className="py-2.5 px-3">Salida</th>
-                      <th className="py-2.5 px-3">Horas</th>
-                      <th className="py-2.5 px-3">Método Biométrico</th>
-                      <th className="py-2.5 px-3">Estado</th>
-                      <th className="py-2.5 px-3 text-center">Detalle</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredRecords.map((r: any) => {
-                      const isExpanded = expandedEmployeeId === r.id;
-                      const hasPunches = r.punches && r.punches.length > 0;
-
-                      return (
-                        <React.Fragment key={r.id || r.employeeCode}>
-                          <tr
-                            onClick={() => setExpandedEmployeeId(isExpanded ? null : r.id)}
-                            className="hover:bg-slate-50/80 transition cursor-pointer"
-                          >
-                            <td className="py-2 px-2 text-slate-400">
-                              {hasPunches ? (
-                                isExpanded ? <ChevronDown className="w-4 h-4 text-indigo-600" /> : <ChevronRight className="w-4 h-4" />
-                              ) : null}
-                            </td>
-                            <td className="py-2 px-3 font-mono font-bold text-indigo-600">{r.employeeCode}</td>
-                            <td className="py-2 px-3 font-semibold text-slate-800">{r.employeeName}</td>
-                            <td className="py-2 px-3 text-slate-600">
-                              <div>{r.branchName}</div>
-                              <div className="text-[10px] text-slate-400">{r.departmentName}</div>
-                            </td>
-
-                            {/* FirstEntry is shown whenever it exists, even if Incomplete or EarlyExit */}
-                            <td className="py-2 px-3 font-mono">
-                              {r.firstEntry && r.firstEntry !== '-' ? (
-                                r.minutesLate > 0 ? (
-                                  <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60 inline-flex items-center gap-1">
-                                    <span>{r.firstEntry}</span>
-                                    <span className="text-[10px] text-amber-600 font-semibold">(+{r.minutesLate}m)</span>
-                                  </span>
-                                ) : (
-                                  <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
-                                    {r.firstEntry}
-                                  </span>
-                                )
-                              ) : (
-                                <span className="text-slate-400 font-semibold">-</span>
-                              )}
-                            </td>
-
-                            <td className="py-2 px-3 font-mono text-slate-600">{r.lastExit || '-'}</td>
-                            <td className="py-2 px-3 font-mono text-slate-700 font-medium">{r.hoursWorked} h</td>
-                            <td className="py-2 px-3">
-                              <div className="flex items-center gap-1.5 text-[11px] text-slate-700 font-medium">
-                                {getMethodIcon(r.method)}
-                                <span>{r.method || 'Sin información'}</span>
-                              </div>
-                            </td>
-                            <td className="py-2 px-3">
-                              {r.status === 'OnTime' && (
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                  A tiempo
-                                </span>
-                              )}
-                              {r.status === 'Late' && (
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                  Retardo
-                                </span>
-                              )}
-                              {r.status === 'Absent' && (
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                                  Falta
-                                </span>
-                              )}
-                              {r.status === 'EarlyExit' && (
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-50 text-orange-700 border border-orange-200">
-                                  Salida anticipada
-                                </span>
-                              )}
-                              {r.status === 'Incomplete' && (
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-                                  Incompleto
-                                </span>
-                              )}
-                              {r.status === 'RestDay' && (
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                                  Descanso
-                                </span>
-                              )}
-                              {r.status === 'Holiday' && (
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                                  Festivo
-                                </span>
-                              )}
-                              {r.status === 'Permission' && (
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">
-                                  Permiso
-                                </span>
-                              )}
-                              {r.status === 'Vacation' && (
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                  Vacaciones
-                                </span>
-                              )}
-                              {r.status === 'Disability' && (
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200">
-                                  Incapacidad
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                onClick={() => setSelectedDailyRecord({ ...r, attendanceDate: selectedDate, date: selectedDate })}
-                                className="inline-flex items-center justify-center p-1.5 rounded-lg text-[#00695F] bg-[#E6F2F0] hover:bg-[#d6e9e6] transition"
-                                title="Ver tarjeta de 4 checadas y detalle diario"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-
-                          {/* Expanded Original Biometric Punches Panel */}
-                          {isExpanded && (
-                            <tr className="bg-slate-50/70 border-b border-[#00695F]/10">
-                              <td colSpan={10} className="p-3 pl-8">
-                                <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-2xs space-y-2">
-                                  <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 text-[11px] font-bold text-slate-700">
-                                    <span>Checadas Biométricas Originales de la Jornada</span>
-                                    <span className="text-slate-400 font-normal">
-                                      {r.punches.length} marcaciones registradas
-                                    </span>
-                                  </div>
-
-                                  {hasPunches ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
-                                      {r.punches.map((p: any) => (
-                                        <div key={p.id} className="p-2 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] space-y-1">
-                                          <div className="flex items-center justify-between">
-                                            <span className="font-mono font-bold text-[#00695F]">{p.time}</span>
-                                            <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-[#E6F2F0] text-[#00695F] border border-[#00695F]/20">
-                                              {p.classifiedAs || p.type}
-                                            </span>
-                                          </div>
-                                          <div className="flex items-center gap-1 text-slate-600">
-                                            {getMethodIcon(p.method)}
-                                            <span>Método: {p.method}</span>
-                                          </div>
-                                          <div className="text-[10px] text-slate-500 truncate" title={`${p.deviceName} (${p.branchName})`}>
-                                            📍 {p.deviceName} · {p.branchName}
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div className="text-slate-400 text-xs py-2">
-                                      Sin marcaciones biométricas en el checador para esta fecha.
-                                    </div>
-                                  )}
-
-                                  {r.reviewNotes && (
-                                    <div className="text-[11px] text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200">
-                                      <strong>Observación del sistema:</strong> {r.reviewNotes}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <AttendanceSummary items={filteredRecords.map((record: any) => ({ ...record, date: selectedDate }))} onDetail={record => setSelectedDailyRecord(record)} />
               )}
             </div>
 
             {/* Modal Footer */}
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <span>Mostrando {filteredRecords.length} registros</span>
+              <span>{t('dashboard.showing')} {filteredRecords.length} {t('dashboard.records')}</span>
               <button
                 onClick={() => { setSelectedDate(null); setDayDetail(null); setDetailError(null); }}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition"
               >
-                Cerrar
+                {t('common.close')}
               </button>
             </div>
           </div>

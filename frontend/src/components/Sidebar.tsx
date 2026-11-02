@@ -20,9 +20,11 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 
-export const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+export const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; compact?: boolean }> = ({ isOpen, onClose, compact = false }) => {
   const { t } = useLanguage();
   const { user, logout } = useAuth();
+  const privileged = user?.roles?.some(role => ['SUPERADMIN', 'ADMIN'].includes(role));
+  const permissions: Record<string, string> = { '/attendance': 'attendance.view', '/devices': 'devices.view', '/employees': 'employees.view', '/branches': 'employees.view', '/schedules': 'attendance.view', '/incidents': 'incidents.manage', '/reports': 'reports.view', '/users': 'users.manage', '/settings': 'devices.view', '/audit': 'attendance.view' };
 
   const menuItems = [
     { to: '/', label: t('menu.home'), icon: LayoutDashboard },
@@ -59,14 +61,14 @@ export const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ is
             <Clock className="w-5 h-5 text-white" />
           </div>
           <div className="flex flex-col overflow-hidden">
-            <span className="font-bold text-sm tracking-tight text-[#203441] truncate">华龙商业集团</span>
-            <span className="text-[11px] text-[#00695F] font-semibold truncate">Grupo David Guan</span>
+            <span className="font-bold text-sm tracking-tight text-[#203441] truncate">{compact ? t('navigation.company') : '华龙商业集团'}</span>
+            <span className="text-[11px] text-[#00695F] font-semibold truncate">{compact ? 'CHECADOR WPC' : 'Grupo David Guan'}</span>
           </div>
         </div>
 
         {/* Navigation list */}
         <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-1 bg-white">
-          {menuItems.map((item) => {
+          {menuItems.filter(item => !compact || !permissions[item.to] || privileged || user?.permissions?.includes(permissions[item.to])).map((item) => {
             const Icon = item.icon;
             return (
               <NavLink
