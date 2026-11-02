@@ -203,7 +203,22 @@ export const DashboardPage: React.FC = () => {
 
   // Filter records in the detail modal
   const filteredRecords = dayDetail?.records?.filter((r: any) => {
-    const matchesTab = filterTab === 'ALL' || r.status === filterTab;
+    const isLate = r.status === 'Late' || (r.minutesLate && r.minutesLate > 0);
+    const isAbsent = r.status === 'Absent' && (!r.firstEntry || r.firstEntry === '-');
+    const isOnTime = !isLate && !isAbsent && (r.status === 'OnTime' || (r.firstEntry && r.firstEntry !== '-') || r.status === 'EarlyExit' || r.status === 'Incomplete');
+
+    const matchesTab = filterTab === 'ALL'
+      ? true
+      : filterTab === 'OnTime'
+      ? isOnTime
+      : filterTab === 'Late'
+      ? isLate
+      : filterTab === 'Absent'
+      ? isAbsent
+      : filterTab === 'Incomplete'
+      ? (r.status === 'Incomplete' || r.status === 'EarlyExit')
+      : r.status === filterTab;
+
     const matchesSearch = !searchTerm ||
       (r.employeeName && r.employeeName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (r.employeeCode && r.employeeCode.toLowerCase().includes(searchTerm.toLowerCase())) ||

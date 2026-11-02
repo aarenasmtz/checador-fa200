@@ -42,9 +42,9 @@ public class DashboardController : ControllerBase
 
         var todayAttendances = await todayAttendancesQuery.ToListAsync();
 
-        var presentToday = todayAttendances.Count(a => a.Status == AttendanceStatus.OnTime || a.Status == AttendanceStatus.Late || a.Status == AttendanceStatus.EarlyExit);
-        var lateToday = todayAttendances.Count(a => a.Status == AttendanceStatus.Late);
-        var absentToday = todayAttendances.Count(a => a.Status == AttendanceStatus.Absent);
+        var presentToday = todayAttendances.Count(a => a.FirstEntry.HasValue || a.Status == AttendanceStatus.OnTime || a.Status == AttendanceStatus.Late || a.Status == AttendanceStatus.EarlyExit || a.Status == AttendanceStatus.Incomplete);
+        var lateToday = todayAttendances.Count(a => a.Status == AttendanceStatus.Late || (a.FirstEntry.HasValue && a.MinutesLate > 0));
+        var absentToday = todayAttendances.Count(a => a.Status == AttendanceStatus.Absent && !a.FirstEntry.HasValue);
         var earlyExitToday = todayAttendances.Count(a => a.Status == AttendanceStatus.EarlyExit);
 
         // 7-day trend
@@ -56,17 +56,38 @@ public class DashboardController : ControllerBase
         if (branchId.HasValue && branchId.Value > 0)
             trendQuery = trendQuery.Where(a => a.Employee.BranchId == branchId.Value);
 
-        var rawTrend = await trendQuery
-            .GroupBy(a => a.Date)
+        var trendDailyRecords = await trendQuery
+            .Select(r => new
+            {
+                r.Date,
+                r.Status,
+                r.FirstEntry,
+                r.LastExit,
+                r.MinutesLate
+            })
+            .ToListAsync();
+
+        var rawTrend = trendDailyRecords
+            .GroupBy(a => a.Date.Date)
             .OrderBy(g => g.Key)
             .Select(g => new
             {
                 Date = g.Key,
-                OnTime = g.Count(r => r.Status == AttendanceStatus.OnTime),
-                Late = g.Count(r => r.Status == AttendanceStatus.Late),
-                Absent = g.Count(r => r.Status == AttendanceStatus.Absent)
+                OnTime = g.Count(r =>
+                {
+                    bool isLate = (r.Status == AttendanceStatus.Late) || (r.FirstEntry.HasValue && r.MinutesLate > 0);
+                    bool isAbsent = (r.Status == AttendanceStatus.Absent && !r.FirstEntry.HasValue);
+                    return !isLate && !isAbsent && (
+                        r.Status == AttendanceStatus.OnTime ||
+                        r.FirstEntry.HasValue ||
+                        r.Status == AttendanceStatus.EarlyExit ||
+                        r.Status == AttendanceStatus.Incomplete
+                    );
+                }),
+                Late = g.Count(r => (r.Status == AttendanceStatus.Late) || (r.FirstEntry.HasValue && r.MinutesLate > 0)),
+                Absent = g.Count(r => r.Status == AttendanceStatus.Absent && !r.FirstEntry.HasValue)
             })
-            .ToListAsync();
+            .ToList();
 
         var trendMap = rawTrend.ToDictionary(r => r.Date.Date, r => r);
         var trendRecords = new List<object>();
@@ -287,9 +308,14 @@ public class DashboardController : ControllerBase
             summary = new
             {
                 total = mapped.Count,
-                onTime = mapped.Count(m => m.status == "OnTime"),
-                late = mapped.Count(m => m.status == "Late"),
-                absent = mapped.Count(m => m.status == "Absent"),
+                onTime = mapped.Count(m =>
+                {
+                    bool isLate = m.status == "Late" || m.minutesLate > 0;
+                    bool isAbsent = m.status == "Absent" && m.firstEntry == "-";
+                    return !isLate && !isAbsent && (m.status == "OnTime" || m.firstEntry != "-" || m.status == "EarlyExit" || m.status == "Incomplete");
+                }),
+                late = mapped.Count(m => m.status == "Late" || m.minutesLate > 0),
+                absent = mapped.Count(m => m.status == "Absent" && m.firstEntry == "-"),
                 incomplete = mapped.Count(m => m.status == "Incomplete"),
                 earlyExit = mapped.Count(m => m.status == "EarlyExit")
             },
