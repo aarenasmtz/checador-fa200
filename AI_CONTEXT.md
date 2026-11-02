@@ -247,3 +247,109 @@ ping -c 3 10.10.1.10
 1. **Prueba Piloto de Aceptación:** Realizar checadas en el FA200 con la computadora apagada y verificar que el daemon del VPS ingiera los eventos en menos de 30 segundos.
 2. **Despliegue a Nuevas Sucursales:** Clonar la configuración del router Mango para las sucursales restantes de Grupo Hualong (`Norte`, `Insurgentes`, `CEDI`), asignando rangos LAN diferenciados (`10.10.2.0/24`, `10.10.3.0/24`, etc.).
 3. **Módulo de Nómina Automática:** Enlazar el reporte de incidencias y prenómina directamente con dispersión bancaria o formato de pago semanal.
+
+---
+
+## 11. Guía Maestra de Rediseño Frontend para Asistentes de IA (Codex, Copilot, Cursor, etc.)
+
+> **INSTRUCCIÓN PARA CODEX / MODELOS DE IA:**  
+> Al continuar con la implementación o modificación del rediseño visual de la aplicación web, debes apegarte estrictamente a las siguientes directrices y restricciones de arquitectura.
+
+### 🔴 11.1 Restricción Inviolable de Diseño: `Control de Asistencia > Calendario`
+- **Componente Protegido:** `frontend/src/components/attendance/AttendanceMatrixView.tsx` (o subvista Calendario en `AttendancePage.tsx`).
+- **Estado de Aprobación:** Esta pantalla ya fue revisada y aprobada formalmente por el cliente (David Guan / Grupo Hualong).
+- **Regla Estricta:** **NO MODIFICAR, ALTERAR NI REESTRUCTURAR ESTA VISTA**.
+- **Elementos que deben conservarse al 100%:**
+  - Matriz bidimensional: filas por empleado, columnas por día del período seleccionado.
+  - Indicadores y badges visuales: **A TIEMPO** (verde), **RETARDOS** (amarillo/ámbar), **FALTAS** (rojo), **DESCANSOS** (azul/gris), **PERMISOS** (morado).
+  - Selectores de período: **Semana**, **2 Semanas**, **Mes**.
+  - Controles de navegación temporal: flechas de período anterior/siguiente, botón "Hoy", etiqueta del rango mostrado y resaltado del día actual.
+  - Filtros superiores por sucursal, empleado y caja de búsqueda en tiempo real.
+  - Tooltip y modal interactivo por celda que detalla primer registro de entrada, salida y tiempo laborado.
+
+---
+
+### 🎨 11.2 Sistema de Diseño Visual Aprobado (Enterprise SaaS)
+- **Framework de Estilos:** Tailwind CSS v4. Evitar estilos CSS genéricos o colores básicos sin armonía.
+- **Paleta de Colores Corporativa:**
+  - **Acento Primario:** Indigo moderno (`indigo-600` / `indigo-700` para botones principales, acentos y enlaces; `indigo-50` para badges o fondos activos; bordes `indigo-100` / `indigo-200`).
+  - **Superficies y Fondos:** Fondos neutros limpios (`bg-slate-50` / `bg-slate-100`), contenedores y tarjetas en blanco (`bg-white`), bordes definidos (`border-slate-200` o `border-slate-100`), textos principales en `text-slate-900` / `text-slate-800` y secundarios en `text-slate-500` / `text-slate-400`.
+  - **Estados de Asistencia y KPIs:**
+    - *Presente / A Tiempo:* `emerald-600` / `emerald-500`, fondos suaves `bg-emerald-50`, bordes `border-emerald-200`.
+    - *Retardo:* `amber-600` / `amber-500`, fondos `bg-amber-50`, bordes `border-amber-200`.
+    - *Falta / Inasistencia:* `rose-600` / `rose-500`, fondos `bg-rose-50`, bordes `border-rose-200`.
+    - *En Turno / Incompleto:* `purple-600` / `purple-500`, fondos `bg-purple-50`, bordes `border-purple-200`.
+    - *Día de Descanso:* `slate-500` / `blue-500`, fondos `bg-slate-50`.
+- **Geometría y Elevación:**
+  - Tarjetas y paneles: `rounded-xl` con bordes sutiles `border border-slate-200` y sombra ligera `shadow-xs` o `shadow-sm`.
+  - Botones e inputs: `rounded-lg`, padding consistente (`px-3 py-1.5` o `px-4 py-2`), transiciones suaves (`transition duration-200`).
+  - Badges y estados: `rounded-full`, tipografía `text-xs font-semibold`, padding `px-2.5 py-0.5`.
+- **Tipografía:**
+  - Fuente sans-serif contemporánea (`Inter`, `system-ui`).
+  - Números tabulares / monoespaciados para horas, códigos, minutos y contadores (`font-mono`).
+- **Iconografía:** `lucide-react` con tamaños consistentes (`w-4 h-4` en botones y filas, `w-5 h-5` en barras de herramientas, `w-6 h-6` en tarjetas de métricas).
+
+---
+
+### 🌐 11.3 Internacionalización Obligatoria (Español / 简体中文)
+- El sistema es operado activamente tanto por personal administrativo mexicano como por la dirección general china (David Guan).
+- **Prohibido:** Dejar textos planos o hardcodeados en el JSX sin su respectiva traducción.
+- Todo texto visible en pantallas, botones, opciones de select, placeholders de búsqueda, títulos de modales, alertas o leyendas debe utilizar el hook de idiomas:
+  ```tsx
+  import { useLanguage } from '../context/LanguageContext';
+  const { t, language } = useLanguage();
+  // Uso: {t('dashboard.presentToday')}
+  ```
+- Al agregar cualquier texto o clave nueva, registrarla obligatoriamente en ambos archivos:
+  - `frontend/src/locales/es-MX.json`
+  - `frontend/src/locales/zh-CN.json`
+
+---
+
+### 🔌 11.4 Reglas de Datos y Conectividad con el Backend
+- **Prohibición de Datos Simulados (Mock Data):** Los datos deben provenir siempre de los endpoints reales de la API en ASP.NET Core (`src/Attendance.Api/Controllers/`).
+- **Cliente HTTP:** Utilizar siempre el cliente configurado en `frontend/src/api/client.ts`, el cual inyecta automáticamente el token JWT en el encabezado `Authorization: Bearer <token>`.
+- **Estados de Carga y Vacíos:**
+  - Mostrar spinners o esqueletos durante peticiones (`RefreshCw className="animate-spin"`).
+  - Incluir estados vacíos ilustrativos y amigables cuando una búsqueda, filtro o fecha no tenga registros.
+  - Proporcionar botón de reintento en caso de fallo en la llamada HTTP.
+
+---
+
+### 📋 11.5 Especificación Pantalla por Pantalla para Continuar el Rediseño
+
+| Pantalla | Archivo Fuente | Especificación y Comportamiento Esperado |
+| :--- | :--- | :--- |
+| **Dashboard** | `frontend/src/pages/DashboardPage.tsx` | - 4 KPI cards superiores (Total Empleados, Presentes Hoy, Retardos Hoy, Faltas Hoy).<br>- Gráfica de Tendencia (7 días): barras apiladas proporcionales con tooltip interactivo y clic que abre el modal `GetDayDetail`.<br>- Card de Distribución por Sucursal con progreso relativo.<br>- Tabla "Checadas en Tiempo Real": ordenamiento bidireccional (asc/desc) por Fecha/Hora, Nombre, Código, Sucursal y Estado; selector de filtro por sucursal física; badge interactivo del método biométrico (Face, Fingerprint, Card, PIN). |
+| **Control de Asistencia** | `frontend/src/pages/AttendancePage.tsx` | - Pestaña 1: **Calendario** (`AttendanceMatrixView.tsx`) -> **INTOCABLE**.<br>- Pestaña 2: **Bitácora Diaria**: listado detallado con horas de entrada, comida (salida y regreso), salida de turno, minutos trabajados, retardos y estado. Incluye botón de Reprocesamiento (`/api/v1/attendance/reprocess`) y modal de corrección manual (`ManualOverride`). |
+| **Dispositivos** | `frontend/src/pages/DevicesPage.tsx` | - Grid de tarjetas de checadores FA200 con badge de conectividad Online/Offline en tiempo real.<br>- IP asignada en VPN (`10.10.1.10`), puerto `4370`, nombre de sucursal asociada y última sincronización registrada.<br>- Botón de "Test de Conexión / Ping" para verificar latencia en milisegundos. |
+| **Empleados** | `frontend/src/pages/EmployeesPage.tsx` | - Directorio de personal con avatar/iniciales, número de empleado, ID biométrico (`userClockId`), sucursal contractual, puesto y turno asignado.<br>- Modal de alta y edición con validación de ID biométrico único. Filtro por sucursal y estado activo/inactivo. |
+| **Sucursales** | `frontend/src/pages/BranchesPage.tsx` | - Tarjetas visuales de cada sucursal (`Centro`, `Prueba Casa`, `Norte`, `Insurgentes`, `CEDI`).<br>- Métricas por sucursal: total de empleados (`b.employeeCount`) y total de checadores instalados (`b.deviceCount`). |
+| **Horarios** | `frontend/src/pages/SchedulesPage.tsx` | - Catálogo de turnos (Diurno, Nocturno, Mixto, Turno Restaurante).<br>- Definición de hora de entrada/salida, tolerancia en minutos (10-15 min), ventana y descuento de comida, y asignación de días laborales. |
+| **Incidencias** | `frontend/src/pages/IncidentsPage.tsx` | - Bandeja de solicitudes de justificación (retardos justificados, faltas médicas, vacaciones, permisos con/sin goce de sueldo).<br>- Flujo de aprobación/rechazo con recálculo automático de asistencia. |
+| **Reportes** | `frontend/src/pages/ReportsPage.tsx` | - Generador de prenómina por rango de fechas (semanal, quincenal, mensual) y sucursal.<br>- Exportación oficial a Excel `.xlsx` (ClosedXML) y PDF apaisado de alta calidad (QuestPDF) con firmas de conformidad. |
+| **Auditoría** | `frontend/src/pages/AuditPage.tsx` | - Historial cronológico de modificaciones manuales realizadas por supervisores.<br>- Comparador visual de cambios (diff JSON) con fecha, usuario responsable y justificación obligatoria. |
+| **Homologación FA200** | `frontend/src/pages/SettingsPage.tsx` | - Protocolo interactivo de 30 pasos con persistencia local para enrolamiento y puesta a punto de nuevos relojes FA200 y routers Mango. |
+
+---
+
+### 🚀 11.6 Comandos de Trabajo para Codex
+
+```bash
+# 1. Ejecutar el servidor frontend en modo desarrollo:
+cd "d:\Proyecto - Checador\frontend"
+npm run dev
+
+# 2. Verificar que no existan errores de TypeScript ni de bundle:
+npm run build
+
+# 3. Compilar el backend .NET (si se tocan endpoints o DTOs):
+cd "d:\Proyecto - Checador"
+dotnet build src/Attendance.Api/Attendance.Api.csproj
+
+# 4. Publicar frontend hacia el servidor VPS de producción:
+cd "d:\Proyecto - Checador\frontend"
+npm run build
+scp -r dist/* root@193.46.198.88:/var/www/checador-web/
+```
+
