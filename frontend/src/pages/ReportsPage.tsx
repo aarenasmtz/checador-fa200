@@ -764,7 +764,7 @@ export const ReportsPage: React.FC = () => {
 
                         {/* 2. Fecha / 日期 */}
                         <td className="px-3 py-2.5 font-mono text-center text-slate-700 font-medium align-middle">
-                          {row.date}
+                          {row.date ? row.date.split('T')[0] : '-'}
                         </td>
 
                         {/* 3. Entrada / 上班 */}
