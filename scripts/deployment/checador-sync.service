@@ -6,8 +6,8 @@ Wants=checador-api.service
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/var/www/checador-api
-ExecStart=/usr/bin/python3 /var/www/checador-api/server_fa200_vpn_sync.py
+WorkingDirectory=/var/www/checador-sync
+ExecStart=/var/www/checador-sync/venv/bin/python3 /var/www/checador-sync/server_fa200_vpn_sync.py
 Restart=always
 RestartSec=10
 KillSignal=SIGINT

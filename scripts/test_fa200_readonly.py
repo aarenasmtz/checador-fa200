@@ -49,6 +49,7 @@ def try_zk_connection(force_udp=False):
         timeout=TIMEOUT,
         password=COMM_KEY,
         force_udp=force_udp,
+        ommit_ping=True,
         verbose=False
     )
     conn = None

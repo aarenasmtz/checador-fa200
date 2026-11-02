@@ -73,6 +73,13 @@ fi
 chown -R www-data:www-data /var/www/checador-api
 chown -R www-data:www-data /var/www/checador-web
 
+mkdir -p /var/www/checador-sync
+if [ -f "server_fa200_vpn_sync.py" ]; then
+    cp server_fa200_vpn_sync.py /var/www/checador-sync/
+elif [ -f "api/server_fa200_vpn_sync.py" ]; then
+    cp api/server_fa200_vpn_sync.py /var/www/checador-sync/
+fi
+
 # 4. Configurar e Iniciar Servicios Systemd Independientes
 echo "⚙️ [4/6] Configurando servicios systemd checador-api (puerto 5081) y checador-sync..."
 if [ -f "checador-api.service" ]; then
@@ -83,18 +90,21 @@ if [ -f "checador-sync.service" ]; then
     cp checador-sync.service /etc/systemd/system/checador-sync.service
 fi
 
-# Instalar pyzk si falta
-if ! python3 -c "import zk" 2>/dev/null; then
-    echo "• Instalando biblioteca pyzk para lector de checadores..."
+# Configurar venv e instalar pyzk si falta
+if [ ! -d "/var/www/checador-sync/venv" ]; then
+    echo "• Creando entorno virtual para lector de checadores..."
     apt-get update -qq && apt-get install -y -qq python3-pip python3-venv 2>/dev/null || true
-    python3 -m pip install --break-system-packages pyzk 2>/dev/null || pip install pyzk 2>/dev/null || true
+    python3 -m venv /var/www/checador-sync/venv
 fi
+
+/var/www/checador-sync/venv/bin/pip install --upgrade pip >/dev/null 2>&1 || true
+/var/www/checador-sync/venv/bin/pip install pyzk requests >/dev/null 2>&1 || true
 
 systemctl daemon-reload
 systemctl enable checador-api.service
 systemctl restart checador-api.service
 
-if python3 -c "import zk" 2>/dev/null && [ -f "/etc/systemd/system/checador-sync.service" ]; then
+if [ -f "/etc/systemd/system/checador-sync.service" ]; then
     systemctl enable checador-sync.service
     systemctl restart checador-sync.service
 fi
