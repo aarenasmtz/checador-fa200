@@ -27,7 +27,9 @@ interface Branch {
   status: string;
   isActive?: boolean;
   devicesCount?: number;
+  deviceCount?: number;
   employeesCount?: number;
+  employeeCount?: number;
 }
 
 export const BranchesPage: React.FC = () => {
@@ -311,11 +313,11 @@ export const BranchesPage: React.FC = () => {
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
                   <div className="flex items-center gap-1.5">
                     <Cpu className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>FA200 设备: <strong className="text-slate-800 font-semibold">{b.devicesCount || 0} 台</strong></span>
+                    <span>FA200 设备: <strong className="text-slate-800 font-semibold">{b.deviceCount ?? b.devicesCount ?? 0} 台</strong></span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>员工编制: <strong className="text-slate-800 font-semibold">{b.employeesCount || 0} 人</strong></span>
+                    <span>员工编制: <strong className="text-slate-800 font-semibold">{b.employeeCount ?? b.employeesCount ?? 0} 人</strong></span>
                   </div>
                 </div>
               </div>
