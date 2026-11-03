@@ -43,8 +43,8 @@ export const LoginPage: React.FC = () => {
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-md shadow-indigo-200 mb-4">
             <Clock className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">华龙商业集团</h1>
-          <p className="text-xs text-slate-500 mt-1">Grupo Comercial David Guan · 考勤控制中心</p>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">BAI FEN BAI (百分百)</h1>
+          <p className="text-xs text-slate-500 mt-1">{language === 'zh-CN' ? '连锁餐厅 · 考勤控制中心' : 'Cadena de Restaurantes · Control de Asistencia'}</p>
         </div>
 
         {error && (
@@ -116,7 +116,7 @@ export const LoginPage: React.FC = () => {
         </form>
 
         <div className="mt-6 text-center text-xs text-slate-400 border-t border-slate-100 pt-4">
-          <span>华龙商业集团 · Grupo Comercial David Guan &copy; 2026</span>
+          <span>BAI FEN BAI (百分百) · Restaurantes &copy; 2026</span>
         </div>
       </div>
     </div>

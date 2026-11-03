@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 =============================================================================
-华龙商业集团 (Grupo Comercial Hualong)
+百分百连锁餐厅 · BAI FEN BAI
 Sistema Profesional de Control de Asistencia y Checador Biométrico FA200
 Script de Inicialización Local para Demostración y Producción
 =============================================================================
@@ -37,7 +37,7 @@ processes = []
 def print_banner():
     banner = f"""
 =============================================================================
-  华龙商业集团 · GRUPO COMERCIAL HUALONG
+  百分百连锁餐厅 · RESTAURANTES BAI FEN BAI
   SISTEMA DE ASISTENCIA Y CONTROL BIOMÉTRICO (FA200)
 =============================================================================
   [+] Modo: Demostración Local / Sandbox

@@ -207,7 +207,7 @@ public class ReportsController : ControllerBase
         var company = await _context.Companies.FirstOrDefaultAsync();
         var companyName = company != null && !string.IsNullOrWhiteSpace(company.Name) && !company.Name.Contains("Hualong")
             ? company.Name
-            : "Bai Fen Bai (百分百)";
+            : "BAI FEN BAI (百分百)";
 
         var confirmedMinutes = items.Where(x => x.IsConfirmed).Sum(x => x.MinutesWorked);
         var totalLateMinutes = items.Sum(x => x.MinutesLate);
@@ -247,7 +247,7 @@ public class ReportsController : ControllerBase
         var company = await _context.Companies.FirstOrDefaultAsync();
         var companyName = company != null && !string.IsNullOrWhiteSpace(company.Name) && !company.Name.Contains("Hualong")
             ? company.Name
-            : "Bai Fen Bai (百分百)";
+            : "BAI FEN BAI (百分百)";
 
         var branchName = branchId.HasValue
             ? (await _context.Branches.FindAsync(branchId.Value))?.Name ?? "Todas las Sucursales"
@@ -572,7 +572,7 @@ public class ReportsController : ControllerBase
         var company = await _context.Companies.FirstOrDefaultAsync();
         var companyName = company != null && !string.IsNullOrWhiteSpace(company.Name) && !company.Name.Contains("Hualong")
             ? company.Name
-            : "Bai Fen Bai (百分百)";
+            : "BAI FEN BAI (百分百)";
 
         var branchName = branchId.HasValue
             ? (await _context.Branches.FindAsync(branchId.Value))?.Name ?? "Todas las Sucursales"

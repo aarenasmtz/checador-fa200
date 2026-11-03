@@ -37,7 +37,7 @@ public class RegressionFixTests
 
     private async Task<(Company company, Branch branch, Branch branch2, Employee emp, BiometricDevice dev)> SetupBaseDataAsync(AppDbContext context)
     {
-        var company = new Company { Name = "华龙商业集团 (Grupo Comercial Hualong)" };
+        var company = new Company { Name = "BAI FEN BAI (百分百)" };
         context.Companies.Add(company);
         await context.SaveChangesAsync();
 

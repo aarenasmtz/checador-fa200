@@ -328,7 +328,7 @@ export const AttendanceMatrixView: React.FC = () => {
                 {language === 'zh-CN' ? '考勤日历控制中心' : 'Control de Asistencia'}
               </h1>
               <p className="text-xs text-slate-500 font-medium">
-                {language === 'zh-CN' ? '华龙商业集团考勤日历矩阵与周期多维度审计看板' : 'Matriz ejecutiva de asistencia y auditoría por periodo y sucursal'}
+                {language === 'zh-CN' ? '百分百连锁餐厅 (BAI FEN BAI) 考勤日历矩阵与周期多维度审计看板' : 'Matriz ejecutiva de asistencia y auditoría por periodo y sucursal'}
               </p>
             </div>
           </div>

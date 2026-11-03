@@ -1,6 +1,6 @@
 # CODEX.md — Guía para Asistentes de IA (Codex, Copilot, Cursor, etc.)
 
-Este documento contiene las directrices, restricciones operativas y reglas de diseño para la modificación y evolución del frontend y backend del **Sistema Checador Biométrico FA200** (Grupo Hualong / David Guan).
+Este documento contiene las directrices, restricciones operativas y reglas de diseño para la modificación y evolución del frontend y backend del **Sistema Checador Biométrico FA200** (Restaurantes BAI FEN BAI / 百分百 - David Guan).
 
 👉 **Documento Maestro Completo:** [AI_CONTEXT.md](file:///d:/Proyecto%20-%20Checador/AI_CONTEXT.md)
 
@@ -10,7 +10,7 @@ Este documento contiene las directrices, restricciones operativas y reglas de di
 
 1. **VISTA PROTEGIDA DE CONTROL DE ASISTENCIA (CALENDARIO):**
    - **Archivo:** `frontend/src/components/attendance/AttendanceMatrixView.tsx` (y su integración como pestaña Calendario en `frontend/src/pages/AttendancePage.tsx`).
-   - **Regla:** **PROHIBIDO MODIFICAR ESTA VISTA**. Ya fue validada y aprobada formalmente por el cliente (David Guan / Grupo Hualong).
+   - **Regla:** **PROHIBIDO MODIFICAR ESTA VISTA**. Ya fue validada y aprobada formalmente por el cliente (David Guan / Restaurantes BAI FEN BAI).
    - **Debe permanecer 100% idéntica:** Estructura de matriz por empleado y día, iconos de estados (A Tiempo, Retardo, Falta, Descanso, Permiso), filtros de sucursal y empleado, selectores de período (Semana / 2 Semanas / Mes), navegación de fechas y modal de detalle de checadas.
 
 2. **COEXISTENCIA CON LAMBRÍN POS EN EL VPS:**

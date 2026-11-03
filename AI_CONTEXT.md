@@ -5,7 +5,7 @@
 ---
 
 ## 1. Resumen Ejecutivo del Proyecto
-* **Cliente:** David Guan (Grupo Hualong / Cadena de Restaurantes 百分百 - Bai Fen Bai).
+* **Cliente:** David Guan (Cadena de Restaurantes 百分百 - BAI FEN BAI).
 * **Propósito:** Sistema empresarial de **Control de Asistencia, Prenómina y Gestión Biométrica Distribuida** para cadenas de tiendas y restaurantes en México.
 * **Problema Resuelto:** Eliminar la necesidad de tener una computadora dedicada encendida en cada sucursal para leer el reloj checador. En su lugar, un mini router portátil **GL.iNet GL-MT300N-V2 (Mango)** conecta el checador vía VPN **WireGuard** directamente al servidor VPS en la nube, donde un servicio daemon consulta las checadas y las procesa en tiempo real.
 * **Dominio Laboral:** Legislación Laboral Mexicana (**Ley Federal del Trabajo - LFT**) con soporte bilingüe nativo (**Español y Chino Simplificado 简体中文**).
@@ -134,7 +134,7 @@
 
 ---
 
-## 6. Reglas de Negocio Clave (LFT y Operación Hualong)
+## 6. Reglas de Negocio Clave (LFT y Operación Restaurantes BAI FEN BAI)
 
 ### A. Idempotencia y Prevención de Duplicados (SHA-256)
 Cada evento biométrico genera un hash criptográfico único:
@@ -245,7 +245,7 @@ ping -c 3 10.10.1.10
 
 ## 10. Próximos Pasos y Roadmap Inmediato
 1. **Prueba Piloto de Aceptación:** Realizar checadas en el FA200 con la computadora apagada y verificar que el daemon del VPS ingiera los eventos en menos de 30 segundos.
-2. **Despliegue a Nuevas Sucursales:** Clonar la configuración del router Mango para las sucursales restantes de Grupo Hualong (`Norte`, `Insurgentes`, `CEDI`), asignando rangos LAN diferenciados (`10.10.2.0/24`, `10.10.3.0/24`, etc.).
+2. **Despliegue a Nuevas Sucursales:** Clonar la configuración del router Mango para las sucursales restantes de Restaurantes BAI FEN BAI (`Norte`, `Insurgentes`, `CEDI`), asignando rangos LAN diferenciados (`10.10.2.0/24`, `10.10.3.0/24`, etc.).
 3. **Módulo de Nómina Automática:** Enlazar el reporte de incidencias y prenómina directamente con dispersión bancaria o formato de pago semanal.
 
 ---
@@ -257,7 +257,7 @@ ping -c 3 10.10.1.10
 
 ### 🔴 11.1 Restricción Inviolable de Diseño: `Control de Asistencia > Calendario`
 - **Componente Protegido:** `frontend/src/components/attendance/AttendanceMatrixView.tsx` (o subvista Calendario en `AttendancePage.tsx`).
-- **Estado de Aprobación:** Esta pantalla ya fue revisada y aprobada formalmente por el cliente (David Guan / Grupo Hualong).
+- **Estado de Aprobación:** Esta pantalla ya fue revisada y aprobada formalmente por el cliente (David Guan / Restaurantes BAI FEN BAI).
 - **Regla Estricta:** **NO MODIFICAR, ALTERAR NI REESTRUCTURAR ESTA VISTA**.
 - **Elementos que deben conservarse al 100%:**
   - Matriz bidimensional: filas por empleado, columnas por día del período seleccionado.

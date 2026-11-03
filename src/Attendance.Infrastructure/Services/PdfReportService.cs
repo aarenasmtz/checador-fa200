@@ -69,7 +69,7 @@ public class PdfReportService : IPdfReportService
         var totalHours = Math.Round((decimal)totalConfirmedMinutes / 60m, 2);
 
         var finalCompanyName = string.IsNullOrWhiteSpace(companyName) || companyName.Contains("Hualong")
-            ? "Bai Fen Bai (百分百)"
+            ? "BAI FEN BAI (百分百)"
             : companyName;
 
         var document = Document.Create(container =>

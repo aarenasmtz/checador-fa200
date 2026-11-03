@@ -9,7 +9,7 @@ Este repositorio cuenta con archivos maestros de contexto estructurados especial
 ---
 
 ### Resumen Rápido para Agentes y Modelos de IA:
-* **Proyecto:** Control de Asistencia y Checador Biométrico FA200 (Grupo Hualong / Cadena de Restaurantes 百分百 - David Guan).
+* **Proyecto:** Control de Asistencia y Checador Biométrico FA200 (Restaurantes BAI FEN BAI / 百分百 - David Guan).
 * **Rama Activa:** `feature/rediseno-checador-web-movil`
 * **Arquitectura de Red:** Checador FA200 (`10.10.1.10:4370`) conectado a router GL.iNet Mango (`10.10.1.1`), el cual mantiene un túnel WireGuard (`10.10.0.2`) hacia el VPS Hostinger (`193.46.198.88:51820`). El servicio `checador-sync.service` sondea el reloj directamente e ingiere a la API en `127.0.0.1:5081`.
 * **Stack:** .NET 9 Web API (Clean Architecture) + SQL Server (`ChecadorDb`) + React 19 / Vite / Tailwind v4 (bilingüe Español / Chino).

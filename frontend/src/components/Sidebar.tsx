@@ -21,7 +21,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 
 export const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; compact?: boolean }> = ({ isOpen, onClose, compact = false }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user, logout } = useAuth();
   const privileged = user?.roles?.some(role => ['SUPERADMIN', 'ADMIN'].includes(role));
   const permissions: Record<string, string> = { '/attendance': 'attendance.view', '/devices': 'devices.view', '/employees': 'employees.view', '/branches': 'employees.view', '/schedules': 'attendance.view', '/incidents': 'incidents.manage', '/reports': 'reports.view', '/users': 'users.manage', '/settings': 'devices.view', '/audit': 'attendance.view' };
@@ -61,8 +61,8 @@ export const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; compact?:
             <Clock className="w-5 h-5 text-white" />
           </div>
           <div className="flex flex-col overflow-hidden">
-            <span className="font-bold text-sm tracking-tight text-[#203441] truncate">{compact ? t('navigation.company') : '华龙商业集团'}</span>
-            <span className="text-[11px] text-[#00695F] font-semibold truncate">{compact ? 'CHECADOR WPC' : 'Grupo David Guan'}</span>
+            <span className="font-bold text-sm tracking-tight text-[#203441] truncate">{compact ? t('navigation.company') : (language === 'zh-CN' ? '百分百 (BAI FEN BAI)' : 'BAI FEN BAI')}</span>
+            <span className="text-[11px] text-[#00695F] font-semibold truncate">{compact ? 'CHECADOR WPC' : (language === 'zh-CN' ? '连锁餐厅考勤中心' : 'Restaurantes')}</span>
           </div>
         </div>
 
