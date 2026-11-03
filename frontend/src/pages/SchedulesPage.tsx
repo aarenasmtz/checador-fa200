@@ -14,10 +14,16 @@ import {
   Sun,
   Sliders,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  LayoutGrid,
+  Table as TableIcon,
+  Search
 } from 'lucide-react';
 import api from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
+import { ErrorState, LoadingState } from '../components/AsyncState';
+import { useCatalogView } from '../hooks/useCatalogView';
+import { CatalogCollection } from '../components/CatalogCollection';
 
 interface WorkDay {
   id: number;
@@ -58,7 +64,13 @@ export const SchedulesPage: React.FC = () => {
   const { t, language } = useLanguage();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Mosaico / Lista mode with localStorage persistence
+  const { viewMode, handleSetViewMode } = useCatalogView('schedules');
+  const [searchTerm, setSearchTerm] = useState('');
+
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -99,10 +111,12 @@ export const SchedulesPage: React.FC = () => {
   const fetchSchedules = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const res = await api.get('/v1/schedules');
       setSchedules(res.data || []);
     } catch (err: any) {
       console.error('Failed to load schedules:', err);
+      setLoadError(err.response?.data?.message || t('common.loadErrorDescription'));
     } finally {
       setLoading(false);
     }
@@ -118,13 +132,13 @@ export const SchedulesPage: React.FC = () => {
   };
 
   const daysList = [
-    { num: 1, label: language === 'zh-CN' ? '周一' : 'Lun' },
-    { num: 2, label: language === 'zh-CN' ? '周二' : 'Mar' },
-    { num: 3, label: language === 'zh-CN' ? '周三' : 'Mié' },
-    { num: 4, label: language === 'zh-CN' ? '周四' : 'Jue' },
-    { num: 5, label: language === 'zh-CN' ? '周五' : 'Vie' },
-    { num: 6, label: language === 'zh-CN' ? '周六' : 'Sáb' },
-    { num: 0, label: language === 'zh-CN' ? '周日' : 'Dom' }
+    { num: 1, label: t('schedules.ui_lun') },
+    { num: 2, label: t('schedules.ui_mar') },
+    { num: 3, label: t('schedules.ui_mie') },
+    { num: 4, label: t('schedules.ui_jue') },
+    { num: 5, label: t('schedules.ui_vie') },
+    { num: 6, label: t('schedules.ui_sab') },
+    { num: 0, label: t('schedules.ui_dom') }
   ];
 
   const handleOpenAddModal = () => {
@@ -208,11 +222,11 @@ export const SchedulesPage: React.FC = () => {
   const handleSaveSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      setFormError(language === 'zh-CN' ? '请输入班次名称' : 'El nombre del horario es obligatorio.');
+      setFormError(t('schedules.ui_el_nombre_del_horario_es_obligatorio'));
       return;
     }
     if (formData.workingDays.length === 0) {
-      setFormError(language === 'zh-CN' ? '请至少选择一个工作日' : 'Debe seleccionar al menos un día laborable.');
+      setFormError(t('schedules.ui_debe_seleccionar_al_menos_un_dia'));
       return;
     }
 
@@ -248,10 +262,10 @@ export const SchedulesPage: React.FC = () => {
 
       if (editingSchedule) {
         await api.put(`/v1/schedules/${editingSchedule.id}`, payload);
-        showNotification(language === 'zh-CN' ? '班次已更新' : 'Horario actualizado exitosamente.');
+        showNotification(t('schedules.ui_horario_actualizado_exitosamente'));
       } else {
         await api.post('/v1/schedules', payload);
-        showNotification(language === 'zh-CN' ? '新班次已添加' : 'Nuevo horario creado exitosamente.');
+        showNotification(t('schedules.ui_nuevo_horario_creado_exitosamente'));
       }
       setIsModalOpen(false);
       fetchSchedules();
@@ -267,7 +281,7 @@ export const SchedulesPage: React.FC = () => {
     setDeleting(true);
     try {
       await api.delete(`/v1/schedules/${deletingSchedule.id}`);
-      showNotification(language === 'zh-CN' ? '班次已删除' : 'Horario eliminado exitosamente.');
+      showNotification(t('schedules.ui_horario_eliminado_exitosamente'));
       setDeletingSchedule(null);
       fetchSchedules();
     } catch (err: any) {
@@ -277,38 +291,88 @@ export const SchedulesPage: React.FC = () => {
     }
   };
 
+  const filteredSchedules = schedules.filter((s) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return s.name.toLowerCase().includes(term);
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <CalendarClock className="w-6 h-6 text-indigo-600" />
+          <h1 className="text-xl font-bold text-[#203441] tracking-tight flex items-center gap-2">
+            <CalendarClock className="w-6 h-6 text-[#00695F]" />
             {t('schedules.title')}
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            {language === 'zh-CN'
-              ? 'ABC 班次日程：配置4次打卡逻辑、固定/灵活就餐、跨午夜夜班及容差窗口'
-              : 'Configuración de Turnos y 4 Marcaciones: Entrada, Comida (Fija o Flexible), Tolerancias, Jornadas Nocturnas y Ventanas'}
+          <p className="text-xs text-[#60727E] mt-1">
+            {t('schedules.ui_configuracion_de_turnos_y_4_marcaciones')}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {/* Mosaico / Lista Selector */}
+          <div className="flex items-center bg-white p-1 rounded-xl border border-[#DFE7EB] shadow-2xs">
+            <button
+              type="button"
+              onClick={() => handleSetViewMode('grid')}
+              aria-pressed={viewMode === 'grid'}
+              className={`p-2 rounded-lg transition cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center ${
+                viewMode === 'grid'
+                  ? 'bg-[#00695F] text-white shadow-2xs'
+                  : 'text-[#60727E] hover:text-[#203441] hover:bg-slate-50'
+              }`}
+              title={t('schedules.ui_vista_en_cuadricula_de_tarjetas_mosaico')}
+              aria-label={t('common.gridView')}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetViewMode('table')}
+              aria-pressed={viewMode === 'table'}
+              className={`p-2 rounded-lg transition cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center ${
+                viewMode === 'table'
+                  ? 'bg-[#00695F] text-white shadow-2xs'
+                  : 'text-[#60727E] hover:text-[#203441] hover:bg-slate-50'
+              }`}
+              title={t('schedules.ui_vista_en_tabla_compacta_lista')}
+              aria-label={t('common.listView')}
+            >
+              <TableIcon className="w-4 h-4" />
+            </button>
+          </div>
+
           <button
             onClick={fetchSchedules}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-[#DFE7EB] text-xs font-semibold text-[#203441] hover:bg-slate-50 shadow-2xs transition min-h-[40px]"
           >
-            <RefreshCw className="w-4 h-4 text-indigo-600" />
-            <span>{language === 'zh-CN' ? '刷新' : 'Actualizar'}</span>
+            <RefreshCw className="w-4 h-4 text-[#00695F]" />
+            <span>{t('schedules.ui_actualizar')}</span>
           </button>
 
           <button
             onClick={handleOpenAddModal}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white shadow-xs transition"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#00695F] hover:bg-[#005149] text-xs font-semibold text-white shadow-xs transition min-h-[40px]"
           >
             <Plus className="w-4 h-4" />
-            <span>{language === 'zh-CN' ? '添加新班次' : 'Nuevo Horario'}</span>
+            <span>{t('schedules.ui_nuevo_horario')}</span>
           </button>
+        </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="bg-white border border-[#DFE7EB] rounded-2xl p-4 shadow-xs">
+        <div className="relative w-full max-w-md">
+          <Search className="w-4 h-4 absolute left-3 top-3 text-[#60727E]" />
+          <input
+            type="text"
+            placeholder={t('schedules.ui_buscar_turno_u_horario_por_nombre')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-[#DFE7EB] rounded-xl text-xs text-[#203441] placeholder-[#60727E] focus:bg-white focus:border-[#00695F] focus:outline-none min-h-[42px]"
+          />
         </div>
       </div>
 
@@ -330,174 +394,38 @@ export const SchedulesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Grid of Schedules */}
+      {/* Main Content: Loading / Empty / Grid / Table */}
       {loading ? (
-        <div className="text-center py-12 text-slate-400 animate-pulse text-xs">
-          {t('common.loading')}
-        </div>
-      ) : schedules.length === 0 ? (
-        <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mx-auto">
+        <LoadingState />
+      ) : loadError ? (
+        <ErrorState message={loadError} onRetry={fetchSchedules} />
+      ) : filteredSchedules.length === 0 ? (
+        <div className="bg-white border border-dashed border-[#DFE7EB] rounded-2xl p-12 text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-[#E6F2F0] border border-[#00695F]/20 flex items-center justify-center text-[#00695F] mx-auto">
             <CalendarClock className="w-7 h-7" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-800">
-              {language === 'zh-CN' ? '未配置工作班次' : 'No hay horarios configurados'}
+            <h3 className="text-sm font-bold text-[#203441]">
+              {t('schedules.ui_no_se_encontraron_horarios')}
             </h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-              {language === 'zh-CN'
-                ? '点击上方“添加新班次”创建你的第一个工作作息时间表。'
-                : 'Haga clic en "+ Nuevo Horario" para crear turnos con horarios de entrada, salida, comida y tolerancias.'}
+            <p className="text-xs text-[#60727E] mt-1 max-w-md mx-auto">
+              {t('schedules.ui_haga_clic_en_nuevo_horario_para')}
             </p>
           </div>
           <button
             onClick={handleOpenAddModal}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white shadow-xs transition"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#00695F] hover:bg-[#005149] text-xs font-semibold text-white shadow-xs transition"
           >
             <Plus className="w-4 h-4" />
-            <span>{language === 'zh-CN' ? '立即添加班次' : 'Crear Horario Ahora'}</span>
+            <span>{t('schedules.ui_crear_horario_ahora')}</span>
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {schedules.map((s) => {
-            const isWorkingDay = (dayNum: number) => {
-              const wd = s.workDays?.find((w) => w.dayOfWeek === dayNum);
-              return wd?.isWorkingDay ?? false;
-            };
-
-            return (
-              <div
-                key={s.id}
-                className="bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition shadow-xs space-y-4"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="pr-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-slate-900 text-base">{s.name}</h3>
-                      {s.isOvernight && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-900 text-indigo-100" title="Cruza medianoche">
-                          <Moon className="w-3 h-3 text-indigo-300" />
-                          Nocturno
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs text-slate-400 font-mono">
-                      {s.assignedEmployeesCount || 0} {language === 'zh-CN' ? '名员工使用' : 'empleados vinculados'}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleOpenEditModal(s)}
-                      title="Editar horario"
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-
-                    <button
-                      onClick={() => setDeletingSchedule(s)}
-                      title="Eliminar horario"
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Time Block */}
-                <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200 flex items-center justify-between">
-                  <div className="text-center flex-1">
-                    <span className="text-[11px] text-slate-500 uppercase block font-semibold flex items-center justify-center gap-1">
-                      <Sun className="w-3 h-3 text-amber-500" /> {t('common.entry')}
-                    </span>
-                    <span className="text-lg font-bold text-indigo-600 font-mono">
-                      {s.startTime ? s.startTime.substring(0, 5) : '08:00'}
-                    </span>
-                  </div>
-                  <div className="h-8 w-[1px] bg-slate-200" />
-                  <div className="text-center flex-1">
-                    <span className="text-[11px] text-slate-500 uppercase block font-semibold flex items-center justify-center gap-1">
-                      {s.isOvernight ? <Moon className="w-3 h-3 text-indigo-400" /> : <Sun className="w-3 h-3 text-amber-500" />} {t('common.exit')}
-                    </span>
-                    <span className="text-lg font-bold text-slate-800 font-mono">
-                      {s.endTime ? s.endTime.substring(0, 5) : '18:00'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Rules & Food Breakdown */}
-                <div className="space-y-2 text-xs text-slate-600">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 font-medium">
-                      <Clock className="w-3.5 h-3.5 text-amber-500" />
-                      {t('schedules.tolerance')}
-                    </span>
-                    <span className="font-bold text-amber-700 font-mono bg-amber-50 px-2 py-0.5 rounded border border-amber-200/50">
-                      {s.toleranceMinutes || 10} min
-                    </span>
-                  </div>
-
-                  {s.hasMealBreak ? (
-                    <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 font-semibold text-slate-700">
-                          <UtensilsCrossed className="w-3.5 h-3.5 text-indigo-500" />
-                          {s.mealBreakMode === 'Flexible' ? 'Comida Flexible' : 'Comida Programada'}
-                        </span>
-                        <span className="font-bold text-indigo-700 font-mono">
-                          {s.mealBreakMode === 'Flexible'
-                            ? `${s.mealDurationMinutes || 60} min máx`
-                            : `${s.mealStartTime ? s.mealStartTime.substring(0, 5) : '13:00'} - ${s.mealEndTime ? s.mealEndTime.substring(0, 5) : '14:00'}`}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 flex justify-between">
-                        <span>Tolerancia regreso:</span>
-                        <span className="font-mono font-medium text-slate-700">+{s.mealToleranceMinutes ?? 5} min</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between text-slate-500 italic bg-slate-50 px-2 py-1 rounded">
-                      <span className="flex items-center gap-1 text-[11px]">
-                        <UtensilsCrossed className="w-3 h-3 text-slate-400" />
-                        Jornada Continua (Sin Salida a Comer)
-                      </span>
-                      <span className="text-[10px] font-mono font-semibold text-slate-600">2 Checadas</span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-slate-500 font-medium">Jornada esperada:</span>
-                    <span className="font-mono font-bold text-slate-700">{s.expectedHours} hrs</span>
-                  </div>
-                </div>
-
-                {/* Work days badge list */}
-                <div className="pt-3 border-t border-slate-100">
-                  <span className="text-[11px] text-slate-500 block mb-2 font-medium">{t('schedules.workDays')}:</span>
-                  <div className="flex flex-wrap gap-1">
-                    {daysList.map((day) => {
-                      const active = isWorkingDay(day.num);
-                      return (
-                        <span
-                          key={day.num}
-                          className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                            active
-                              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                              : 'bg-slate-100 text-slate-400'
-                          }`}
-                        >
-                          {day.label}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <CatalogCollection mode={viewMode} permission="attendance.reprocess" onEdit={handleOpenEditModal} onDelete={setDeletingSchedule}
+          rows={filteredSchedules.map(schedule => ({ id: schedule.id, name: schedule.name, code: String(schedule.id), status: schedule.status, source: schedule,
+            fields: [{ label: t('schedules.entryExit'), value: `${schedule.startTime?.slice(0,5)} – ${schedule.endTime?.slice(0,5)}` }, { label: t('schedules.tolerance'), value: schedule.toleranceMinutes }, { label: t('schedules.workday'), value: schedule.expectedHours == null ? '—' : `${schedule.expectedHours} ${t('detail.hourUnit')}` }],
+            secondary: [{ label: t('schedules.mealMode'), value: !schedule.hasMealBreak ? t('catalog.noMeal') : schedule.mealBreakMode === 'Flexible' ? `${t('catalog.flexibleMeal')} · ${schedule.mealDurationMinutes} ${t('detail.minuteUnit')}` : `${schedule.mealStartTime?.slice(0,5) || '—'} – ${schedule.mealEndTime?.slice(0,5) || '—'}` }, { label: t('schedules.workDays'), value: schedule.workDays?.filter(day => day.isWorkingDay).map(day => daysList.find(item => item.num === day.dayOfWeek)?.label).filter(Boolean).join(' · ') }, { label: t('branches.employees'), value: schedule.assignedEmployeesCount }]
+          }))} />
       )}
 
       {/* Add / Edit Schedule Modal */}
@@ -509,8 +437,8 @@ export const SchedulesPage: React.FC = () => {
                 <CalendarClock className="w-5 h-5 text-indigo-600" />
                 <span>
                   {editingSchedule
-                    ? (language === 'zh-CN' ? '修改班次设置' : 'Editar Turno / Horario')
-                    : (language === 'zh-CN' ? '创建新班次' : 'Nuevo Turno / Horario')}
+                    ? (t('schedules.ui_editar_turno_horario'))
+                    : (t('schedules.ui_nuevo_turno_horario'))}
                 </span>
               </h3>
               <button
@@ -531,13 +459,13 @@ export const SchedulesPage: React.FC = () => {
             <form onSubmit={handleSaveSchedule} className="mt-4 space-y-4 text-xs">
               <div>
                 <label className="block text-slate-700 font-semibold mb-1">
-                  {language === 'zh-CN' ? '班次名称 *' : 'Nombre del Turno *'}
+                  {t('schedules.ui_nombre_del_turno')}
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Ej. Matutino con Comida (08:00 - 18:00)"
+                  placeholder={t('schedules.namePlaceholder')}
                   required
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:bg-white focus:border-indigo-500 focus:outline-none"
                 />
@@ -546,7 +474,7 @@ export const SchedulesPage: React.FC = () => {
               {/* Entry & Exit + Overnight */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-800">Horario de Jornada</span>
+                  <span className="font-semibold text-slate-800">{t('schedules.workdaySchedule')}</span>
                   <label className="inline-flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -644,7 +572,7 @@ export const SchedulesPage: React.FC = () => {
                 {formData.hasMealBreak ? (
                   <div className="space-y-3 pt-1">
                     <div>
-                      <label className="block text-slate-700 font-medium mb-1">Modalidad de Comida</label>
+                      <label className="block text-slate-700 font-medium mb-1">{t('schedules.mealMode')}</label>
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
@@ -674,7 +602,7 @@ export const SchedulesPage: React.FC = () => {
                     {formData.mealBreakMode === 'Fixed' ? (
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-slate-700 font-medium mb-1">Inicio de Comida *</label>
+                          <label className="block text-slate-700 font-medium mb-1">{t('schedules.mealStart')} *</label>
                           <input
                             type="time"
                             value={formData.mealStartTime}
@@ -684,7 +612,7 @@ export const SchedulesPage: React.FC = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-slate-700 font-medium mb-1">Fin de Comida *</label>
+                          <label className="block text-slate-700 font-medium mb-1">{t('schedules.mealEnd')} *</label>
                           <input
                             type="time"
                             value={formData.mealEndTime}
@@ -752,7 +680,7 @@ export const SchedulesPage: React.FC = () => {
                     </p>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-slate-600 text-[11px] font-medium mb-1">Ventana Entrada (Desde / Hasta)</label>
+                        <label className="block text-slate-600 text-[11px] font-medium mb-1">{t('schedules.entryWindow')}</label>
                         <div className="flex gap-2">
                           <input
                             type="time"
@@ -770,7 +698,7 @@ export const SchedulesPage: React.FC = () => {
                       </div>
 
                       <div>
-                        <label className="block text-slate-600 text-[11px] font-medium mb-1">Ventana Salida Turno (Desde / Hasta)</label>
+                        <label className="block text-slate-600 text-[11px] font-medium mb-1">{t('schedules.exitWindow')}</label>
                         <div className="flex gap-2">
                           <input
                             type="time"
@@ -791,7 +719,7 @@ export const SchedulesPage: React.FC = () => {
                     {formData.hasMealBreak && (
                       <div className="grid grid-cols-2 gap-3 pt-2">
                         <div>
-                          <label className="block text-slate-600 text-[11px] font-medium mb-1">Ventana Salida a Comer</label>
+                          <label className="block text-slate-600 text-[11px] font-medium mb-1">{t('schedules.mealExitWindow')}</label>
                           <div className="flex gap-2">
                             <input
                               type="time"
@@ -809,7 +737,7 @@ export const SchedulesPage: React.FC = () => {
                         </div>
 
                         <div>
-                          <label className="block text-slate-600 text-[11px] font-medium mb-1">Ventana Regreso de Comer</label>
+                          <label className="block text-slate-600 text-[11px] font-medium mb-1">{t('schedules.mealReturnWindow')}</label>
                           <div className="flex gap-2">
                             <input
                               type="time"
@@ -834,7 +762,7 @@ export const SchedulesPage: React.FC = () => {
               {/* Working days */}
               <div>
                 <label className="block text-slate-700 font-semibold mb-2">
-                  {language === 'zh-CN' ? '工作日适用设置 *' : 'Días Laborables Aplicables *'}
+                  {t('schedules.ui_dias_laborables_aplicables')}
                 </label>
                 <div className="grid grid-cols-7 gap-1">
                   {daysList.map((d) => {
@@ -888,7 +816,7 @@ export const SchedulesPage: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-bold text-slate-900 text-sm">
-                  {language === 'zh-CN' ? '确认删除此班次？' : '¿Eliminar Horario?'}
+                  {t('schedules.ui_eliminar_horario')}
                 </h3>
                 <p className="text-xs text-slate-500">
                   {deletingSchedule.name}
@@ -897,9 +825,7 @@ export const SchedulesPage: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-200">
-              {language === 'zh-CN'
-                ? '若有员工正在使用此班次，系统将阻止删除以防止计算冲突。'
-                : 'Aviso: No se puede eliminar si hay empleados activos asignados a este turno.'}
+              {t('schedules.ui_aviso_no_se_puede_eliminar_si')}
             </p>
 
             <div className="flex justify-end gap-2 pt-2">

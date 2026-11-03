@@ -1,0 +1,182 @@
+[
+  {
+    "width": 320,
+    "route": "employees",
+    "heading": "Empleados",
+    "mainWidth": 314,
+    "pageWidth": 314,
+    "rawKeys": false,
+    "viewport": 314
+  },
+  {
+    "width": 320,
+    "route": "branches",
+    "heading": "Sucursales",
+    "mainWidth": 314,
+    "pageWidth": 314,
+    "rawKeys": false,
+    "viewport": 314
+  },
+  {
+    "width": 320,
+    "route": "schedules",
+    "heading": "Horarios y Turnos",
+    "mainWidth": 320,
+    "pageWidth": 320,
+    "rawKeys": false,
+    "viewport": 320
+  },
+  {
+    "width": 320,
+    "route": "users",
+    "heading": "Usuarios y Roles del Sistema",
+    "mainWidth": 320,
+    "pageWidth": 320,
+    "rawKeys": false,
+    "viewport": 320
+  },
+  {
+    "width": 320,
+    "route": "devices",
+    "heading": "Dispositivos BiométricosVPN Mango WireGuard",
+    "mainWidth": 314,
+    "pageWidth": 314,
+    "rawKeys": false,
+    "viewport": 314
+  },
+  {
+    "width": 375,
+    "route": "employees",
+    "heading": "Empleados",
+    "mainWidth": 369,
+    "pageWidth": 369,
+    "rawKeys": false,
+    "viewport": 369
+  },
+  {
+    "width": 375,
+    "route": "branches",
+    "heading": "Sucursales",
+    "mainWidth": 369,
+    "pageWidth": 369,
+    "rawKeys": false,
+    "viewport": 369
+  },
+  {
+    "width": 375,
+    "route": "schedules",
+    "heading": "Horarios y Turnos",
+    "mainWidth": 375,
+    "pageWidth": 375,
+    "rawKeys": false,
+    "viewport": 375
+  },
+  {
+    "width": 375,
+    "route": "users",
+    "heading": "Usuarios y Roles del Sistema",
+    "mainWidth": 375,
+    "pageWidth": 375,
+    "rawKeys": false,
+    "viewport": 375
+  },
+  {
+    "width": 375,
+    "route": "devices",
+    "heading": "Dispositivos BiométricosVPN Mango WireGuard",
+    "mainWidth": 369,
+    "pageWidth": 369,
+    "rawKeys": false,
+    "viewport": 369
+  },
+  {
+    "width": 390,
+    "route": "employees",
+    "heading": "Empleados",
+    "mainWidth": 384,
+    "pageWidth": 384,
+    "rawKeys": false,
+    "viewport": 384
+  },
+  {
+    "width": 390,
+    "route": "branches",
+    "heading": "Sucursales",
+    "mainWidth": 384,
+    "pageWidth": 384,
+    "rawKeys": false,
+    "viewport": 384
+  },
+  {
+    "width": 390,
+    "route": "schedules",
+    "heading": "Horarios y Turnos",
+    "mainWidth": 390,
+    "pageWidth": 390,
+    "rawKeys": false,
+    "viewport": 390
+  },
+  {
+    "width": 390,
+    "route": "users",
+    "heading": "Usuarios y Roles del Sistema",
+    "mainWidth": 390,
+    "pageWidth": 390,
+    "rawKeys": false,
+    "viewport": 390
+  },
+  {
+    "width": 390,
+    "route": "devices",
+    "heading": "Dispositivos BiométricosVPN Mango WireGuard",
+    "mainWidth": 384,
+    "pageWidth": 384,
+    "rawKeys": false,
+    "viewport": 384
+  },
+  {
+    "width": 430,
+    "route": "employees",
+    "heading": "Empleados",
+    "mainWidth": 424,
+    "pageWidth": 424,
+    "rawKeys": false,
+    "viewport": 424
+  },
+  {
+    "width": 430,
+    "route": "branches",
+    "heading": "Sucursales",
+    "mainWidth": 424,
+    "pageWidth": 424,
+    "rawKeys": false,
+    "viewport": 424
+  },
+  {
+    "width": 430,
+    "route": "schedules",
+    "heading": "Horarios y Turnos",
+    "mainWidth": 430,
+    "pageWidth": 430,
+    "rawKeys": false,
+    "viewport": 430
+  },
+  {
+    "width": 430,
+    "route": "users",
+    "heading": "Usuarios y Roles del Sistema",
+    "mainWidth": 430,
+    "pageWidth": 430,
+    "rawKeys": false,
+    "viewport": 430
+  },
+  {
+    "width": 430,
+    "route": "devices",
+    "heading": "Dispositivos BiométricosVPN Mango WireGuard",
+    "mainWidth": 424,
+    "pageWidth": 424,
+    "rawKeys": false,
+    "viewport": 424
+  }
+]

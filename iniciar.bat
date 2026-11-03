@@ -1,10 +1,10 @@
 @echo off
-title Hualong - Control de Asistencia FA200
+title BAI FEN BAI - Control de Asistencia FA200
 chcp 65001 > nul
 cd /d "%~dp0"
 
 echo =============================================================================
-echo   Iniciando Plataforma de Control de Asistencia (Grupo Comercial Hualong)
+echo   Iniciando Plataforma de Control de Asistencia (Restaurantes BAI FEN BAI)
 echo =============================================================================
 echo.
 

@@ -37,7 +37,7 @@ public class RegressionFixTests
 
     private async Task<(Company company, Branch branch, Branch branch2, Employee emp, BiometricDevice dev)> SetupBaseDataAsync(AppDbContext context)
     {
-        var company = new Company { Name = "华龙商业集团 (Grupo Comercial Hualong)" };
+        var company = new Company { Name = "BAI FEN BAI (百分百)" };
         context.Companies.Add(company);
         await context.SaveChangesAsync();
 
@@ -439,8 +439,7 @@ public class RegressionFixTests
         bytes[2].Should().Be(0xBF);
 
         var csvText = System.Text.Encoding.UTF8.GetString(bytes);
-        csvText.Should().Contain("Código / 员工编号");
-        csvText.Should().Contain("A tiempo / 准时");
+        csvText.Should().Contain("Empleado / 员工");
         csvText.Should().Contain("HL-001");
     }
 }

@@ -3,6 +3,7 @@ using Attendance.Domain.Entities;
 using Attendance.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace Attendance.Application.Services;
 
@@ -257,9 +258,34 @@ public class BiometricIngestionService : IBiometricIngestionService
         // Update Device heartbeat and status
         device.LastConnectionAt = DateTime.UtcNow;
         device.Status = DeviceStatus.Online;
+        device.LastSyncAt = DateTime.UtcNow;
+        device.LastSuccessfulSyncAt = DateTime.UtcNow;
+        device.LastSyncRecordsCount = persistedCount;
+        device.LastErrorMessage = null;
         if (persistedCount > 0)
         {
             device.LastEventAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new Attendance.Domain.Entities.AuditLog
+            {
+                Username = "checador-sync",
+                Timestamp = DateTime.UtcNow,
+                IpAddress = device.IpAddress ?? "No registrada",
+                Module = "Biometric",
+                Action = "BatchSync",
+                Entity = "BiometricDevice",
+                RecordId = $"{device.Code} (ID: {device.Id})",
+                NewValues = JsonSerializer.Serialize(new
+                {
+                    deviceCode = device.Code,
+                    deviceIp = device.IpAddress,
+                    branchId = device.BranchId,
+                    branchName = device.Branch?.Name,
+                    persistedCount,
+                    duplicateCount,
+                    source = "WireGuard FA200 Poller"
+                })
+            });
         }
         await _context.SaveChangesAsync(cancellationToken);
 

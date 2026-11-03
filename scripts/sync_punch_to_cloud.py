@@ -42,7 +42,7 @@ print("-" * 65)
 from zk import ZK
 
 def sync_punches():
-    zk = ZK(HOST, port=PORT, timeout=5, password=COMM_KEY, force_udp=False)
+    zk = ZK(HOST, port=PORT, timeout=5, password=COMM_KEY, force_udp=False, ommit_ping=True)
     conn = None
     try:
         print("[1/3] Conectando con el reloj FA200...")
@@ -68,6 +68,7 @@ def sync_punches():
 
             payload = {
                 "deviceCode": DEVICE_CODE,
+                "userClockId": str(att.user_id),
                 "employeeCode": str(att.user_id),
                 "timestamp": timestamp_str,
                 "method": method,
@@ -76,7 +77,8 @@ def sync_punches():
 
             headers = {
                 "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AttendanceBridge/1.0"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AttendanceBridge/1.0",
+                "X-Agent-Key": "fa200-sync-agent-secret-key-2026"
             }
 
             req = urllib.request.Request(

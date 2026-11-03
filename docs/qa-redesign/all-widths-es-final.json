@@ -1,0 +1,354 @@
+[
+  {
+    "requestedWidth": 320,
+    "route": "dashboard",
+    "contentWidth": 314,
+    "heading": "Inicio",
+    "pageWidth": 314,
+    "viewport": 320
+  },
+  {
+    "requestedWidth": 320,
+    "route": "attendance",
+    "contentWidth": 314,
+    "heading": "Control de Asistencia",
+    "pageWidth": 314,
+    "viewport": 320
+  },
+  {
+    "requestedWidth": 320,
+    "route": "employees",
+    "contentWidth": 320,
+    "heading": "Empleados",
+    "pageWidth": 320,
+    "viewport": 320
+  },
+  {
+    "requestedWidth": 320,
+    "route": "branches",
+    "contentWidth": 320,
+    "heading": "Sucursales",
+    "pageWidth": 320,
+    "viewport": 320
+  },
+  {
+    "requestedWidth": 320,
+    "route": "schedules",
+    "contentWidth": 320,
+    "heading": "Horarios y Turnos",
+    "pageWidth": 320,
+    "viewport": 320
+  },
+  {
+    "requestedWidth": 320,
+    "route": "users",
+    "contentWidth": 320,
+    "heading": "Usuarios y Roles del Sistema",
+    "pageWidth": 320,
+    "viewport": 320
+  },
+  {
+    "requestedWidth": 320,
+    "route": "devices",
+    "contentWidth": 314,
+    "heading": "Dispositivos BiométricosVPN Mango WireGuard",
+    "pageWidth": 314,
+    "viewport": 320
+  },
+  {
+    "requestedWidth": 320,
+    "route": "incidents",
+    "contentWidth": 320,
+    "heading": "Gestión de Incidencias y Justificaciones",
+    "pageWidth": 320,
+    "viewport": 320
+  },
+  {
+    "requestedWidth": 320,
+    "route": "reports",
+    "contentWidth": 314,
+    "heading": "Reporte de asistencia",
+    "pageWidth": 314,
+    "viewport": 320
+  },
+  {
+    "requestedWidth": 320,
+    "route": "audit",
+    "contentWidth": 314,
+    "heading": "Registro de Auditoría y Trazabilidad",
+    "pageWidth": 314,
+    "viewport": 320
+  },
+  {
+    "requestedWidth": 320,
+    "route": "settings",
+    "contentWidth": 314,
+    "heading": "Configuración FA200",
+    "pageWidth": 314,
+    "viewport": 320
+  },
+  {
+    "requestedWidth": 375,
+    "route": "dashboard",
+    "contentWidth": 369,
+    "heading": "Inicio",
+    "pageWidth": 369,
+    "viewport": 375
+  },
+  {
+    "requestedWidth": 375,
+    "route": "attendance",
+    "contentWidth": 369,
+    "heading": "Control de Asistencia",
+    "pageWidth": 369,
+    "viewport": 375
+  },
+  {
+    "requestedWidth": 375,
+    "route": "employees",
+    "contentWidth": 375,
+    "heading": "Empleados",
+    "pageWidth": 375,
+    "viewport": 375
+  },
+  {
+    "requestedWidth": 375,
+    "route": "branches",
+    "contentWidth": 375,
+    "heading": "Sucursales",
+    "pageWidth": 375,
+    "viewport": 375
+  },
+  {
+    "requestedWidth": 375,
+    "route": "schedules",
+    "contentWidth": 375,
+    "heading": "Horarios y Turnos",
+    "pageWidth": 375,
+    "viewport": 375
+  },
+  {
+    "requestedWidth": 375,
+    "route": "users",
+    "contentWidth": 375,
+    "heading": "Usuarios y Roles del Sistema",
+    "pageWidth": 375,
+    "viewport": 375
+  },
+  {
+    "requestedWidth": 375,
+    "route": "devices",
+    "contentWidth": 375,
+    "heading": "Dispositivos BiométricosVPN Mango WireGuard",
+    "pageWidth": 375,
+    "viewport": 375
+  },
+  {
+    "requestedWidth": 375,
+    "route": "incidents",
+    "contentWidth": 375,
+    "heading": "Gestión de Incidencias y Justificaciones",
+    "pageWidth": 375,
+    "viewport": 375
+  },
+  {
+    "requestedWidth": 375,
+    "route": "reports",
+    "contentWidth": 369,
+    "heading": "Reporte de asistencia",
+    "pageWidth": 369,
+    "viewport": 375
+  },
+  {
+    "requestedWidth": 375,
+    "route": "audit",
+    "contentWidth": 375,
+    "heading": "Registro de Auditoría y Trazabilidad",
+    "pageWidth": 375,
+    "viewport": 375
+  },
+  {
+    "requestedWidth": 375,
+    "route": "settings",
+    "contentWidth": 369,
+    "heading": "Configuración FA200",
+    "pageWidth": 369,
+    "viewport": 375
+  },
+  {
+    "requestedWidth": 390,
+    "route": "dashboard",
+    "contentWidth": 384,
+    "heading": "Inicio",
+    "pageWidth": 384,
+    "viewport": 390
+  },
+  {
+    "requestedWidth": 390,
+    "route": "attendance",
+    "contentWidth": 384,
+    "heading": "Control de Asistencia",
+    "pageWidth": 384,
+    "viewport": 390
+  },
+  {
+    "requestedWidth": 390,
+    "route": "employees",
+    "contentWidth": 384,
+    "heading": "Empleados",
+    "pageWidth": 384,
+    "viewport": 390
+  },
+  {
+    "requestedWidth": 390,
+    "route": "branches",
+    "contentWidth": 390,
+    "heading": "Sucursales",
+    "pageWidth": 390,
+    "viewport": 390
+  },
+  {
+    "requestedWidth": 390,
+    "route": "schedules",
+    "contentWidth": 390,
+    "heading": "Horarios y Turnos",
+    "pageWidth": 390,
+    "viewport": 390
+  },
+  {
+    "requestedWidth": 390,
+    "route": "users",
+    "contentWidth": 390,
+    "heading": "Usuarios y Roles del Sistema",
+    "pageWidth": 390,
+    "viewport": 390
+  },
+  {
+    "requestedWidth": 390,
+    "route": "devices",
+    "contentWidth": 384,
+    "heading": "Dispositivos BiométricosVPN Mango WireGuard",
+    "pageWidth": 384,
+    "viewport": 390
+  },
+  {
+    "requestedWidth": 390,
+    "route": "incidents",
+    "contentWidth": 390,
+    "heading": "Gestión de Incidencias y Justificaciones",
+    "pageWidth": 390,
+    "viewport": 390
+  },
+  {
+    "requestedWidth": 390,
+    "route": "reports",
+    "contentWidth": 384,
+    "heading": "Reporte de asistencia",
+    "pageWidth": 384,
+    "viewport": 390
+  },
+  {
+    "requestedWidth": 390,
+    "route": "audit",
+    "contentWidth": 384,
+    "heading": "Registro de Auditoría y Trazabilidad",
+    "pageWidth": 384,
+    "viewport": 390
+  },
+  {
+    "requestedWidth": 390,
+    "route": "settings",
+    "contentWidth": 384,
+    "heading": "Configuración FA200",
+    "pageWidth": 384,
+    "viewport": 390
+  },
+  {
+    "requestedWidth": 430,
+    "route": "dashboard",
+    "contentWidth": 424,
+    "heading": "Inicio",
+    "pageWidth": 424,
+    "viewport": 430
+  },
+  {
+    "requestedWidth": 430,
+    "route": "attendance",
+    "contentWidth": 424,
+    "heading": "Control de Asistencia",
+    "pageWidth": 424,
+    "viewport": 430
+  },
+  {
+    "requestedWidth": 430,
+    "route": "employees",
+    "contentWidth": 424,
+    "heading": "Empleados",
+    "pageWidth": 424,
+    "viewport": 430
+  },
+  {
+    "requestedWidth": 430,
+    "route": "branches",
+    "contentWidth": 430,
+    "heading": "Sucursales",
+    "pageWidth": 430,
+    "viewport": 430
+  },
+  {
+    "requestedWidth": 430,
+    "route": "schedules",
+    "contentWidth": 430,
+    "heading": "Horarios y Turnos",
+    "pageWidth": 430,
+    "viewport": 430
+  },
+  {
+    "requestedWidth": 430,
+    "route": "users",
+    "contentWidth": 430,
+    "heading": "Usuarios y Roles del Sistema",
+    "pageWidth": 430,
+    "viewport": 430
+  },
+  {
+    "requestedWidth": 430,
+    "route": "devices",
+    "contentWidth": 424,
+    "heading": "Dispositivos BiométricosVPN Mango WireGuard",
+    "pageWidth": 424,
+    "viewport": 430
+  },
+  {
+    "requestedWidth": 430,
+    "route": "incidents",
+    "contentWidth": 430,
+    "heading": "Gestión de Incidencias y Justificaciones",
+    "pageWidth": 430,
+    "viewport": 430
+  },
+  {
+    "requestedWidth": 430,
+    "route": "reports",
+    "contentWidth": 424,
+    "heading": "Reporte de asistencia",
+    "pageWidth": 424,
+    "viewport": 430
+  },
+  {
+    "requestedWidth": 430,
+    "route": "audit",
+    "contentWidth": 424,
+    "heading": "Registro de Auditoría y Trazabilidad",
+    "pageWidth": 424,
+    "viewport": 430
+  },
+  {
+    "requestedWidth": 430,
+    "route": "settings",
+    "contentWidth": 424,
+    "heading": "Configuración FA200",
+    "pageWidth": 424,
+    "viewport": 430
+  }
+]

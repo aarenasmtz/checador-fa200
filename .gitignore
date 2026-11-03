@@ -22,8 +22,10 @@ __pycache__/
 .venv/
 env/
 
-# Environment files with secrets
+# Environment and VPN keys
 .env
+*.conf
+*.key
 *.bak
 publish_api/
 data/*.db

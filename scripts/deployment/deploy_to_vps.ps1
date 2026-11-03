@@ -30,6 +30,13 @@ if (Test-Path $ProdSettings) {
     Copy-Item $ProdSettings "$DistDir\api\appsettings.Production.json" -Force
 }
 
+# Incluir fuente CJK para reportes PDF
+$FontsDir = "$DistDir\api\Fonts"
+New-Item -ItemType Directory -Path $FontsDir -Force | Out-Null
+if (Test-Path "C:\Windows\Fonts\msyh.ttc") {
+    Copy-Item "C:\Windows\Fonts\msyh.ttc" "$FontsDir\msyh.ttc" -Force
+}
+
 # 2. Compilar Frontend React 19 + Vite
 Write-Host "`n[2/4] Compilando Frontend React + Vite..." -ForegroundColor Yellow
 $FrontendDir = Join-Path $RootDir "frontend"
@@ -51,7 +58,14 @@ $MigrationScript = Join-Path $RootDir "publish\migration_incidents.sql"
 if (Test-Path $MigrationScript) {
     Copy-Item $MigrationScript "$DistDir\migration_incidents.sql"
 }
+$VpnMigrationScript = Join-Path $RootDir "publish\migration_vpn_devices.sql"
+if (Test-Path $VpnMigrationScript) {
+    Copy-Item $VpnMigrationScript "$DistDir\migration_vpn_devices.sql"
+}
+Copy-Item (Join-Path $RootDir "scripts\server_fa200_vpn_sync.py") "$DistDir\server_fa200_vpn_sync.py"
+Copy-Item (Join-Path $RootDir "scripts\server_fa200_vpn_sync.py") "$DistDir\api\server_fa200_vpn_sync.py"
 Copy-Item (Join-Path $RootDir "scripts\deployment\checador-api.service") "$DistDir\checador-api.service"
+Copy-Item (Join-Path $RootDir "scripts\deployment\checador-sync.service") "$DistDir\checador-sync.service"
 Copy-Item (Join-Path $RootDir "scripts\deployment\checador.nginx.conf") "$DistDir\checador.nginx.conf"
 Copy-Item (Join-Path $RootDir "scripts\deployment\setup_vps_checador.sh") "$DistDir\setup_vps_checador.sh"
 
@@ -79,7 +93,7 @@ if ($VpsHost) {
     scp $TarFile "${VpsUser}@${VpsHost}:/root/"
     
     Write-Host "`nEjecutando script de despliegue en el VPS..." -ForegroundColor Cyan
-    ssh "${VpsUser}@${VpsHost}" "mkdir -p /root/attendance_deploy && tar -xzf /root/dist_vps.tar.gz -C /root/attendance_deploy && cd /root/attendance_deploy && chmod +x setup_vps_checador.sh && ./setup_vps_checador.sh"
+    ssh "${VpsUser}@${VpsHost}" "mkdir -p /root/attendance_deploy && tar -xzf /root/dist_vps.tar.gz -C /root/attendance_deploy && cd /root/attendance_deploy && sed -i 's/\r$//' setup_vps_checador.sh && chmod +x setup_vps_checador.sh && ./setup_vps_checador.sh"
 } else {
     Write-Host "`nInstrucciones para subir al VPS:" -ForegroundColor Cyan
     Write-Host "1. Sube el paquete al VPS ejecutando:" -ForegroundColor White

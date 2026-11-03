@@ -1,0 +1,57 @@
+[
+  {
+    "route": "dashboard",
+    "retry": 1,
+    "overflow": 0
+  },
+  {
+    "route": "attendance",
+    "retry": 1,
+    "overflow": 0
+  },
+  {
+    "route": "employees",
+    "retry": 1,
+    "overflow": 0
+  },
+  {
+    "route": "branches",
+    "retry": 1,
+    "overflow": 0
+  },
+  {
+    "route": "schedules",
+    "retry": 1,
+    "overflow": 0
+  },
+  {
+    "route": "users",
+    "retry": 1,
+    "overflow": 0
+  },
+  {
+    "route": "devices",
+    "retry": 1,
+    "overflow": 0
+  },
+  {
+    "route": "incidents",
+    "retry": 1,
+    "overflow": 0
+  },
+  {
+    "route": "reports",
+    "retry": 1,
+    "overflow": 0
+  },
+  {
+    "route": "audit",
+    "retry": 1,
+    "overflow": 0
+  },
+  {
+    "route": "settings",
+    "retry": 1,
+    "overflow": 0
+  }
+]

@@ -1,0 +1,33 @@
+# ==============================================================================
+# PERFIL DE CLIENTE WIREGUARD PARA ROUTER GL.iNet GL-MT300N-V2 (MANGO)
+# Sucursal: SUCURSAL 1 - CENTRO (Bai Fen Bai)
+# ==============================================================================
+# IMPORTACIÓN EN EL MANGO:
+# 1. Conéctate a http://192.168.8.1 (o http://10.10.1.1 tras cambiar la LAN).
+# 2. Ve a: VPN -> WireGuard Client -> Set Up WireGuard Manually -> Add New.
+# 3. Importa este archivo .conf (reemplazando los marcadores de claves con valores reales).
+# ==============================================================================
+
+[Interface]
+# Dirección IP asignada al router dentro del túnel VPN
+Address = 10.10.0.2/32
+# Clave privada exclusiva del router Mango de Sucursal 1 (generar localmente)
+PrivateKey = <MANGO_SUCURSAL_1_PRIVATE_KEY_NEVER_SHARE>
+# Opcional: Servidores DNS a usar si se requiere resolver nombres internos
+DNS = 1.1.1.1, 8.8.8.8
+
+[Peer]
+# Clave pública del servidor VPS (Hostinger 193.46.198.88)
+PublicKey = <SERVER_PUBLIC_KEY_FROM_VPS>
+# Dirección pública del servidor VPS y puerto UDP de WireGuard
+Endpoint = 193.46.198.88:51820
+
+# TÚNEL DIVIDIDO (SPLIT TUNNEL):
+# Enruta ÚNICAMENTE el tráfico hacia la red VPN (10.10.0.0/16) a través del túnel.
+# El tráfico normal de internet de la sucursal continúa saliendo directo por su módem.
+AllowedIPs = 10.10.0.0/16
+
+# MANTENIMIENTO ACTIVO DE NAT (KEEPALIVE):
+# Obligatorio para conexiones detrás de módems/NAT residenciales y comerciales.
+# Envía un paquete cada 25 segundos para mantener abierta la tabla de estados del módem.
+PersistentKeepalive = 25

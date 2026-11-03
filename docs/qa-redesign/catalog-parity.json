@@ -1,0 +1,52 @@
+[
+  {
+    "route": "employees",
+    "grid": [
+      "Aaron Arenas Martinez",
+      "Roxana Diaz Lopez",
+      "Rogelio Arenas Arenas"
+    ],
+    "list": [
+      "Aaron Arenas Martinez",
+      "Roxana Diaz Lopez",
+      "Rogelio Arenas Arenas"
+    ],
+    "same": true,
+    "persisted": "true"
+  },
+  {
+    "route": "branches",
+    "grid": [
+      "中心店 (City Center)",
+      "PRUEBA CASA (Mango)"
+    ],
+    "list": [
+      "中心店 (City Center)",
+      "PRUEBA CASA (Mango)"
+    ],
+    "same": true,
+    "persisted": "true"
+  },
+  {
+    "route": "schedules",
+    "grid": [
+      "标准白班 (Turno Estándar Matutino 08:00 - 18:00)"
+    ],
+    "list": [
+      "标准白班 (Turno Estándar Matutino 08:00 - 18:00)"
+    ],
+    "same": true,
+    "persisted": "true"
+  },
+  {
+    "route": "users",
+    "grid": [
+      "Administrador General"
+    ],
+    "list": [
+      "Administrador General"
+    ],
+    "same": true,
+    "persisted": "true"
+  }
+]

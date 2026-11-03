@@ -1,0 +1,156 @@
+[
+  {
+    "scenario": "error",
+    "route": "dashboard",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "error",
+    "route": "attendance",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "error",
+    "route": "employees",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "error",
+    "route": "branches",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "error",
+    "route": "schedules",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "error",
+    "route": "users",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "error",
+    "route": "devices",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "error",
+    "route": "incidents",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "error",
+    "route": "reports",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "error",
+    "route": "audit",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "error",
+    "route": "settings",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "empty",
+    "route": "dashboard",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "empty",
+    "route": "attendance",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "empty",
+    "route": "employees",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "empty",
+    "route": "branches",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "empty",
+    "route": "schedules",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "empty",
+    "route": "users",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "empty",
+    "route": "devices",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "empty",
+    "route": "incidents",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "empty",
+    "route": "reports",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "empty",
+    "route": "audit",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  },
+  {
+    "scenario": "empty",
+    "route": "settings",
+    "hasContent": true,
+    "overflow": 0,
+    "rawKeys": false
+  }
+]

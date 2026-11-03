@@ -269,7 +269,7 @@ public class AttendanceProcessingService : IAttendanceProcessingService
         var workDayConfig = schedule?.WorkDays.FirstOrDefault(w => w.DayOfWeek == dayOfWeek);
         var isWorkingDay = workDayConfig?.IsWorkingDay ?? (dayOfWeek != DayOfWeek.Sunday);
 
-        if (!isWorkingDay)
+        if (!isWorkingDay && rawEvents.Count == 0)
         {
             daily.Status = AttendanceStatus.RestDay;
             daily.MinutesWorked = 0;
@@ -597,6 +597,21 @@ public class AttendanceProcessingService : IAttendanceProcessingService
             else
             {
                 daily.Status = AttendanceStatus.OnTime;
+            }
+        }
+
+        if (!isWorkingDay)
+        {
+            daily.MinutesLate = 0;
+            if (daily.FirstEntry.HasValue && daily.LastExit.HasValue)
+            {
+                daily.Status = AttendanceStatus.OnTime;
+                daily.ReviewNotes = AppendNote(daily.ReviewNotes, "Asistencia en día de descanso programado");
+            }
+            else if (daily.FirstEntry.HasValue)
+            {
+                daily.Status = AttendanceStatus.Incomplete;
+                daily.ReviewNotes = AppendNote(daily.ReviewNotes, "Asistencia en día de descanso programado (turno en curso)");
             }
         }
 

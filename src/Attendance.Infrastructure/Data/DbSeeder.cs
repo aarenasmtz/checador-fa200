@@ -66,8 +66,8 @@ public static class DbSeeder
         {
             var company = new Company
             {
-                Name = "华龙商业集团 (Grupo Comercial Hualong)",
-                TaxId = "HLG20260901X1",
+                Name = "BAI FEN BAI (百分百)",
+                TaxId = "BFB20260901X1",
                 Status = CommonStatus.Active
             };
             context.Companies.Add(company);

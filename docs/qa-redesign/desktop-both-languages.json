@@ -1,0 +1,176 @@
+[
+  {
+    "language": "zh",
+    "route": "dashboard",
+    "pageWidth": 1434,
+    "sidebarWidth": 192,
+    "viewport": 1434
+  },
+  {
+    "language": "zh",
+    "route": "attendance",
+    "heading": "考勤监控与打卡明细",
+    "pageWidth": 1440,
+    "sidebarWidth": 256,
+    "viewport": 1440
+  },
+  {
+    "language": "zh",
+    "route": "employees",
+    "heading": "员工管理",
+    "pageWidth": 1440,
+    "sidebarWidth": 192,
+    "viewport": 1440
+  },
+  {
+    "language": "zh",
+    "route": "branches",
+    "heading": "分店管理",
+    "pageWidth": 1440,
+    "sidebarWidth": 192,
+    "viewport": 1440
+  },
+  {
+    "language": "zh",
+    "route": "schedules",
+    "heading": "班次与排班规则",
+    "pageWidth": 1440,
+    "sidebarWidth": 192,
+    "viewport": 1440
+  },
+  {
+    "language": "zh",
+    "route": "users",
+    "heading": "系统操作员与权限配置",
+    "pageWidth": 1440,
+    "sidebarWidth": 192,
+    "viewport": 1440
+  },
+  {
+    "language": "zh",
+    "route": "devices",
+    "heading": "生物识别硬件管理VPN Mango WireGuard",
+    "pageWidth": 1440,
+    "sidebarWidth": 192,
+    "viewport": 1440
+  },
+  {
+    "language": "zh",
+    "route": "incidents",
+    "heading": "考勤异常与请假/补卡审批",
+    "pageWidth": 1440,
+    "sidebarWidth": 192,
+    "viewport": 1440
+  },
+  {
+    "language": "zh",
+    "route": "reports",
+    "heading": "考勤报表",
+    "pageWidth": 1440,
+    "sidebarWidth": 192,
+    "viewport": 1440
+  },
+  {
+    "language": "zh",
+    "route": "audit",
+    "heading": "系统操作审计与数据变更追踪",
+    "pageWidth": 1434,
+    "sidebarWidth": 192,
+    "viewport": 1434
+  },
+  {
+    "language": "zh",
+    "route": "settings",
+    "heading": "FA200 设置",
+    "pageWidth": 1434,
+    "sidebarWidth": 192,
+    "viewport": 1434
+  },
+  {
+    "language": "es",
+    "route": "dashboard",
+    "pageWidth": 1434,
+    "sidebarWidth": 192,
+    "viewport": 1434
+  },
+  {
+    "language": "es",
+    "route": "attendance",
+    "heading": "Control de Asistencia",
+    "pageWidth": 1440,
+    "sidebarWidth": 256,
+    "viewport": 1440
+  },
+  {
+    "language": "es",
+    "route": "employees",
+    "heading": "Empleados",
+    "pageWidth": 1440,
+    "sidebarWidth": 192,
+    "viewport": 1440
+  },
+  {
+    "language": "es",
+    "route": "branches",
+    "heading": "Sucursales",
+    "pageWidth": 1440,
+    "sidebarWidth": 192,
+    "viewport": 1440
+  },
+  {
+    "language": "es",
+    "route": "schedules",
+    "heading": "Horarios y Turnos",
+    "pageWidth": 1440,
+    "sidebarWidth": 192,
+    "viewport": 1440
+  },
+  {
+    "language": "es",
+    "route": "users",
+    "heading": "Usuarios y Roles del Sistema",
+    "pageWidth": 1440,
+    "sidebarWidth": 192,
+    "viewport": 1440
+  },
+  {
+    "language": "es",
+    "route": "devices",
+    "heading": "Dispositivos BiométricosVPN Mango WireGuard",
+    "pageWidth": 1440,
+    "sidebarWidth": 192,
+    "viewport": 1440
+  },
+  {
+    "language": "es",
+    "route": "incidents",
+    "heading": "Gestión de Incidencias y Justificaciones",
+    "pageWidth": 1440,
+    "sidebarWidth": 192,
+    "viewport": 1440
+  },
+  {
+    "language": "es",
+    "route": "reports",
+    "heading": "Reporte de asistencia",
+    "pageWidth": 1440,
+    "sidebarWidth": 192,
+    "viewport": 1440
+  },
+  {
+    "language": "es",
+    "route": "audit",
+    "heading": "Registro de Auditoría y Trazabilidad",
+    "pageWidth": 1434,
+    "sidebarWidth": 192,
+    "viewport": 1434
+  },
+  {
+    "language": "es",
+    "route": "settings",
+    "heading": "Configuración FA200",
+    "pageWidth": 1434,
+    "sidebarWidth": 192,
+    "viewport": 1434
+  }
+]

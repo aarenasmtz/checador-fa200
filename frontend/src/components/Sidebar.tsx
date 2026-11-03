@@ -20,9 +20,11 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 
-export const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-  const { t } = useLanguage();
+export const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void; compact?: boolean }> = ({ isOpen, onClose, compact = false }) => {
+  const { t, language } = useLanguage();
   const { user, logout } = useAuth();
+  const privileged = user?.roles?.some(role => ['SUPERADMIN', 'ADMIN'].includes(role));
+  const permissions: Record<string, string> = { '/attendance': 'attendance.view', '/devices': 'devices.view', '/employees': 'employees.view', '/branches': 'employees.view', '/schedules': 'attendance.view', '/incidents': 'incidents.manage', '/reports': 'reports.view', '/users': 'users.manage', '/settings': 'devices.view', '/audit': 'attendance.view' };
 
   const menuItems = [
     { to: '/', label: t('menu.home'), icon: LayoutDashboard },
@@ -54,19 +56,19 @@ export const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ is
         }`}
       >
         {/* Brand / Logo */}
-        <div className="h-16 flex items-center px-5 border-b border-slate-200 gap-3 bg-white">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-sm shadow-indigo-200 text-sm">
+        <div className="h-16 flex items-center px-4 border-b border-[#DFE7EB] gap-3 bg-white">
+          <div className="w-9 h-9 rounded-xl bg-[#00695F] flex items-center justify-center text-white shadow-sm text-sm shrink-0">
             <Clock className="w-5 h-5 text-white" />
           </div>
           <div className="flex flex-col overflow-hidden">
-            <span className="font-bold text-sm tracking-tight text-slate-800 truncate">华龙商业集团</span>
-            <span className="text-[11px] text-indigo-600 font-medium truncate">Grupo Comercial David Guan</span>
+            <span className="font-bold text-sm tracking-tight text-[#203441] truncate">{compact ? t('navigation.company') : (language === 'zh-CN' ? '百分百 (BAI FEN BAI)' : 'BAI FEN BAI')}</span>
+            <span className="text-[11px] text-[#00695F] font-semibold truncate">{compact ? 'CHECADOR WPC' : (language === 'zh-CN' ? '连锁餐厅考勤中心' : 'Restaurantes')}</span>
           </div>
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 bg-white">
-          {menuItems.map((item) => {
+        <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-1 bg-white">
+          {menuItems.filter(item => !compact || !permissions[item.to] || privileged || user?.permissions?.includes(permissions[item.to])).map((item) => {
             const Icon = item.icon;
             return (
               <NavLink
@@ -74,10 +76,10 @@ export const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ is
                 to={item.to}
                 onClick={onClose}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     isActive
-                      ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                      ? 'bg-[#E6F2F0] text-[#00695F] font-bold border-l-3 border-[#00695F] shadow-2xs'
+                      : 'text-[#60727E] hover:text-[#203441] hover:bg-[#F4F7F8]'
                   }`
                 }
               >

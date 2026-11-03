@@ -1,0 +1,394 @@
+[
+  {
+    "width": 320,
+    "route": "dashboard",
+    "mainWidth": 314,
+    "pageWidth": 314,
+    "rawKeys": false,
+    "viewport": 314
+  },
+  {
+    "width": 320,
+    "route": "attendance",
+    "heading": "考勤监控与打卡明细",
+    "mainWidth": 314,
+    "pageWidth": 314,
+    "rawKeys": false,
+    "viewport": 314
+  },
+  {
+    "width": 320,
+    "route": "employees",
+    "heading": "员工管理",
+    "mainWidth": 314,
+    "pageWidth": 314,
+    "rawKeys": false,
+    "viewport": 314
+  },
+  {
+    "width": 320,
+    "route": "branches",
+    "heading": "分店管理",
+    "mainWidth": 314,
+    "pageWidth": 314,
+    "rawKeys": false,
+    "viewport": 314
+  },
+  {
+    "width": 320,
+    "route": "schedules",
+    "heading": "班次与排班规则",
+    "mainWidth": 320,
+    "pageWidth": 320,
+    "rawKeys": false,
+    "viewport": 320
+  },
+  {
+    "width": 320,
+    "route": "users",
+    "heading": "系统操作员与权限配置",
+    "mainWidth": 320,
+    "pageWidth": 320,
+    "rawKeys": false,
+    "viewport": 320
+  },
+  {
+    "width": 320,
+    "route": "devices",
+    "heading": "生物识别硬件管理VPN Mango WireGuard",
+    "mainWidth": 314,
+    "pageWidth": 314,
+    "rawKeys": false,
+    "viewport": 314
+  },
+  {
+    "width": 320,
+    "route": "incidents",
+    "heading": "考勤异常与请假/补卡审批",
+    "mainWidth": 320,
+    "pageWidth": 320,
+    "rawKeys": false,
+    "viewport": 320
+  },
+  {
+    "width": 320,
+    "route": "reports",
+    "heading": "考勤报表",
+    "mainWidth": 314,
+    "pageWidth": 314,
+    "rawKeys": false,
+    "viewport": 314
+  },
+  {
+    "width": 320,
+    "route": "audit",
+    "heading": "系统操作审计与数据变更追踪",
+    "mainWidth": 320,
+    "pageWidth": 320,
+    "rawKeys": false,
+    "viewport": 320
+  },
+  {
+    "width": 320,
+    "route": "settings",
+    "heading": "FA200 设置",
+    "mainWidth": 314,
+    "pageWidth": 314,
+    "rawKeys": false,
+    "viewport": 314
+  },
+  {
+    "width": 375,
+    "route": "dashboard",
+    "mainWidth": 369,
+    "pageWidth": 369,
+    "rawKeys": false,
+    "viewport": 369
+  },
+  {
+    "width": 375,
+    "route": "attendance",
+    "heading": "考勤监控与打卡明细",
+    "mainWidth": 375,
+    "pageWidth": 375,
+    "rawKeys": false,
+    "viewport": 375
+  },
+  {
+    "width": 375,
+    "route": "employees",
+    "heading": "员工管理",
+    "mainWidth": 369,
+    "pageWidth": 369,
+    "rawKeys": false,
+    "viewport": 369
+  },
+  {
+    "width": 375,
+    "route": "branches",
+    "heading": "分店管理",
+    "mainWidth": 369,
+    "pageWidth": 369,
+    "rawKeys": false,
+    "viewport": 369
+  },
+  {
+    "width": 375,
+    "route": "schedules",
+    "heading": "班次与排班规则",
+    "mainWidth": 375,
+    "pageWidth": 375,
+    "rawKeys": false,
+    "viewport": 375
+  },
+  {
+    "width": 375,
+    "route": "users",
+    "heading": "系统操作员与权限配置",
+    "mainWidth": 375,
+    "pageWidth": 375,
+    "rawKeys": false,
+    "viewport": 375
+  },
+  {
+    "width": 375,
+    "route": "devices",
+    "heading": "生物识别硬件管理VPN Mango WireGuard",
+    "mainWidth": 369,
+    "pageWidth": 369,
+    "rawKeys": false,
+    "viewport": 369
+  },
+  {
+    "width": 375,
+    "route": "incidents",
+    "heading": "考勤异常与请假/补卡审批",
+    "mainWidth": 375,
+    "pageWidth": 375,
+    "rawKeys": false,
+    "viewport": 375
+  },
+  {
+    "width": 375,
+    "route": "reports",
+    "heading": "考勤报表",
+    "mainWidth": 369,
+    "pageWidth": 369,
+    "rawKeys": false,
+    "viewport": 369
+  },
+  {
+    "width": 375,
+    "route": "audit",
+    "heading": "系统操作审计与数据变更追踪",
+    "mainWidth": 375,
+    "pageWidth": 375,
+    "rawKeys": false,
+    "viewport": 375
+  },
+  {
+    "width": 375,
+    "route": "settings",
+    "heading": "FA200 设置",
+    "mainWidth": 369,
+    "pageWidth": 369,
+    "rawKeys": false,
+    "viewport": 369
+  },
+  {
+    "width": 390,
+    "route": "dashboard",
+    "mainWidth": 384,
+    "pageWidth": 384,
+    "rawKeys": false,
+    "viewport": 384
+  },
+  {
+    "width": 390,
+    "route": "attendance",
+    "heading": "考勤监控与打卡明细",
+    "mainWidth": 390,
+    "pageWidth": 390,
+    "rawKeys": false,
+    "viewport": 390
+  },
+  {
+    "width": 390,
+    "route": "employees",
+    "heading": "员工管理",
+    "mainWidth": 384,
+    "pageWidth": 384,
+    "rawKeys": false,
+    "viewport": 384
+  },
+  {
+    "width": 390,
+    "route": "branches",
+    "heading": "分店管理",
+    "mainWidth": 384,
+    "pageWidth": 384,
+    "rawKeys": false,
+    "viewport": 384
+  },
+  {
+    "width": 390,
+    "route": "schedules",
+    "heading": "班次与排班规则",
+    "mainWidth": 390,
+    "pageWidth": 390,
+    "rawKeys": false,
+    "viewport": 390
+  },
+  {
+    "width": 390,
+    "route": "users",
+    "heading": "系统操作员与权限配置",
+    "mainWidth": 390,
+    "pageWidth": 390,
+    "rawKeys": false,
+    "viewport": 390
+  },
+  {
+    "width": 390,
+    "route": "devices",
+    "heading": "生物识别硬件管理VPN Mango WireGuard",
+    "mainWidth": 384,
+    "pageWidth": 384,
+    "rawKeys": false,
+    "viewport": 384
+  },
+  {
+    "width": 390,
+    "route": "incidents",
+    "heading": "考勤异常与请假/补卡审批",
+    "mainWidth": 390,
+    "pageWidth": 390,
+    "rawKeys": false,
+    "viewport": 390
+  },
+  {
+    "width": 390,
+    "route": "reports",
+    "heading": "考勤报表",
+    "mainWidth": 384,
+    "pageWidth": 384,
+    "rawKeys": false,
+    "viewport": 384
+  },
+  {
+    "width": 390,
+    "route": "audit",
+    "heading": "系统操作审计与数据变更追踪",
+    "mainWidth": 390,
+    "pageWidth": 390,
+    "rawKeys": false,
+    "viewport": 390
+  },
+  {
+    "width": 390,
+    "route": "settings",
+    "heading": "FA200 设置",
+    "mainWidth": 384,
+    "pageWidth": 384,
+    "rawKeys": false,
+    "viewport": 384
+  },
+  {
+    "width": 430,
+    "route": "dashboard",
+    "mainWidth": 424,
+    "pageWidth": 424,
+    "rawKeys": false,
+    "viewport": 424
+  },
+  {
+    "width": 430,
+    "route": "attendance",
+    "heading": "考勤监控与打卡明细",
+    "mainWidth": 430,
+    "pageWidth": 430,
+    "rawKeys": false,
+    "viewport": 430
+  },
+  {
+    "width": 430,
+    "route": "employees",
+    "heading": "员工管理",
+    "mainWidth": 424,
+    "pageWidth": 424,
+    "rawKeys": false,
+    "viewport": 424
+  },
+  {
+    "width": 430,
+    "route": "branches",
+    "heading": "分店管理",
+    "mainWidth": 424,
+    "pageWidth": 424,
+    "rawKeys": false,
+    "viewport": 424
+  },
+  {
+    "width": 430,
+    "route": "schedules",
+    "heading": "班次与排班规则",
+    "mainWidth": 430,
+    "pageWidth": 430,
+    "rawKeys": false,
+    "viewport": 430
+  },
+  {
+    "width": 430,
+    "route": "users",
+    "heading": "系统操作员与权限配置",
+    "mainWidth": 430,
+    "pageWidth": 430,
+    "rawKeys": false,
+    "viewport": 430
+  },
+  {
+    "width": 430,
+    "route": "devices",
+    "heading": "生物识别硬件管理VPN Mango WireGuard",
+    "mainWidth": 424,
+    "pageWidth": 424,
+    "rawKeys": false,
+    "viewport": 424
+  },
+  {
+    "width": 430,
+    "route": "incidents",
+    "heading": "考勤异常与请假/补卡审批",
+    "mainWidth": 430,
+    "pageWidth": 430,
+    "rawKeys": false,
+    "viewport": 430
+  },
+  {
+    "width": 430,
+    "route": "reports",
+    "heading": "考勤报表",
+    "mainWidth": 424,
+    "pageWidth": 424,
+    "rawKeys": false,
+    "viewport": 424
+  },
+  {
+    "width": 430,
+    "route": "audit",
+    "heading": "系统操作审计与数据变更追踪",
+    "mainWidth": 430,
+    "pageWidth": 430,
+    "rawKeys": false,
+    "viewport": 430
+  },
+  {
+    "width": 430,
+    "route": "settings",
+    "heading": "FA200 设置",
+    "mainWidth": 424,
+    "pageWidth": 424,
+    "rawKeys": false,
+    "viewport": 424
+  }
+]

@@ -1,5 +1,6 @@
 using Attendance.Application.DTOs;
 using Attendance.Application.Interfaces;
+using Attendance.Application.Services;
 using Attendance.Domain.Entities;
 using Attendance.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -14,10 +15,12 @@ namespace Attendance.Api.Controllers;
 public class EmployeesController : ControllerBase
 {
     private readonly IAppDbContext _context;
+    private readonly IBiometricIngestionService _ingestionService;
 
-    public EmployeesController(IAppDbContext context)
+    public EmployeesController(IAppDbContext context, IBiometricIngestionService ingestionService)
     {
         _context = context;
+        _ingestionService = ingestionService;
     }
 
     [HttpGet]
@@ -156,9 +159,27 @@ public class EmployeesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateEmployee([FromBody] CreateEmployeeRequest request)
     {
-        if (await _context.Employees.AnyAsync(e => e.EmployeeCode == request.EmployeeCode))
+        var rawCode = request.EmployeeCode?.Trim();
+        if (string.IsNullOrWhiteSpace(rawCode))
         {
-            return BadRequest(new { message = "El código de empleado ya está en uso" });
+            return BadRequest(new { message = "El código de empleado es requerido." });
+        }
+
+        if (!long.TryParse(rawCode, out var numericId) || numericId <= 0 || !rawCode.All(char.IsDigit))
+        {
+            return BadRequest(new { message = "El código de empleado debe ser un número entero positivo (solo dígitos, ej. 1, 2, 4)." });
+        }
+
+        if (numericId > 99999999)
+        {
+            return BadRequest(new { message = "El código numérico excede el límite admitido por el checador FA200 (máximo 8 dígitos)." });
+        }
+
+        var normalizedCode = numericId.ToString();
+
+        if (await _context.Employees.AnyAsync(e => e.EmployeeCode == normalizedCode || e.BiometricExternalId == normalizedCode))
+        {
+            return BadRequest(new { message = $"El código de empleado / ID de checador '{normalizedCode}' ya está registrado en el sistema." });
         }
 
         var branch = await _context.Branches.FindAsync(request.BranchId);
@@ -170,13 +191,13 @@ public class EmployeesController : ControllerBase
             BranchId = request.BranchId,
             DepartmentId = request.DepartmentId,
             PositionId = request.PositionId,
-            EmployeeCode = request.EmployeeCode.Trim().ToUpperInvariant(),
+            EmployeeCode = normalizedCode,
             FirstName = request.FirstName.Trim(),
             LastName = request.LastName.Trim(),
             Email = request.Email?.Trim(),
             Phone = request.Phone?.Trim(),
             HireDate = request.HireDate,
-            BiometricExternalId = string.IsNullOrWhiteSpace(request.BiometricExternalId) ? request.EmployeeCode : request.BiometricExternalId,
+            BiometricExternalId = normalizedCode,
             Status = CommonStatus.Active,
             CreatedAt = DateTime.UtcNow
         };
@@ -193,6 +214,16 @@ public class EmployeesController : ControllerBase
                 ValidFrom = DateTime.UtcNow.Date
             });
             await _context.SaveChangesAsync();
+        }
+
+        // Automatically link any pending unlinked punches from FA200 matching this employee
+        try
+        {
+            await _ingestionService.ReprocessUnlinkedEventsAsync();
+        }
+        catch
+        {
+            // Non-blocking
         }
 
         return CreatedAtAction(nameof(GetEmployee), new { id = emp.Id }, new
@@ -246,6 +277,16 @@ public class EmployeesController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+
+        try
+        {
+            await _ingestionService.ReprocessUnlinkedEventsAsync();
+        }
+        catch
+        {
+            // Non-blocking
+        }
+
         return Ok(new
         {
             id = emp.Id,

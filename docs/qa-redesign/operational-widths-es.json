@@ -1,0 +1,214 @@
+[
+  {
+    "width": 320,
+    "route": "dashboard",
+    "mainWidth": 320,
+    "pageWidth": 320,
+    "rawKeys": false,
+    "viewport": 314
+  },
+  {
+    "width": 320,
+    "route": "attendance",
+    "heading": "Control de Asistencia",
+    "mainWidth": 358,
+    "pageWidth": 358,
+    "rawKeys": false,
+    "viewport": 314
+  },
+  {
+    "width": 320,
+    "route": "incidents",
+    "heading": "Gestión de Incidencias y Justificaciones",
+    "mainWidth": 320,
+    "pageWidth": 320,
+    "rawKeys": false,
+    "viewport": 320
+  },
+  {
+    "width": 320,
+    "route": "reports",
+    "heading": "Reporte de asistencia",
+    "mainWidth": 314,
+    "pageWidth": 314,
+    "rawKeys": false,
+    "viewport": 314
+  },
+  {
+    "width": 320,
+    "route": "audit",
+    "heading": "Registro de Auditoría y Trazabilidad",
+    "mainWidth": 320,
+    "pageWidth": 320,
+    "rawKeys": false,
+    "viewport": 320
+  },
+  {
+    "width": 320,
+    "route": "settings",
+    "heading": "Configuración FA200",
+    "mainWidth": 314,
+    "pageWidth": 314,
+    "rawKeys": false,
+    "viewport": 314
+  },
+  {
+    "width": 375,
+    "route": "dashboard",
+    "mainWidth": 369,
+    "pageWidth": 369,
+    "rawKeys": false,
+    "viewport": 369
+  },
+  {
+    "width": 375,
+    "route": "attendance",
+    "heading": "Control de Asistencia",
+    "mainWidth": 369,
+    "pageWidth": 369,
+    "rawKeys": false,
+    "viewport": 369
+  },
+  {
+    "width": 375,
+    "route": "incidents",
+    "heading": "Gestión de Incidencias y Justificaciones",
+    "mainWidth": 375,
+    "pageWidth": 375,
+    "rawKeys": false,
+    "viewport": 375
+  },
+  {
+    "width": 375,
+    "route": "reports",
+    "heading": "Reporte de asistencia",
+    "mainWidth": 369,
+    "pageWidth": 369,
+    "rawKeys": false,
+    "viewport": 369
+  },
+  {
+    "width": 375,
+    "route": "audit",
+    "heading": "Registro de Auditoría y Trazabilidad",
+    "mainWidth": 375,
+    "pageWidth": 375,
+    "rawKeys": false,
+    "viewport": 375
+  },
+  {
+    "width": 375,
+    "route": "settings",
+    "heading": "Configuración FA200",
+    "mainWidth": 369,
+    "pageWidth": 369,
+    "rawKeys": false,
+    "viewport": 369
+  },
+  {
+    "width": 390,
+    "route": "dashboard",
+    "mainWidth": 384,
+    "pageWidth": 384,
+    "rawKeys": false,
+    "viewport": 384
+  },
+  {
+    "width": 390,
+    "route": "attendance",
+    "heading": "Control de Asistencia",
+    "mainWidth": 384,
+    "pageWidth": 384,
+    "rawKeys": false,
+    "viewport": 384
+  },
+  {
+    "width": 390,
+    "route": "incidents",
+    "heading": "Gestión de Incidencias y Justificaciones",
+    "mainWidth": 390,
+    "pageWidth": 390,
+    "rawKeys": false,
+    "viewport": 390
+  },
+  {
+    "width": 390,
+    "route": "reports",
+    "heading": "Reporte de asistencia",
+    "mainWidth": 384,
+    "pageWidth": 384,
+    "rawKeys": false,
+    "viewport": 384
+  },
+  {
+    "width": 390,
+    "route": "audit",
+    "heading": "Registro de Auditoría y Trazabilidad",
+    "mainWidth": 390,
+    "pageWidth": 390,
+    "rawKeys": false,
+    "viewport": 390
+  },
+  {
+    "width": 390,
+    "route": "settings",
+    "heading": "Configuración FA200",
+    "mainWidth": 384,
+    "pageWidth": 384,
+    "rawKeys": false,
+    "viewport": 384
+  },
+  {
+    "width": 430,
+    "route": "dashboard",
+    "mainWidth": 424,
+    "pageWidth": 424,
+    "rawKeys": false,
+    "viewport": 424
+  },
+  {
+    "width": 430,
+    "route": "attendance",
+    "heading": "Control de Asistencia",
+    "mainWidth": 424,
+    "pageWidth": 424,
+    "rawKeys": false,
+    "viewport": 424
+  },
+  {
+    "width": 430,
+    "route": "incidents",
+    "heading": "Gestión de Incidencias y Justificaciones",
+    "mainWidth": 430,
+    "pageWidth": 430,
+    "rawKeys": false,
+    "viewport": 430
+  },
+  {
+    "width": 430,
+    "route": "reports",
+    "heading": "Reporte de asistencia",
+    "mainWidth": 424,
+    "pageWidth": 424,
+    "rawKeys": false,
+    "viewport": 424
+  },
+  {
+    "width": 430,
+    "route": "audit",
+    "heading": "Registro de Auditoría y Trazabilidad",
+    "mainWidth": 424,
+    "pageWidth": 424,
+    "rawKeys": false,
+    "viewport": 424
+  },
+  {
+    "width": 430,
+    "route": "settings",
+    "heading": "Configuración FA200",
+    "mainWidth": 424,
+    "pageWidth": 424,
+    "rawKeys": false,
+    "viewport": 424
+  }
+]

@@ -1,0 +1,66 @@
+# ==============================================================================
+# EJEMPLO DE CONFIGURACIÓN DEL SERVIDOR WIREGUARD (VPS HOSTINGER)
+# Archivo de destino en servidor: /etc/wireguard/wg0.conf
+# ==============================================================================
+# NOTA DE SEGURIDAD:
+# Las claves privadas NUNCA deben incluirse en este repositorio ni en logs.
+# Generar claves en el servidor con: wg genkey | tee private.key | wg pubkey > public.key
+# ==============================================================================
+
+[Interface]
+Address = 10.10.0.1/24
+ListenPort = 51820
+PrivateKey = <SERVER_PRIVATE_KEY_GENERATED_ON_VPS>
+
+# Reglas de enrutamiento y aislamiento de red al iniciar WireGuard
+# 1. Permitir reenvío de tráfico entre el túnel VPN y las subredes de los checadores
+PostUp = iptables -A FORWARD -i wg0 -o wg0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+# 2. Permitir que el servidor (10.10.0.1) alcance las IPs LAN de los FA200
+PostUp = iptables -A FORWARD -s 10.10.0.1/32 -d 10.10.0.0/16 -j ACCEPT
+# 3. AISLAMIENTO: Bloquear tráfico directo entre sucursales distintas
+PostUp = iptables -A FORWARD -s 10.10.1.0/24 -d 10.10.2.0/24 -j DROP
+PostUp = iptables -A FORWARD -s 10.10.1.0/24 -d 10.10.3.0/24 -j DROP
+PostUp = iptables -A FORWARD -s 10.10.1.0/24 -d 10.10.4.0/24 -j DROP
+PostUp = iptables -A FORWARD -s 10.10.2.0/24 -d 10.10.1.0/24 -j DROP
+PostUp = iptables -A FORWARD -s 10.10.2.0/24 -d 10.10.3.0/24 -j DROP
+PostUp = iptables -A FORWARD -s 10.10.2.0/24 -d 10.10.4.0/24 -j DROP
+
+# Limpieza de reglas al detener WireGuard
+PostDown = iptables -D FORWARD -i wg0 -o wg0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+PostDown = iptables -D FORWARD -s 10.10.0.1/32 -d 10.10.0.0/16 -j ACCEPT
+
+# ------------------------------------------------------------------------------
+# PEER 1: SUCURSAL 1 - CENTRO (GL-MT300N-V2 Mango)
+# ------------------------------------------------------------------------------
+[Peer]
+# Clave pública del router Mango de Sucursal 1
+PublicKey = <MANGO_SUCURSAL_1_PUBLIC_KEY>
+# IP del túnel del router y subred LAN donde reside el FA200 (10.10.1.10)
+AllowedIPs = 10.10.0.2/32, 10.10.1.0/24
+
+# ------------------------------------------------------------------------------
+# PEER 2: SUCURSAL 2 - NORTE (GL-MT300N-V2 Mango)
+# ------------------------------------------------------------------------------
+[Peer]
+# Clave pública del router Mango de Sucursal 2
+PublicKey = <MANGO_SUCURSAL_2_PUBLIC_KEY>
+# IP del túnel del router y subred LAN donde reside el FA200 (10.10.2.10)
+AllowedIPs = 10.10.0.3/32, 10.10.2.0/24
+
+# ------------------------------------------------------------------------------
+# PEER 3: SUCURSAL 3 - PLAZA MAYOR (GL-MT300N-V2 Mango)
+# ------------------------------------------------------------------------------
+[Peer]
+# Clave pública del router Mango de Sucursal 3
+PublicKey = <MANGO_SUCURSAL_3_PUBLIC_KEY>
+# IP del túnel del router y subred LAN donde reside el FA200 (10.10.3.10)
+AllowedIPs = 10.10.0.4/32, 10.10.3.0/24
+
+# ------------------------------------------------------------------------------
+# PEER 4: SUCURSAL 4 - SUR (GL-MT300N-V2 Mango)
+# ------------------------------------------------------------------------------
+[Peer]
+# Clave pública del router Mango de Sucursal 4
+PublicKey = <MANGO_SUCURSAL_4_PUBLIC_KEY>
+# IP del túnel del router y subred LAN donde reside el FA200 (10.10.4.10)
+AllowedIPs = 10.10.0.5/32, 10.10.4.0/24

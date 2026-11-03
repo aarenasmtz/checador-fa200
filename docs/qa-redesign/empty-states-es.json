@@ -1,0 +1,57 @@
+[
+  {
+    "route": "dashboard",
+    "mainText": "Inicio\nTotal Empleados\n\n0\n\nPresentes Hoy\n\n0\n\nRetardos Hoy\n\n0\n\nFaltas Hoy\n\n0\n\nTendencia de Asistencia (Últimos 7 días)\nClic para ver detalle\nPresente\nRetardo\nFalta\nNo hay datos de tendencia para este período.\n💡\nHaz clic en cualquier barra de la gráfica para ver la lista de retardos y entradas puntuales.\nAsistencia por Sucursal\n\nNo hay distribución por sucursal disponible.\n\nChecadas en Tiempo Real\n0 registros\nSucursal",
+    "overflow": 0
+  },
+  {
+    "route": "attendance",
+    "mainText": "Control de Asistencia\nResumen\nCalendario\nRegistros Reloj\nReprocesar Asistencia\nFiltros de búsqueda\n\nNo hay información para mostrar\n\nAjusta los filtros o vuelve a intentarlo más tarde.\n\nTotal: 0 registros · Pág. 1 de 1\nAnterior\nSiguiente",
+    "overflow": 0
+  },
+  {
+    "route": "employees",
+    "mainText": "Empleados\nDar de Alta Empleado\nFiltros y Búsqueda\n\nNo se encontraron empleados con los filtros seleccionados\n\nIntenta ajustar los términos de búsqueda o cambiar de sucursal\n\nTotal: 0 empleados · Pág. 1 de 1\nAnterior\nSiguiente",
+    "overflow": 0
+  },
+  {
+    "route": "branches",
+    "mainText": "Sucursales\nActualizar\nNueva Sucursal\nNo se encontraron sucursales\n\nIntente con otro término de búsqueda o dé de alta una nueva sucursal.\n\nAgregar Sucursal Ahora",
+    "overflow": 0
+  },
+  {
+    "route": "schedules",
+    "mainText": "Horarios y Turnos\nActualizar\nNuevo Horario\nNo se encontraron horarios\n\nHaga clic en \"+ Nuevo Horario\" para crear turnos con horarios de entrada, salida, comida y tolerancias.\n\nCrear Horario Ahora",
+    "overflow": 0
+  },
+  {
+    "route": "users",
+    "mainText": "Usuarios y Roles del Sistema\nNo se encontraron usuarios\n\nIntenta con otro término de búsqueda.",
+    "overflow": 0
+  },
+  {
+    "route": "devices",
+    "mainText": "Dispositivos Biométricos\nVPN Mango WireGuard\nActualizar\nRegistrar Checador VPN\nNo hay relojes checadores registrados\n\nHaga clic en \"+ Registrar Checador VPN\" para dar de alta su equipo biométrico FA200 y asociarlo a la red del router Mango.\n\nRegistrar Checador Ahora",
+    "overflow": 0
+  },
+  {
+    "route": "incidents",
+    "mainText": "Gestión de Incidencias y Justificaciones\nNueva Incidencia\nTodas las sucursales\nTodos los estados\nPendiente\nAprobada\nRechazada\nCanceladas\n\nNo hay información para mostrar\n\nAjusta los filtros o vuelve a intentarlo más tarde.\n\nPágina 1 / 1 · 0 registros\n1 / 1",
+    "overflow": 0
+  },
+  {
+    "route": "reports",
+    "mainText": "Bai Fen Bai (百分百)\nRevisión Semanal de Nómina\nReporte de asistencia\nExportar Excel\nExportar PDF\nCSV\nPeriodo Semanal:\n◀ Semana anterior (Pago Lunes)\nSemana actual\nSemana siguiente ▶\n📅 2026-11-02 (Lunes)➜2026-11-08 (Domingo)\nFecha de inicio:\nFecha de fin:\nSucursal:\nTodas las sucursales\nEmpleado:\nTodos los empleados\nEstado:\nTodos los estados\nCompleto (A tiempo)\nRetardo\nIncompleto\nSalida anticipada\nSin checadas / Falta\nP",
+    "overflow": 0
+  },
+  {
+    "route": "audit",
+    "mainText": "Registro de Auditoría y Trazabilidad\nNo hay registros de auditoría",
+    "overflow": 0
+  },
+  {
+    "route": "settings",
+    "mainText": "Configuración FA200\nVer dispositivos\nConectividad actual\nPrueba piloto documentada\nProtocolo de homologación\n0 / 30 · guardado en este navegador\n1. Equipo y alimentación\n0 / 5\n2. Red y dirección IP\n0 / 5\n3. Protocolo de comunicación\n0 / 5\n4. Usuarios y biometría\n0 / 5\n5. Asistencia e integridad de datos\n0 / 5\n6. Validación operativa\n0 / 5",
+    "overflow": 0
+  }
+]

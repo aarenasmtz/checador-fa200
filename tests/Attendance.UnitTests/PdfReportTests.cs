@@ -18,47 +18,58 @@ public class PdfReportTests
         var items = new List<AttendanceReportItemDto>
         {
             new AttendanceReportItemDto(
-                "EMP001",
-                "张伟 / Carlos López",
-                "Sucursal Centro / 中心店",
-                "Cocina / 厨房",
-                new DateTime(2026, 10, 19),
-                "09:00",
-                "14:00",
-                "15:00",
-                "18:00",
-                0,
-                480,
-                8.0m,
-                0,
-                0.0m,
-                "A tiempo / 准时"
+                EmployeeId: 1,
+                EmployeeCode: "EMP001",
+                EmployeeName: "张伟 / Carlos López",
+                BranchName: "Sucursal Centro / 中心店",
+                DepartmentName: "Cocina / 厨房",
+                Date: new DateTime(2026, 10, 19),
+                FirstEntry: "09:00",
+                MealExit: "14:00",
+                MealReturn: "15:00",
+                LastExit: "18:00",
+                MinutesLate: 0,
+                MinutesWorked: 480,
+                HoursWorked: 8.0m,
+                HoursWorkedFormatted: "8 h 00 min",
+                OvertimeMinutes: 0,
+                OvertimeHours: 0.0m,
+                Status: "OnTime",
+                BilingualStatus: "Completo / 完整",
+                IsConfirmed: true
             ),
             new AttendanceReportItemDto(
-                "HL-003",
-                "王芳 / María García",
-                "Sucursal Norte / 北店",
-                "Servicio / 服务部",
-                new DateTime(2026, 10, 19),
-                "09:25",
-                null,
-                null,
-                "18:00",
-                25,
-                455,
-                7.58m,
-                0,
-                0.0m,
-                "Retardo / 迟到"
+                EmployeeId: 2,
+                EmployeeCode: "HL-003",
+                EmployeeName: "王芳 / María García",
+                BranchName: "Sucursal Norte / 北店",
+                DepartmentName: "Servicio / 服务部",
+                Date: new DateTime(2026, 10, 19),
+                FirstEntry: "09:25",
+                MealExit: null,
+                MealReturn: null,
+                LastExit: "18:00",
+                MinutesLate: 25,
+                MinutesWorked: 455,
+                HoursWorked: null,
+                HoursWorkedFormatted: "Pendiente de revisión / 待核查",
+                OvertimeMinutes: 0,
+                OvertimeHours: 0.0m,
+                Status: "Late",
+                BilingualStatus: "Retardo / 迟到",
+                RequiresReview: true,
+                ReviewNotes: "Omitió checadas de comida",
+                IsConfirmed: false
             )
         };
 
         var pdfBytes = service.GenerateAttendanceReportPdf(
-            "华龙商业集团 (Grupo Comercial Hualong)",
+            "Bai Fen Bai (百分百)",
             "Todas las Sucursales (全部分店)",
             new DateTime(2026, 10, 1),
             new DateTime(2026, 10, 19),
-            items
+            items,
+            "Periodo: Semanal"
         );
 
         pdfBytes.Should().NotBeNull();

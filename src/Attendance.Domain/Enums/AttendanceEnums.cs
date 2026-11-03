@@ -36,7 +36,8 @@ public enum DeviceConnectionMode
     TcpIp = 1,
     AdmsPush = 2,
     LocalAgent = 3,
-    Usb = 4
+    Usb = 4,
+    VpnTunnel = 5
 }
 
 public enum DeviceStatus
